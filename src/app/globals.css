@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8f9fa;
+  --foreground: #212529;
+
+  --primary: #ee2b34;
+  --primary-hover: #d12129;
+  --bg-card: #ffffff;
+  --border: #e0e0e0;
+
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121212;
+    --foreground: #f8f9fa;
+    --bg-card: #1e1e1e;
+    --border: #333333;
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+/* App Wrapper for responsive centering on desktop */
+.app-wrapper {
+  max-width: 480px;
+  /* Mobile width constraint on desktop */
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+  background-color: var(--background);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  overflow-x: hidden;
+}
+
+@media (max-width: 480px) {
+  .app-wrapper {
+    box-shadow: none;
+    max-width: 100%;
+  }
+}

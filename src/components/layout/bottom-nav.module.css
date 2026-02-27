@@ -1,0 +1,11 @@
+.nav {
+    /* To override global padding if any */
+}
+
+.navItem {
+    transition: all 0.2s ease-in-out;
+}
+
+.navItem:active {
+    transform: scale(0.95);
+}
