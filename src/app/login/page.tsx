@@ -150,7 +150,7 @@ export default function LoginPage() {
                         {!isRegistering ? (
                             <form onSubmit={handleLogin} className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
                                 <div className="space-y-1 text-left">
-                                    <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">Usuario / Correo / Celular</label>
+                                    <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">Usuario - Celular</label>
                                     <input
                                         type="text"
                                         required
