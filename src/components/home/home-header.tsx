@@ -1,6 +1,6 @@
 "use client"
 import { useAuthStore } from "@/lib/auth-store";
-import { LogOut } from "lucide-react";
+import { LogOut, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
@@ -30,13 +30,13 @@ export function HomeHeader() {
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mt-1">¿Llevamos tu despensa hoy?</p>
             </div>
-            {/* Cerrar Sesión Button */}
+            {/* Cerrar Sesión / Login Button */}
             <button
                 onClick={handleLogout}
                 className="flex items-center justify-center p-2 rounded-xl bg-white/5 border border-white/10 shadow-sm hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors text-gray-500"
-                title="Cerrar Sesión"
+                title={user?.role === "GUEST" ? "Iniciar Sesión" : "Cerrar Sesión"}
             >
-                <LogOut size={20} />
+                {user?.role === "GUEST" ? <LogIn size={20} /> : <LogOut size={20} />}
             </button>
         </header>
     );

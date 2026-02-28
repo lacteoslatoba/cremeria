@@ -10,6 +10,11 @@ export default function LoginPage() {
 
     const [isRegistering, setIsRegistering] = useState(false);
 
+    const handleGuestLogin = () => {
+        setUser({ id: "guest", name: "Invitado", email: null, phone: null, role: "GUEST" });
+        router.push("/");
+    };
+
     // Login State
     const [identifier, setIdentifier] = useState("");
     const [password, setPassword] = useState("");
@@ -196,6 +201,16 @@ export default function LoginPage() {
                                         crea tu cuenta
                                     </button>
                                 </div>
+
+                                <div className="flex justify-center mt-4 border-t border-gray-200/50 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={handleGuestLogin}
+                                        className="text-sm text-[#2d2a28]/60 hover:text-[#2d2a28] font-medium transition-colors"
+                                    >
+                                        Entrar como invitado (solo explorar)
+                                    </button>
+                                </div>
                             </form>
                         ) : (
                             <form onSubmit={handleRegister} className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
@@ -321,6 +336,16 @@ export default function LoginPage() {
                                         className="text-sm text-primary hover:text-primary-hover font-bold transition-colors underline decoration-2 underline-offset-4"
                                     >
                                         inicia sesión
+                                    </button>
+                                </div>
+
+                                <div className="flex justify-center mt-2 border-t border-gray-200/50 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={handleGuestLogin}
+                                        className="text-sm text-[#2d2a28]/60 hover:text-[#2d2a28] font-medium transition-colors"
+                                    >
+                                        Entrar como invitado (solo explorar)
                                     </button>
                                 </div>
                             </form>

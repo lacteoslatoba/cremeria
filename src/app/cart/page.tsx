@@ -21,6 +21,12 @@ export default function CartPage() {
 
     const handleCheckout = async () => {
         if (items.length === 0) return;
+
+        if (user?.role === "GUEST") {
+            router.push("/login");
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -142,7 +148,7 @@ export default function CartPage() {
                     disabled={isSubmitting || items.length === 0}
                     className="flex items-center disabled:opacity-50 justify-center w-full py-4 rounded-2xl bg-primary text-white font-bold text-lg transition-all"
                 >
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : "Deslizar para Ordenar →"}
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : (user?.role === "GUEST" ? "Inicia sesión para ordenar →" : "Deslizar para Ordenar →")}
                 </button>
             </div>
 
