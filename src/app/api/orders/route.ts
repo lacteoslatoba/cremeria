@@ -34,6 +34,7 @@ export async function POST(request: Request) {
                     address: body.address,
                     total: body.total,
                     status: "PENDING",
+                    ...(body.userId ? { user: { connect: { id: body.userId } } } : {}),
                     items: {
                         create: items.map((item: any) => ({
                             product: { connect: { id: item.productId } },

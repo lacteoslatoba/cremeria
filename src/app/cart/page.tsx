@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { useCartStore } from "@/lib/cart-store";
+import { useAuthStore } from "@/lib/auth-store";
 
 export default function CartPage() {
     const router = useRouter();
     const { items, removeItem, updateQuantity, clearCart } = useCartStore();
+    const { user } = useAuthStore();
 
     // Prevent hydration mismatch since zustand uses localStorage
     const [mounted, setMounted] = useState(false);
@@ -30,7 +32,8 @@ export default function CartPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    customerName: "Invitado Móvil",
+                    userId: user?.id,
+                    customerName: user?.name || user?.email || "Invitado Móvil",
                     address: "Ubicación GPS (Actual)",
                     total: total,
                     items: items.map(i => ({
