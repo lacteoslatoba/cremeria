@@ -42,8 +42,9 @@ export default function CartPage() {
             });
 
             if (res.ok) {
+                const data = await res.json();
                 clearCart();
-                router.push("/tracking");
+                router.push(`/tracking?orderId=${data.id}`);
             }
         } catch (error) {
             console.error(error);
