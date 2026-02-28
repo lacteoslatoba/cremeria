@@ -88,7 +88,7 @@ export default function CartPage() {
                                 </div>
 
                                 <div className="flex justify-between items-end">
-                                    <p className="text-primary font-bold drop-shadow-[0_0_2px_rgba(238,43,52,0.4)]">
+                                    <p className="text-primary font-bold">
                                         ${item.price.toFixed(2)}
                                     </p>
 
@@ -98,7 +98,7 @@ export default function CartPage() {
                                             <Minus size={14} />
                                         </button>
                                         <span className="font-semibold text-sm w-4 text-center">{item.quantity}</span>
-                                        <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="p-1 rounded-full text-primary hover:bg-primary-hover transition-colors drop-shadow-[0_0_4px_rgba(238,43,52,0.6)]">
+                                        <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="p-1 rounded-full text-primary hover:bg-primary-hover transition-colors">
                                             <Plus size={14} />
                                         </button>
                                     </div>
@@ -125,7 +125,7 @@ export default function CartPage() {
                     <div className="h-px w-full bg-border/20 my-2" />
                     <div className="flex justify-between items-center text-base">
                         <span className="font-bold text-foreground">Total</span>
-                        <span className="font-black text-xl text-primary drop-shadow-[0_0_8px_rgba(238,43,52,0.6)]">
+                        <span className="font-black text-xl text-primary">
                             ${total.toFixed(2)}
                         </span>
                     </div>
@@ -137,7 +137,7 @@ export default function CartPage() {
                 <button
                     onClick={handleCheckout}
                     disabled={isSubmitting || items.length === 0}
-                    className="flex items-center disabled:opacity-50 justify-center w-full py-4 rounded-2xl bg-primary text-white font-bold text-lg shadow-[0_4px_20px_rgba(238,43,52,0.5)] hover:shadow-[0_4px_30px_rgba(238,43,52,0.8)] hover:-translate-y-1 transition-all"
+                    className="flex items-center disabled:opacity-50 justify-center w-full py-4 rounded-2xl bg-primary text-white font-bold text-lg transition-all"
                 >
                     {isSubmitting ? <Loader2 className="animate-spin" /> : "Deslizar para Ordenar →"}
                 </button>
