@@ -229,7 +229,17 @@ export default function LoginPage() {
                                             type="tel"
                                             placeholder="555-123-4567"
                                             value={regPhone}
-                                            onChange={(e) => setRegPhone(e.target.value)}
+                                            maxLength={12}
+                                            onChange={(e) => {
+                                                const cleaned = e.target.value.replace(/\D/g, '');
+                                                let formatted = cleaned;
+                                                if (cleaned.length > 3 && cleaned.length <= 6) {
+                                                    formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
+                                                } else if (cleaned.length > 6) {
+                                                    formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+                                                }
+                                                setRegPhone(formatted);
+                                            }}
                                             className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium"
                                         />
                                     </div>
