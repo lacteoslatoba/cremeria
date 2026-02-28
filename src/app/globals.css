@@ -52,6 +52,11 @@ body {
   overflow-x: hidden;
 }
 
+.app-wrapper:has(.admin-container) {
+  max-width: 100%;
+  box-shadow: none;
+}
+
 @media (max-width: 480px) {
   .app-wrapper {
     box-shadow: none;

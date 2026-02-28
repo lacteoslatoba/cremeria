@@ -14,7 +14,7 @@ export function BottomNav() {
                 <NavItem href="/" icon={Home} label="Inicio" active={pathname === '/'} />
                 <NavItem href="/search" icon={Search} label="Buscar" active={pathname === '/search'} />
                 <NavItem href="/cart" icon={ShoppingBag} label="Ordenes" active={pathname === '/cart'} />
-                <NavItem href="/profile" icon={User} label="Perfil" active={pathname === '/profile'} />
+                <NavItem href="/admin" icon={User} label="Admin" active={pathname === '/admin'} />
             </div>
         </nav>
     );
