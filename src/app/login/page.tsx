@@ -186,13 +186,16 @@ export default function LoginPage() {
                                     <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:left-full transition-all duration-1000"></div>
                                 </button>
 
-                                <button
-                                    type="button"
-                                    onClick={() => { setError(""); setIsRegistering(true); }}
-                                    className="text-center text-sm text-[#2d2a28]/70 hover:text-[#2d2a28] transition-colors mt-2 font-medium"
-                                >
-                                    Si no tienes cuenta aún, crea tu cuenta
-                                </button>
+                                <div className="text-center mt-2">
+                                    <span className="text-sm text-[#2d2a28]/70 font-medium">Si no tienes cuenta aún, </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setError(""); setIsRegistering(true); }}
+                                        className="text-sm text-primary hover:text-primary-hover font-bold transition-colors underline decoration-2 underline-offset-4"
+                                    >
+                                        crea tu cuenta
+                                    </button>
+                                </div>
                             </form>
                         ) : (
                             <form onSubmit={handleRegister} className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
@@ -310,13 +313,16 @@ export default function LoginPage() {
                                     {loading ? <Loader2 size={24} className="animate-spin" /> : "GUARDAR"}
                                 </button>
 
-                                <button
-                                    type="button"
-                                    onClick={() => { setError(""); setIsRegistering(false); }}
-                                    className="text-center text-sm text-[#2d2a28]/70 hover:text-[#2d2a28] transition-colors mt-2 font-medium"
-                                >
-                                    Si ya tienes cuenta, inicia sesión
-                                </button>
+                                <div className="text-center mt-2">
+                                    <span className="text-sm text-[#2d2a28]/70 font-medium">Si ya tienes cuenta, </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setError(""); setIsRegistering(false); }}
+                                        className="text-sm text-primary hover:text-primary-hover font-bold transition-colors underline decoration-2 underline-offset-4"
+                                    >
+                                        inicia sesión
+                                    </button>
+                                </div>
                             </form>
                         )}
                     </div>
