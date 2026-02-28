@@ -6,7 +6,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     try {
         const { id } = await params;
         const product = await prisma.product.findUnique({
-            where: { id },
+            where: { id }
         });
 
         if (!product) {
@@ -34,7 +34,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
                 stock: body.stock,
                 image: body.image,
                 status: body.status,
-            },
+            }
         });
 
         revalidatePath("/");
@@ -49,15 +49,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        await prisma.product.delete({
-            where: { id },
+
+        // Also delete related order items if necessary or keep them according to the schema
+        // The Prisma schema currently has relation Mode Cascade not explicit for orderItems to Product
+        // We will just try to delete the product, but usually it's better to update status to "INACTIVE" instead of hard DELETE.
+
+        const deletedProduct = await prisma.product.delete({
+            where: { id }
         });
 
         revalidatePath("/");
         revalidatePath("/admin");
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json(deletedProduct);
     } catch (error) {
-        return NextResponse.json({ error: "Failed to delete product" }, { status: 500 });
+        console.error(error);
+        return NextResponse.json({ error: "Failed to delete product (might be linked to active orders)" }, { status: 500 });
     }
 }
