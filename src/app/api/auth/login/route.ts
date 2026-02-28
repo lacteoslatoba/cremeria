@@ -3,22 +3,31 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
     try {
-        const { email, name, phone } = await request.json();
+        const { identifier, name } = await request.json();
 
-        if (!email) {
-            return NextResponse.json({ error: "Email is required" }, { status: 400 });
+        if (!identifier) {
+            return NextResponse.json({ error: "El correo o teléfono es requerido" }, { status: 400 });
         }
 
-        let user = await prisma.user.findUnique({
-            where: { email }
+        // Clean identifier (lowercase if it's email, trim spaces)
+        const cleanId = identifier.trim().toLowerCase();
+        const isEmail = cleanId.includes("@");
+
+        let user = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { email: cleanId },
+                    { phone: cleanId }
+                ]
+            }
         });
 
         if (!user) {
             user = await prisma.user.create({
                 data: {
-                    email,
-                    name: name || email.split("@")[0],
-                    phone: phone || null,
+                    email: isEmail ? cleanId : null,
+                    phone: !isEmail ? cleanId : null,
+                    name: name || (isEmail ? cleanId.split("@")[0] : "Cliente"),
                     role: "CUSTOMER"
                 }
             });

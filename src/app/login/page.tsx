@@ -8,8 +8,7 @@ export default function LoginPage() {
     const { user, setUser } = useAuthStore();
     const router = useRouter();
     const [name, setName] = useState("");
-    const [email, setEmail] = useState("");
-    const [phone, setPhone] = useState("");
+    const [identifier, setIdentifier] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -31,7 +30,7 @@ export default function LoginPage() {
             const res = await fetch("/api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email.toLowerCase(), name, phone })
+                body: JSON.stringify({ identifier: identifier, name: name })
             });
 
             const data = await res.json();
@@ -87,26 +86,16 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-sm font-bold text-gray-300 pl-1">Correo Electrónico (Tu Usuario base)</label>
+                        <label className="text-sm font-bold text-gray-300 pl-1">Correo Electrónico o Celular</label>
                         <input
-                            type="email"
+                            type="text"
                             required
-                            placeholder="maria@correo.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="maria@correo.com o 555-123-4567"
+                            value={identifier}
+                            onChange={(e) => setIdentifier(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 placeholder:text-gray-400 font-medium"
                         />
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="text-sm font-bold text-gray-300 pl-1">Celular / Teléfono</label>
-                        <input
-                            type="tel"
-                            placeholder="Ej. 555 123 4567"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 placeholder:text-gray-400 font-medium"
-                        />
+                        <p className="text-xs text-gray-500 pl-1 mt-1">Si no recuerdas tu correo, también puedes poner tu celular entero.</p>
                     </div>
 
                     {error && (
