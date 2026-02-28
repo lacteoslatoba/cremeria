@@ -31,6 +31,12 @@ export async function POST(request: Request) {
                     role: "CUSTOMER"
                 }
             });
+        } else if (name && user.name !== name) {
+            // Update name if they typed a new one during login
+            user = await prisma.user.update({
+                where: { id: user.id },
+                data: { name: name }
+            });
         }
 
         return NextResponse.json(user, { status: 200 });
