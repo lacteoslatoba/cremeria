@@ -45,7 +45,7 @@ body {
   max-width: 480px;
   /* Mobile width constraint on desktop */
   margin: 0 auto;
-  min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   background-color: var(--background);
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);

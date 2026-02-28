@@ -9,7 +9,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
   const categoryFilter = params.category || undefined;
 
   return (
-    <main className="min-h-screen pb-safe">
+    <main className="min-h-[100dvh] pb-safe">
       <header className="pt-10 px-4">
         <h1 className="text-2xl font-black text-foreground tracking-tight">
           Hola, <span className="text-primary drop-shadow-[0_0_8px_rgba(238,43,52,0.4)]">Miguel</span> 👋

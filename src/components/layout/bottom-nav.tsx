@@ -9,8 +9,8 @@ export function BottomNav() {
     const pathname = usePathname();
 
     return (
-        <nav className={cn(styles.nav, "fixed bottom-0 left-0 right-0 z-50 bg-[#1e1e1e]/90 backdrop-blur-md border-t border-white/10")}>
-            <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
+        <nav className={cn(styles.nav, "fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] z-50 bg-[#1e1e1e]/90 backdrop-blur-md border-t border-white/10")}>
+            <div className="flex justify-around items-center h-16 px-4 w-full">
                 <NavItem href="/" icon={Home} label="Inicio" active={pathname === '/'} />
                 <NavItem href="/search" icon={Search} label="Buscar" active={pathname === '/search'} />
                 <NavItem href="/cart" icon={ShoppingBag} label="Ordenes" active={pathname === '/cart'} />

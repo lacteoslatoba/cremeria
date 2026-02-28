@@ -6,6 +6,14 @@ export const metadata: Metadata = {
     description: "Premium food and grocery delivery mobile app.",
 };
 
+export const viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    themeColor: '#ee2b34',
+};
+
 export default function RootLayout({
     children,
 }: Readonly<{
@@ -17,7 +25,6 @@ export default function RootLayout({
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
                 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-                <meta name="theme-color" content="#ee2b34" />
             </head>
             <body>
                 <div className="app-wrapper">
