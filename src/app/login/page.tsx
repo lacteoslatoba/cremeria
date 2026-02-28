@@ -81,7 +81,7 @@ export default function LoginPage() {
                             placeholder="Ej. María Sánchez"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-white placeholder:text-gray-600 font-medium"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 placeholder:text-gray-400 font-medium"
                         />
                     </div>
 
@@ -93,7 +93,7 @@ export default function LoginPage() {
                             placeholder="maria@correo.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-white placeholder:text-gray-600 font-medium"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 placeholder:text-gray-400 font-medium"
                         />
                     </div>
 
