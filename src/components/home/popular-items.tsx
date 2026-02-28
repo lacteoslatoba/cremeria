@@ -7,7 +7,7 @@ export async function PopularItems({ categoryFilter, queryFilter }: { categoryFi
         where: {
             status: "ACTIVE",
             ...(categoryFilter ? { category: categoryFilter } : {}),
-            ...(queryFilter ? { name: { contains: queryFilter } } : {})
+            ...(queryFilter ? { name: { contains: queryFilter, mode: "insensitive" } as any } : {})
         },
         take: 20,
     });
