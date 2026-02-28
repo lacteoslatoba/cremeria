@@ -33,6 +33,7 @@ export async function POST(request: Request) {
             data: {
                 name: body.name,
                 email: body.email,
+                phone: body.phone,
                 role: body.role || "CUSTOMER",
             }
         });

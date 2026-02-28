@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
     try {
-        const { email, name } = await request.json();
+        const { email, name, phone } = await request.json();
 
         if (!email) {
             return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -14,14 +14,11 @@ export async function POST(request: Request) {
         });
 
         if (!user) {
-            // Because the admin is supposed to create users, we could block it:
-            // return NextResponse.json({ error: "No tienes cuenta. Pide a un administrador que te dé de alta." }, { status: 401 });
-
-            // However, typical mobile apps allow auto-registration if they type it in, as a fallback:
             user = await prisma.user.create({
                 data: {
                     email,
                     name: name || email.split("@")[0],
+                    phone: phone || null,
                     role: "CUSTOMER"
                 }
             });

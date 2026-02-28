@@ -9,6 +9,7 @@ export default function LoginPage() {
     const router = useRouter();
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -30,7 +31,7 @@ export default function LoginPage() {
             const res = await fetch("/api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email.toLowerCase(), name })
+                body: JSON.stringify({ email: email.toLowerCase(), name, phone })
             });
 
             const data = await res.json();
@@ -93,6 +94,17 @@ export default function LoginPage() {
                             placeholder="maria@correo.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 placeholder:text-gray-400 font-medium"
+                        />
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-sm font-bold text-gray-300 pl-1">Celular / Teléfono</label>
+                        <input
+                            type="tel"
+                            placeholder="Ej. 555 123 4567"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 placeholder:text-gray-400 font-medium"
                         />
                     </div>

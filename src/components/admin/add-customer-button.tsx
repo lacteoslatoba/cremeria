@@ -7,6 +7,7 @@ export function AddCustomerButton() {
     const [open, setOpen] = useState(false);
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
@@ -18,12 +19,13 @@ export function AddCustomerButton() {
             await fetch("/api/users", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, email })
+                body: JSON.stringify({ name, email, phone })
             });
 
             setOpen(false);
             setName("");
             setEmail("");
+            setPhone("");
             router.refresh(); // Refresh the list
         } catch (error) {
             console.error(error);
@@ -73,6 +75,18 @@ export function AddCustomerButton() {
                                     className="w-full border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-900"
                                 />
                                 <p className="text-xs text-gray-500 mt-2">Este correo será su acceso para ingresar a la tienda.</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Celular / Teléfono</label>
+                                <input
+                                    type="tel"
+                                    required
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    placeholder="555 123 4567"
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-900"
+                                />
                             </div>
 
                             <button
