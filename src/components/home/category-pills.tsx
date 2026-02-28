@@ -1,4 +1,6 @@
 ﻿import { Milk, Beef, Carrot, Croissant } from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 const CATEGORIES = [
     { id: 1, name: "Lácteos", icon: Milk, color: "text-blue-400", bg: "bg-blue-400/10", shadow: "shadow-blue-500/20" },
@@ -7,19 +9,27 @@ const CATEGORIES = [
     { id: 4, name: "Panadería", icon: Croissant, color: "text-amber-400", bg: "bg-amber-400/10", shadow: "shadow-amber-500/20" },
 ];
 
-export function CategoryPills() {
+export function CategoryPills({ currentCategory }: { currentCategory?: string }) {
     return (
         <div className="px-4 mt-8 pb-2">
             <div className="flex justify-between items-center gap-2 overflow-x-auto no-scrollbar">
-                {CATEGORIES.map((category) => (
-                    <button
-                        key={category.id}
-                        className={`flex flex-col items-center justify-center p-3 rounded-2xl min-w-[76px] transition-transform active:scale-95 border border-white/5 backdrop-blur-sm ${category.bg} shadow-lg ${category.shadow}`}
-                    >
-                        <category.icon className={`mb-2 w-7 h-7 ${category.color} drop-shadow-[0_0_8px_currentColor]`} />
-                        <span className="text-xs font-semibold text-foreground">{category.name}</span>
-                    </button>
-                ))}
+                {CATEGORIES.map((category) => {
+                    const isActive = currentCategory === category.name;
+                    return (
+                        <Link
+                            key={category.id}
+                            href={isActive ? "/" : `/?category=${category.name}`}
+                            className={cn(
+                                "flex flex-col items-center justify-center p-3 rounded-2xl min-w-[76px] transition-transform active:scale-95 border border-white/5 backdrop-blur-sm shadow-lg",
+                                category.bg, category.shadow,
+                                isActive && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                            )}
+                        >
+                            <category.icon className={`mb-2 w-7 h-7 ${category.color} drop-shadow-[0_0_8px_currentColor]`} />
+                            <span className="text-xs font-semibold text-foreground">{category.name}</span>
+                        </Link>
+                    )
+                })}
             </div>
         </div>
     );

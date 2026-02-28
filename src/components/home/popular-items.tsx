@@ -1,15 +1,20 @@
 ﻿import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
-export async function PopularItems() {
+export async function PopularItems({ categoryFilter }: { categoryFilter?: string }) {
     const products = await prisma.product.findMany({
-        where: { status: "ACTIVE" },
-        take: 10,
+        where: {
+            status: "ACTIVE",
+            ...(categoryFilter ? { category: categoryFilter } : {})
+        },
+        take: 20,
     });
 
     return (
         <div className="mt-6 pb-24 px-4 relative z-10">
-            <h2 className="text-xl font-bold text-foreground mb-4">Populares</h2>
+            <h2 className="text-xl font-bold text-foreground mb-4">
+                {categoryFilter ? `Productos en ${categoryFilter}` : "Populares"}
+            </h2>
             <div className="flex flex-col gap-4">
                 {products.length === 0 ? (
                     <p className="text-gray-400 text-sm italic">No hay productos disponibles por ahora.</p>

@@ -1,7 +1,7 @@
-﻿import { Plus, Edit, Trash2, Search, Filter } from "lucide-react";
+﻿import { Plus, Search, Filter } from "lucide-react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-
+import { ProductActions } from "@/components/admin/product-actions";
 export default async function AdminInventoryPage() {
     const products = await prisma.product.findMany({
         orderBy: { createdAt: "desc" },
@@ -104,14 +104,7 @@ export default async function AdminInventoryPage() {
                                 </td>
 
                                 <td className="px-6 py-4">
-                                    <div className="flex items-center justify-center gap-2">
-                                        <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                                            <Edit size={18} />
-                                        </button>
-                                        <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
+                                    <ProductActions productId={product.id} />
                                 </td>
 
                             </tr>
