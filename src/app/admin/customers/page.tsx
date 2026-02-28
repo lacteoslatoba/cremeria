@@ -1,6 +1,7 @@
 import { Search, User } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { AddCustomerButton } from "@/components/admin/add-customer-button";
+import { CustomerActions } from "@/components/admin/customer-actions";
 
 export default async function AdminCustomersPage() {
     const users = await prisma.user.findMany({
@@ -48,12 +49,13 @@ export default async function AdminCustomersPage() {
                                 <th className="px-4 md:px-6 py-4 text-center">Pedidos</th>
                                 <th className="px-4 md:px-6 py-4 text-center">Registro</th>
                                 <th className="px-4 md:px-6 py-4 text-center">Estado</th>
+                                <th className="px-4 md:px-6 py-4 text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 text-slate-700">
                             {users.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-10 text-gray-400 italic">No hay clientes registrados aún.</td>
+                                    <td colSpan={7} className="text-center py-10 text-gray-400 italic">No hay clientes registrados aún.</td>
                                 </tr>
                             ) : users.map((u: any) => (
                                 <tr key={u.id} className="hover:bg-gray-50/50 transition-colors group">
@@ -86,6 +88,10 @@ export default async function AdminCustomersPage() {
                                         <span className="inline-block px-3 py-1.5 text-xs font-bold rounded-lg bg-green-100 text-green-700">
                                             ACTIVO
                                         </span>
+                                    </td>
+
+                                    <td className="px-4 md:px-6 py-4 text-center">
+                                        <CustomerActions user={u} />
                                     </td>
                                 </tr>
                             ))}
