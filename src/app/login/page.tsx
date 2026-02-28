@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
     const { user, setUser } = useAuthStore();
@@ -21,6 +21,8 @@ export default function LoginPage() {
     const [regEmail, setRegEmail] = useState("");
     const [regPassword, setRegPassword] = useState("");
     const [regConfirmPassword, setRegConfirmPassword] = useState("");
+    const [showRegPassword, setShowRegPassword] = useState(false);
+    const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -245,28 +247,46 @@ export default function LoginPage() {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1 text-left">
+                                    <div className="space-y-1 text-left relative">
                                         <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">Contraseña *</label>
-                                        <input
-                                            type="password"
-                                            required
-                                            placeholder="••••••••"
-                                            value={regPassword}
-                                            onChange={(e) => setRegPassword(e.target.value)}
-                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium tracking-widest"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type={showRegPassword ? "text" : "password"}
+                                                required
+                                                placeholder="••••••••"
+                                                value={regPassword}
+                                                onChange={(e) => setRegPassword(e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium tracking-widest pr-10"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowRegPassword(!showRegPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                                            >
+                                                {showRegPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    <div className="space-y-1 text-left">
+                                    <div className="space-y-1 text-left relative">
                                         <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">Confirmar *</label>
-                                        <input
-                                            type="password"
-                                            required
-                                            placeholder="••••••••"
-                                            value={regConfirmPassword}
-                                            onChange={(e) => setRegConfirmPassword(e.target.value)}
-                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium tracking-widest"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type={showRegConfirmPassword ? "text" : "password"}
+                                                required
+                                                placeholder="••••••••"
+                                                value={regConfirmPassword}
+                                                onChange={(e) => setRegConfirmPassword(e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium tracking-widest pr-10"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                                            >
+                                                {showRegConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
