@@ -44,6 +44,7 @@ export default async function AdminCustomersPage() {
                             <tr className="bg-gray-50/50 border-b border-gray-100 uppercase text-xs font-bold text-gray-500 tracking-wider">
                                 <th className="px-4 md:px-6 py-4">Usuario</th>
                                 <th className="px-4 md:px-6 py-4">Correo (Login)</th>
+                                <th className="px-4 md:px-6 py-4">Celular</th>
                                 <th className="px-4 md:px-6 py-4 text-center">Pedidos</th>
                                 <th className="px-4 md:px-6 py-4 text-center">Registro</th>
                                 <th className="px-4 md:px-6 py-4 text-center">Estado</th>
@@ -52,7 +53,7 @@ export default async function AdminCustomersPage() {
                         <tbody className="divide-y divide-gray-100 text-slate-700">
                             {users.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="text-center py-10 text-gray-400 italic">No hay clientes registrados aún.</td>
+                                    <td colSpan={6} className="text-center py-10 text-gray-400 italic">No hay clientes registrados aún.</td>
                                 </tr>
                             ) : users.map((u: any) => (
                                 <tr key={u.id} className="hover:bg-gray-50/50 transition-colors group">
@@ -67,6 +68,10 @@ export default async function AdminCustomersPage() {
 
                                     <td className="px-4 md:px-6 py-4 font-medium text-gray-700">
                                         {u.email}
+                                    </td>
+
+                                    <td className="px-4 md:px-6 py-4 font-medium text-gray-700">
+                                        {u.phone || <span className="text-gray-400 italic">No registrado</span>}
                                     </td>
 
                                     <td className="px-4 md:px-6 py-4 text-center font-bold text-gray-900">
