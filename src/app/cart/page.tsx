@@ -3,72 +3,19 @@
 import { ChevronLeft, Minus, Plus, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { BottomNav } from "@/components/layout/bottom-nav";
-
-type CartItem = {
-    productId: string;
-    name: string;
-    price: number;
-    quantity: number;
-    image: string;
-};
+import { useCartStore } from "@/lib/cart-store";
 
 export default function CartPage() {
     const router = useRouter();
-    const [items, setItems] = useState<CartItem[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { items, removeItem, updateQuantity, clearCart } = useCartStore();
+
+    // Prevent hydration mismatch since zustand uses localStorage
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    useEffect(() => {
-        // Fetch some products to simulate an active cart
-        async function fetchInitialProducts() {
-            try {
-                const res = await fetch("/api/products");
-                const products = await res.json();
-
-                // Take top 2 products for demo purposes
-                if (products && products.length >= 2) {
-                    setItems([
-                        {
-                            productId: products[0].id,
-                            name: products[0].name,
-                            price: products[0].price,
-                            quantity: 1,
-                            image: products[0].image || "https://images.unsplash.com/photo-1542838132-92c53300491e"
-                        },
-                        {
-                            productId: products[1].id,
-                            name: products[1].name,
-                            price: products[1].price,
-                            quantity: 2,
-                            image: products[1].image || "https://images.unsplash.com/photo-1542838132-92c53300491e"
-                        }
-                    ]);
-                }
-            } catch (error) {
-                console.error("Failed to fetch initial products", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        fetchInitialProducts();
-    }, []);
-
-    const updateQuantity = (productId: string, delta: number) => {
-        setItems(prev => prev.map(item => {
-            if (item.productId === productId) {
-                const newQuantity = Math.max(1, item.quantity + delta);
-                return { ...item, quantity: newQuantity };
-            }
-            return item;
-        }));
-    };
-
-    const removeItem = (productId: string) => {
-        setItems(prev => prev.filter(item => item.productId !== productId));
-    };
 
     const handleCheckout = async () => {
         if (items.length === 0) return;
@@ -95,6 +42,7 @@ export default function CartPage() {
             });
 
             if (res.ok) {
+                clearCart();
                 router.push("/tracking");
             }
         } catch (error) {
@@ -106,6 +54,8 @@ export default function CartPage() {
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const delivery = items.length > 0 ? 35.00 : 0;
     const total = subtotal + delivery;
+
+    if (!mounted) return null; // Avoid SSR hydration mismatch flashes
 
     return (
         <main className="min-h-screen pb-safe bg-background text-foreground relative">
@@ -121,9 +71,7 @@ export default function CartPage() {
 
             {/* Cart Items */}
             <div className="pt-20 px-4 flex flex-col gap-4">
-                {loading ? (
-                    <div className="flex justify-center mt-10"><Loader2 className="animate-spin text-primary" /></div>
-                ) : items.length === 0 ? (
+                {items.length === 0 ? (
                     <div className="text-center mt-10 text-gray-500">Tu carrito está vacío.</div>
                 ) : (
                     items.map((item) => (
@@ -133,7 +81,7 @@ export default function CartPage() {
                             <div className="flex flex-col flex-1 justify-between py-1">
                                 <div className="flex justify-between items-start">
                                     <h3 className="font-semibold text-[15px] leading-tight line-clamp-2 pr-2">{item.name}</h3>
-                                    <button onClick={() => removeItem(item.productId)} className="text-gray-500 hover:text-red-500 transition-colors">
+                                    <button onClick={() => removeItem(item.productId)} className="text-gray-500 hover:text-red-500 transition-colors cursor-pointer">
                                         <Trash2 size={16} />
                                     </button>
                                 </div>
@@ -145,11 +93,11 @@ export default function CartPage() {
 
                                     {/* Quantity Selector */}
                                     <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-full px-1 py-1">
-                                        <button onClick={() => updateQuantity(item.productId, -1)} className="p-1 rounded-full text-foreground hover:bg-white/10 transition-colors">
+                                        <button onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="p-1 rounded-full text-foreground hover:bg-white/10 transition-colors">
                                             <Minus size={14} />
                                         </button>
                                         <span className="font-semibold text-sm w-4 text-center">{item.quantity}</span>
-                                        <button onClick={() => updateQuantity(item.productId, 1)} className="p-1 rounded-full text-primary hover:bg-primary-hover transition-colors drop-shadow-[0_0_4px_rgba(238,43,52,0.6)]">
+                                        <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="p-1 rounded-full text-primary hover:bg-primary-hover transition-colors drop-shadow-[0_0_4px_rgba(238,43,52,0.6)]">
                                             <Plus size={14} />
                                         </button>
                                     </div>

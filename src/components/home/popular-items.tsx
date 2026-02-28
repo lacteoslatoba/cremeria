@@ -1,5 +1,6 @@
 ﻿import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { AddToCartButton } from "./add-to-cart-button";
 
 export async function PopularItems({ categoryFilter, queryFilter }: { categoryFilter?: string, queryFilter?: string }) {
     const products = await prisma.product.findMany({
@@ -38,9 +39,7 @@ export async function PopularItems({ categoryFilter, queryFilter }: { categoryFi
                                     ${item.price.toFixed(2)}
                                 </p>
                             </div>
-                            <button className="flex items-center justify-center min-w-[36px] min-h-[36px] rounded-full bg-primary hover:bg-primary-hover shadow-[0_0_12px_rgba(238,43,52,0.6)] transition-transform active:scale-95 text-white mr-1 outline-none">
-                                <Plus size={20} strokeWidth={3} />
-                            </button>
+                            <AddToCartButton product={item} />
                         </div>
                     ))
                 )}
