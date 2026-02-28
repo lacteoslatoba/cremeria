@@ -4,9 +4,10 @@ import { SpecialOffers } from "@/components/home/special-offers";
 import { PopularItems } from "@/components/home/popular-items";
 import { BottomNav } from "@/components/layout/bottom-nav";
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
+export default async function Home({ searchParams }: { searchParams: Promise<{ category?: string, query?: string }> }) {
   const params = await searchParams;
   const categoryFilter = params.category || undefined;
+  const queryFilter = params.query || undefined;
 
   return (
     <main className="min-h-[100dvh] pb-safe">
@@ -22,9 +23,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
       {/* Category Pills will navigate to /?category=name */}
       <CategoryPills currentCategory={categoryFilter} />
 
-      {!categoryFilter && <SpecialOffers />}
+      {(!categoryFilter && !queryFilter) && <SpecialOffers />}
 
-      <PopularItems categoryFilter={categoryFilter} />
+      <PopularItems categoryFilter={categoryFilter} queryFilter={queryFilter} />
 
       <BottomNav />
     </main>
