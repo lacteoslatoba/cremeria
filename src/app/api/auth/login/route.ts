@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
     try {
-        const { identifier, name } = await request.json();
+        const { identifier, password } = await request.json();
 
-        if (!identifier) {
-            return NextResponse.json({ error: "El correo o teléfono es requerido" }, { status: 400 });
+        if (!identifier || !password) {
+            return NextResponse.json({ error: "El usuario y contraseña son requeridos" }, { status: 400 });
         }
 
-        // Clean identifier (lowercase if it's email, trim spaces)
         const cleanId = identifier.trim().toLowerCase();
-        const isEmail = cleanId.includes("@");
 
-        let user = await prisma.user.findFirst({
+        const user = await prisma.user.findFirst({
             where: {
                 OR: [
+                    { username: cleanId },
                     { email: cleanId },
                     { phone: cleanId }
                 ]
@@ -23,25 +23,31 @@ export async function POST(request: Request) {
         });
 
         if (!user) {
-            user = await prisma.user.create({
-                data: {
-                    email: isEmail ? cleanId : null,
-                    phone: !isEmail ? cleanId : null,
-                    name: name || (isEmail ? cleanId.split("@")[0] : "Cliente"),
-                    role: "CUSTOMER"
-                }
-            });
-        } else if (name && user.name !== name) {
-            // Update name if they typed a new one during login
-            user = await prisma.user.update({
+            return NextResponse.json({ error: "Usuario o contraseña incorrectos" }, { status: 401 });
+        }
+
+        if (!user.password) {
+            // Migration for old users without password. Let them login and set their password if they don't have one, or just error out.
+            // But let's verify if password allows them to migrate.
+            // Since we don't want to lock them out, maybe we set it dynamically on first login if it's empty?
+            // Actually, we can just hash and save their password and let them in this first time.
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const updatedUser = await prisma.user.update({
                 where: { id: user.id },
-                data: { name: name }
+                data: { password: hashedPassword }
             });
+            return NextResponse.json(updatedUser, { status: 200 });
+        }
+
+        const isValid = await bcrypt.compare(password, user.password);
+
+        if (!isValid) {
+            return NextResponse.json({ error: "Usuario o contraseña incorrectos" }, { status: 401 });
         }
 
         return NextResponse.json(user, { status: 200 });
     } catch (error) {
         console.error("Login error:", error);
-        return NextResponse.json({ error: "An error occurred during login" }, { status: 500 });
+        return NextResponse.json({ error: "Ocurrió un error al iniciar sesión" }, { status: 500 });
     }
 }
