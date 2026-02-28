@@ -1,6 +1,5 @@
 import { Search, User } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { AddCustomerButton } from "@/components/admin/add-customer-button";
 import { CustomerActions } from "@/components/admin/customer-actions";
 
 export default async function AdminCustomersPage() {
@@ -19,10 +18,8 @@ export default async function AdminCustomersPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-10 gap-4">
                 <div>
                     <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Directorio de Clientes</h2>
-                    <p className="text-sm md:text-base text-gray-500 mt-1 font-medium">Da de alta a tus clientes para que puedan ingresar y comprar.</p>
+                    <p className="text-sm md:text-base text-gray-500 mt-1 font-medium">Visualiza los clientes que se han registrado en tu tienda.</p>
                 </div>
-
-                <AddCustomerButton />
             </div>
 
             {/* Toolbar */}
@@ -43,8 +40,8 @@ export default async function AdminCustomersPage() {
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-gray-50/50 border-b border-gray-100 uppercase text-xs font-bold text-gray-500 tracking-wider">
-                                <th className="px-4 md:px-6 py-4">Usuario</th>
-                                <th className="px-4 md:px-6 py-4">Correo (Login)</th>
+                                <th className="px-4 md:px-6 py-4">Nombre y Usuario</th>
+                                <th className="px-4 md:px-6 py-4">Correo</th>
                                 <th className="px-4 md:px-6 py-4">Celular</th>
                                 <th className="px-4 md:px-6 py-4 text-center">Pedidos</th>
                                 <th className="px-4 md:px-6 py-4 text-center">Registro</th>
@@ -64,7 +61,10 @@ export default async function AdminCustomersPage() {
                                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
                                                 {u.name ? u.name.charAt(0).toUpperCase() : <User size={18} />}
                                             </div>
-                                            <div className="font-bold text-gray-900">{u.name || "Sin nombre"}</div>
+                                            <div className="flex flex-col">
+                                                <div className="font-bold text-gray-900">{u.name || "Sin nombre"}</div>
+                                                {u.username && <div className="text-xs font-medium text-gray-400 mt-0.5">@{u.username}</div>}
+                                            </div>
                                         </div>
                                     </td>
 
