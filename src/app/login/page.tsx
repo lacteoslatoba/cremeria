@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
-import { Loader2, Milk, User } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
     const { user, setUser } = useAuthStore();
@@ -52,70 +52,81 @@ export default function LoginPage() {
     if (!mounted) return null;
 
     return (
-        <main className="min-h-screen bg-background text-foreground flex flex-col justify-center px-6 relative overflow-hidden">
-            {/* Shapes Background */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 blur-3xl rounded-full -mr-20 -mt-20"></div>
-            <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/10 blur-3xl rounded-full -ml-32 -mb-32"></div>
-
-            <div className="max-w-[400px] w-full mx-auto relative z-10">
-                <div className="flex justify-center mb-8 relative">
-                    <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 shadow-xl flex items-center justify-center -rotate-6">
-                        <User size={48} className="text-primary drop-shadow-md" />
+        <main className="font-sans antialiased bg-[#1c1917] overflow-hidden">
+            <div className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden">
+                <div className="absolute inset-0 z-0">
+                    <div className="w-full h-full bg-center bg-no-repeat bg-cover opacity-100" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDW4g867N7VJcFkYYE5DJSkSyKB16IAdb1mMme14rjI0pSt44LN_m4zd_r2cl75Ztod5_nXQeS5VlWoWe7hKs0-qVdILjKsyDB9humTMcznRcBxEORiPQwoXfOo8sFvfWHrU3bLUvqWyKa2Ty8mGvDQD0MEKjK4oEsQkig9vgNwBEdeU_vKweku0VGiV9k9yy0ccQjZBgG4CJiCnXYiBb5mRAgDCUHvJDGUD_8TzqKydV1cwBKX5KeIZOt0DlDIaBwNn8b_1F4tjt8Q')" }}>
                     </div>
-                    <div className="absolute -bottom-4 right-1/4 w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center rotate-12 shadow-lg shadow-primary/30">
-                        <Milk size={24} />
-                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/90"></div>
                 </div>
 
-                <div className="text-center mb-10">
-                    <h1 className="text-4xl font-black mb-2 tracking-tight">Bienvenido</h1>
-                    <p className="text-gray-400 font-medium">Ingresa tus datos para empezar a comprar.</p>
-                </div>
-
-                <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-1">
-                        <label className="text-sm font-bold text-gray-300 pl-1">Nombre Completo</label>
-                        <input
-                            type="text"
-                            required
-                            placeholder="Ej. María Sánchez"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 placeholder:text-gray-400 font-medium"
-                        />
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="text-sm font-bold text-gray-300 pl-1">Correo Electrónico o Celular</label>
-                        <input
-                            type="text"
-                            required
-                            placeholder="maria@correo.com o 555-123-4567"
-                            value={identifier}
-                            onChange={(e) => setIdentifier(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 placeholder:text-gray-400 font-medium"
-                        />
-                        <p className="text-xs text-gray-500 pl-1 mt-1">Si no recuerdas tu correo, también puedes poner tu celular entero.</p>
-                    </div>
-
-                    {error && (
-                        <div className="bg-red-500/10 text-red-500 font-medium text-sm p-4 rounded-xl text-center border border-red-500/20">
-                            {error}
+                <div className="relative z-10 flex flex-col justify-between h-full min-h-[100dvh] px-6 py-10">
+                    <div className="flex justify-center pt-2">
+                        <div className="bg-white/90 backdrop-blur-sm p-3 rounded-2xl shadow-xl">
+                            <img alt="La Toba Logo" className="h-16 w-auto object-contain" src="https://i.ibb.co/qMMcGwNr/a2.png" />
                         </div>
-                    )}
+                    </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-primary hover:bg-primary-hover text-white font-bold text-lg rounded-2xl py-4 shadow-[0_4px_20px_rgba(238,43,52,0.4)] disabled:opacity-70 transition-all flex justify-center items-center gap-2 mt-4"
-                    >
-                        {loading ? <Loader2 size={24} className="animate-spin" /> : "Entrar a la Tienda"}
-                    </button>
+                    <div className="flex flex-col items-center justify-start pt-8 flex-grow text-center">
+                        <h1 className="text-white tracking-tight text-5xl font-black leading-[1.1] drop-shadow-md">
+                            Cremeria <br />
+                            <span className="text-primary italic">del Rancho</span>
+                        </h1>
+                        <p className="mt-3 text-white/90 text-lg font-medium italic tracking-widest drop-shadow-md">
+                            Lo nuestro es calidad
+                        </p>
+                    </div>
 
-                    <p className="text-center text-xs text-gray-500 mt-6 font-medium">
-                        Si tu cuenta no existe, serás registrado automáticamente o un administrador aprobará tu entrada según las políticas de la sucursal.
-                    </p>
-                </form>
+                    <div className="flex flex-col w-full max-w-[480px] mx-auto gap-6 z-20 bg-black/40 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-2xl mb-4">
+                        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+
+                            <div className="space-y-1 text-left">
+                                <label className="text-xs font-bold text-white/80 pl-1 uppercase tracking-wider">Nombre Completo</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="Ej. María Sánchez"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-white placeholder:text-white/40 font-medium"
+                                />
+                            </div>
+
+                            <div className="space-y-1 text-left">
+                                <label className="text-xs font-bold text-white/80 pl-1 uppercase tracking-wider">Acceso</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="Correo o Celular"
+                                    value={identifier}
+                                    onChange={(e) => setIdentifier(e.target.value)}
+                                    className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-white placeholder:text-white/40 font-medium"
+                                />
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-500/20 text-red-200 font-medium text-sm p-4 rounded-xl text-center border border-red-500/30 backdrop-blur-md">
+                                    {error}
+                                </div>
+                            )}
+
+                            <button type="submit" disabled={loading} className="relative group w-full cursor-pointer items-center justify-center overflow-hidden rounded-2xl h-16 px-8 flex bg-primary text-white text-lg font-bold leading-normal tracking-[0.2em] shadow-[0_0_20px_rgba(238,43,52,0.4)] transition-all active:scale-[0.98] mt-2">
+                                <span className="relative z-10 flex items-center gap-2">
+                                    {loading ? <Loader2 size={24} className="animate-spin" /> : "ENTRAR"}
+                                </span>
+                                <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:left-full transition-all duration-1000"></div>
+                            </button>
+
+                            <p className="text-center text-[11px] text-white/50 mt-2 font-medium">
+                                Si no tienes cuenta, serás registrado de forma automática al ingresar.
+                            </p>
+                        </form>
+                    </div>
+                </div>
+
+                <div className="fixed pointer-events-none inset-0 z-0">
+                    <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-black/80 to-transparent"></div>
+                </div>
             </div>
         </main>
     );
