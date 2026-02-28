@@ -35,7 +35,7 @@ export async function PopularItems({ categoryFilter, queryFilter }: { categoryFi
                                 <h3 className="font-semibold text-[15px] leading-tight text-foreground line-clamp-2">
                                     {item.name}
                                 </h3>
-                                <p className="text-primary font-bold mt-1 text-sm drop-shadow-[0_0_2px_rgba(238,43,52,0.5)]">
+                                <p className="text-primary font-bold mt-1 text-sm">
                                     ${item.price.toFixed(2)}
                                 </p>
                             </div>
