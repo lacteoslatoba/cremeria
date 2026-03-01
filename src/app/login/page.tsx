@@ -36,7 +36,7 @@ export default function LoginPage() {
 
     useEffect(() => {
         setMounted(true);
-        if (user) {
+        if (user && user.role !== "GUEST") {
             router.push("/");
         }
     }, [user, router]);
