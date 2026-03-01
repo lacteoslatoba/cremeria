@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
@@ -11,6 +12,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
             data: { status: body.status },
         });
 
+        revalidatePath("/admin/orders");
         return NextResponse.json(updatedOrder);
     } catch (error) {
         return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
@@ -43,6 +45,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ o
             where: { id: orderId }
         });
 
+        revalidatePath("/admin/orders");
         return NextResponse.json(deletedOrder);
     } catch (error) {
         console.error("[ORDER_DELETE_ERROR]", error);
