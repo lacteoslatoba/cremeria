@@ -3,8 +3,9 @@ import "./globals.css";
 import { AuthGuard } from "@/components/auth/auth-guard";
 
 export const metadata: Metadata = {
-    title: "Cremeria | Food Delivery",
-    description: "Premium food and grocery delivery mobile app.",
+    title: "Cremeria del Rancho",
+    description: "Lo nuestro es calidad",
+    manifest: "/manifest.json",
 };
 
 export const viewport = {
