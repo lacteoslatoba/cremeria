@@ -40,7 +40,7 @@ export function AddToCartButton({ product }: { product: any }) {
             <Plus size={20} strokeWidth={3} className={`transition-transform duration-300 ${added ? "rotate-90" : ""}`} />
 
             {mounted && quantity > 0 && (
-                <div className="absolute -top-2 -right-2 bg-foreground text-background text-[11px] font-black min-w-[20px] h-[20px] px-1 flex items-center justify-center rounded-full shadow-lg border-2 border-[#1e1e1e] animate-in zoom-in duration-300">
+                <div className="absolute -top-2 -right-2 bg-green-500 text-white text-[11px] font-black min-w-[20px] h-[20px] px-1 flex items-center justify-center rounded-full shadow-lg border-2 border-white animate-in zoom-in duration-300">
                     {quantity}
                 </div>
             )}
