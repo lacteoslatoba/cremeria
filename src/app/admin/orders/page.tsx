@@ -1,6 +1,7 @@
 ﻿import { ExternalLink, Search, Filter } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
+import { OrderDeleteButton } from "@/components/admin/order-delete-button";
 
 export default async function AdminOrdersPage() {
     const orders = await prisma.order.findMany({
@@ -103,6 +104,8 @@ export default async function AdminOrdersPage() {
                                             <button className="p-2 text-gray-400 hover:text-primary transition-colors" title="Detalles">
                                                 <ExternalLink size={18} />
                                             </button>
+
+                                            <OrderDeleteButton orderId={order.id} />
                                         </div>
                                     </td>
 

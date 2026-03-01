@@ -29,3 +29,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
         return NextResponse.json({ error: "Failed to fetch order" }, { status: 500 });
     }
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
+    try {
+        const { orderId } = await params;
+        const deletedOrder = await prisma.order.delete({
+            where: { id: orderId }
+        });
+        return NextResponse.json(deletedOrder);
+    } catch (error) {
+        return NextResponse.json({ error: "Failed to delete order" }, { status: 500 });
+    }
+}
