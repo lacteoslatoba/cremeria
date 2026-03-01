@@ -20,28 +20,26 @@ export default async function AdminInventoryPage() {
     return (
         <div className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto w-full">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-10 gap-4">
-                <div>
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Inventario</h2>
-                    <p className="text-sm md:text-base text-gray-500 mt-1 font-medium">Gestiona los productos disponibles en tienda (Altas y Bajas).</p>
-                </div>
-
-                <Link href="/admin/products/new" className="flex items-center justify-center w-full md:w-auto gap-2 bg-primary hover:bg-primary-hover text-white px-5 py-3 rounded-xl font-bold shadow-lg shadow-primary/30 transition-all hover:-translate-y-0.5">
-                    <Plus size={20} />
-                    <span>Agregar Producto</span>
-                </Link>
+            <div className="mb-6 md:mb-8">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Inventario</h2>
+                <p className="text-sm md:text-base text-gray-500 mt-1 font-medium">Gestiona los productos disponibles en tienda (Altas y Bajas).</p>
             </div>
 
             {/* Toolbar */}
-            <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-6">
-                <div className="relative flex-1 w-full md:max-w-md">
+            <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 mb-6">
+                <div className="relative flex-1 w-full sm:max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
-                        placeholder="Buscar por nombre, SKU o categoría..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white"
+                        placeholder="Buscar por nombre, SKU..."
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white"
                     />
                 </div>
+
+                <Link href="/admin/products/new" className="flex items-center justify-center w-full sm:w-auto gap-2 bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-primary/30 transition-all hover:-translate-y-0.5 shrink-0">
+                    <Plus size={20} />
+                    <span>Agregar Producto</span>
+                </Link>
             </div>
 
             {/* Table Card */}
