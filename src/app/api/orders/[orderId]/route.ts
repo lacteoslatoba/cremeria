@@ -33,11 +33,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
 export async function DELETE(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
     try {
         const { orderId } = await params;
+
+        // Primero eliminar los OrderItems asociados (para evitar errores de foreign key)
+        await prisma.orderItem.deleteMany({
+            where: { orderId: orderId }
+        });
+
         const deletedOrder = await prisma.order.delete({
             where: { id: orderId }
         });
+
         return NextResponse.json(deletedOrder);
     } catch (error) {
+        console.error("[ORDER_DELETE_ERROR]", error);
         return NextResponse.json({ error: "Failed to delete order" }, { status: 500 });
     }
 }
