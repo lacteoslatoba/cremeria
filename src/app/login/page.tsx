@@ -208,7 +208,7 @@ export default function LoginPage() {
                                         onClick={handleGuestLogin}
                                         className="text-sm text-[#2d2a28]/60 hover:text-[#2d2a28] font-medium transition-colors"
                                     >
-                                        Entrar como invitado (solo explorar)
+                                        Invitado
                                     </button>
                                 </div>
                             </form>
@@ -345,7 +345,7 @@ export default function LoginPage() {
                                         onClick={handleGuestLogin}
                                         className="text-sm text-[#2d2a28]/60 hover:text-[#2d2a28] font-medium transition-colors"
                                     >
-                                        Entrar como invitado (solo explorar)
+                                        Invitado
                                     </button>
                                 </div>
                             </form>
