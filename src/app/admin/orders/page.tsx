@@ -1,4 +1,4 @@
-﻿import { ExternalLink, Search, Filter } from "lucide-react";
+﻿import { ExternalLink, Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
 import { OrderDeleteButton } from "@/components/admin/order-delete-button";
@@ -49,10 +49,6 @@ export default async function AdminOrdersPage() {
                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white"
                     />
                 </div>
-                <button className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 transition-colors font-medium w-full md:w-auto">
-                    <Filter size={18} />
-                    <span>Filtros</span>
-                </button>
             </div>
 
             {/* Table Card */}
