@@ -26,8 +26,8 @@ export default async function AdminInventoryPage() {
             </div>
 
             {/* Toolbar */}
-            <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 mb-6">
-                <div className="relative flex-1 w-full sm:max-w-md">
+            <div className="flex flex-row items-center gap-3 mb-6">
+                <div className="relative flex-1 w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
@@ -36,9 +36,8 @@ export default async function AdminInventoryPage() {
                     />
                 </div>
 
-                <Link href="/admin/products/new" className="flex items-center justify-center w-full sm:w-auto gap-2 bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-primary/30 transition-all hover:-translate-y-0.5 shrink-0">
-                    <Plus size={20} />
-                    <span>Agregar Producto</span>
+                <Link href="/admin/products/new" className="flex items-center justify-center w-[46px] h-[46px] bg-primary hover:bg-primary-hover text-white rounded-xl font-bold shadow-lg shadow-primary/30 transition-all hover:-translate-y-0.5 shrink-0" title="Agregar Producto">
+                    <Plus size={24} />
                 </Link>
             </div>
 

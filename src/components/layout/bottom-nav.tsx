@@ -1,6 +1,6 @@
 ﻿"use client"
 import Link from 'next/link';
-import { Home, ShoppingBag, User } from 'lucide-react';
+import { Home, ShoppingCart, User } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import styles from './bottom-nav.module.css';
@@ -12,7 +12,7 @@ export function BottomNav() {
         <nav className={cn(styles.nav, "fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] z-50 bg-[#1e1e1e]/90 backdrop-blur-md border-t border-white/10")}>
             <div className="flex justify-around items-center h-16 px-4 w-full">
                 <NavItem href="/" icon={Home} label="Inicio" active={pathname === '/'} />
-                <NavItem href="/cart" icon={ShoppingBag} label="Carrito" active={pathname === '/cart'} />
+                <NavItem href="/cart" icon={ShoppingCart} label="Carrito" active={pathname === '/cart'} />
                 <NavItem href="/admin" icon={User} label="Admin" active={pathname === '/admin'} />
             </div>
         </nav>
