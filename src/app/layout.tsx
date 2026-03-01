@@ -6,6 +6,11 @@ export const metadata: Metadata = {
     title: "Cremeria del Rancho",
     description: "Lo nuestro es calidad",
     manifest: "/manifest.json",
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: "default",
+        title: "Cremeria del Rancho",
+    },
 };
 
 export const viewport = {
