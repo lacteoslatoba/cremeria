@@ -39,20 +39,8 @@ export default async function AdminOrdersPage() {
                 <p className="text-sm md:text-base text-gray-500 mt-1 font-medium">Revisa y actualiza el estado de los pedidos de tus clientes.</p>
             </div>
 
-            {/* Toolbar */}
-            <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-6">
-                <div className="relative flex-1 w-full md:max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Buscar por ID de pedido o cliente..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white"
-                    />
-                </div>
-            </div>
-
             {/* Table Card */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm w-full">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm w-full mt-4">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
