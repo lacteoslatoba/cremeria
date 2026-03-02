@@ -117,7 +117,7 @@ export default function CartPage() {
                     disabled={isSubmitting || items.length === 0}
                     className="flex items-center disabled:opacity-50 justify-center w-full py-4 rounded-2xl bg-primary text-white font-bold text-lg transition-all"
                 >
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : (user?.role === "GUEST" ? "Inicia sesión para ordenar →" : "Continuar →")}
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : (user?.role === "GUEST" ? "Iniciar sesión para ordenar" : "Continuar")}
                 </button>
             </div>
 
