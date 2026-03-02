@@ -35,16 +35,43 @@ export async function POST(req: Request) {
             }
         });
 
-        // Here we would typically send an email or SMS with an external provider (Twilio, Resend, etc.)
-        // For demonstration/mock purposes we'll return it in the response so the UI can show a toast for testing
-        // IN PRODUCTION: Do not return the code to the client!
+        // Send SMS with Twilio if env vars are present and user has a phone
+        let smsSent = false;
+        if (user.phone && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER) {
+            try {
+                // eslint-disable-next-line @typescript-eslint/no-require-imports
+                const twilio = require('twilio');
+                const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-        console.log(`[SIMULATED SMS/EMAIL] Password reset code for ${identifier}: ${resetToken}`);
+                // Format phone assuming Mexico (+52) if exactly 10 digits
+                const cPhone = user.phone.replace(/[^\d]/g, '');
+                let formattedPhone = cPhone;
+                // If it's a 10 digit number in Mexico
+                if (formattedPhone.length === 10) {
+                    formattedPhone = `+52${formattedPhone}`;
+                } else if (!formattedPhone.startsWith('+')) {
+                    formattedPhone = `+${formattedPhone}`;
+                }
+
+                await client.messages.create({
+                    body: `Tu código de recuperación para Cremeria del Rancho es: ${resetToken}. Expira en 15 min.`,
+                    from: process.env.TWILIO_PHONE_NUMBER,
+                    to: formattedPhone
+                });
+
+                smsSent = true;
+                console.log(`[SMS] Enviado exitosamente a ${formattedPhone}`);
+            } catch (twilioErr) {
+                console.error("[SMS ERROR] Error de Twilio:", twilioErr);
+            }
+        } else {
+            console.log(`[SIMULATED SMS/EMAIL] Password reset code for ${identifier}: ${resetToken}`);
+        }
 
         return NextResponse.json({
             success: true,
             message: "Código generado con éxito.",
-            _dev_code: resetToken // Only for prototype preview!
+            _dev_code: smsSent ? undefined : resetToken // Only send back if SMS was not sent / Twilio not config
         });
 
     } catch (error) {
