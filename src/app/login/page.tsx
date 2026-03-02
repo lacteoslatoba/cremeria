@@ -192,10 +192,14 @@ export default function LoginPage() {
                                     <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:left-full transition-all duration-1000"></div>
                                 </button>
 
-                                <div className="text-center mt-4 mb-2">
-                                    <Link href="/forgot-password" className="text-sm text-[#2d2a28]/70 hover:text-[#2d2a28] font-medium transition-colors underline decoration-2 underline-offset-4 decoration-transparent hover:decoration-[#2d2a28]/30">
+                                <div className="text-center mt-4 mb-2 relative z-50">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.preventDefault(); router.push('/forgot-password'); }}
+                                        className="inline-block p-2 text-sm text-[#2d2a28] font-bold transition-colors underline decoration-2 underline-offset-4 hover:text-primary"
+                                    >
                                         ¿Olvidaste tu contraseña?
-                                    </Link>
+                                    </button>
                                 </div>
 
                                 <div className="text-center mt-2">
