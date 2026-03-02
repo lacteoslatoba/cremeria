@@ -20,11 +20,12 @@ export function OrderDeleteButton({ orderId }: { orderId: string }) {
             if (res.ok) {
                 router.refresh();
             } else {
-                alert("Ocurrió un error al eliminar el pedido.");
+                const data = await res.json().catch(() => ({}));
+                alert(`Ocurrió un error al eliminar el pedido: ${data.error || res.statusText}`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Ocurrió un error al eliminar el pedido.");
+            alert(`Ocurrió un error de red: ${error.message}`);
         } finally {
             setIsDeleting(false);
         }
