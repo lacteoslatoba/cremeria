@@ -13,21 +13,9 @@ export default function ForgotPasswordPage() {
 
     const [mounted, setMounted] = useState(false);
 
-    // If user is already logged in (not as guest), redirect to home
     useEffect(() => {
         setMounted(true);
-        if (typeof window !== "undefined") {
-            const authStr = localStorage.getItem("auth-storage");
-            if (authStr) {
-                try {
-                    const auth = JSON.parse(authStr);
-                    if (auth.state?.user && auth.state.user.role !== "GUEST") {
-                        router.push("/");
-                    }
-                } catch (e) { }
-            }
-        }
-    }, [router]);
+    }, []);
 
     // Form fields
     const [identifier, setIdentifier] = useState("");
