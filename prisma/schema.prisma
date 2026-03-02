@@ -19,6 +19,8 @@ model User {
   phone     String?
   username  String?  @unique
   password  String?
+  resetToken String?
+  resetTokenExpiry DateTime?
   role      String   @default("CUSTOMER") // CUSTOMER or ADMIN
   orders    Order[]
   createdAt DateTime @default(now())

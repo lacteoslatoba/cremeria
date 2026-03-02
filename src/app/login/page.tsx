@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
 
 export default function LoginPage() {
     const { user, setUser } = useAuthStore();
@@ -190,6 +191,12 @@ export default function LoginPage() {
                                     </span>
                                     <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:left-full transition-all duration-1000"></div>
                                 </button>
+
+                                <div className="text-center mt-4 mb-2">
+                                    <Link href="/forgot-password" className="text-sm text-[#2d2a28]/70 hover:text-[#2d2a28] font-medium transition-colors underline decoration-2 underline-offset-4 decoration-transparent hover:decoration-[#2d2a28]/30">
+                                        ¿Olvidaste tu contraseña?
+                                    </Link>
+                                </div>
 
                                 <div className="text-center mt-2">
                                     <span className="text-sm text-[#2d2a28]/70 font-medium">Si no tienes cuenta aún, </span>
