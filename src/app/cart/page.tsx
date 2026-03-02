@@ -31,8 +31,7 @@ export default function CartPage() {
     };
 
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const delivery = items.length > 0 ? 35.00 : 0;
-    const total = subtotal + delivery;
+    const total = subtotal;
 
     if (!mounted) return null; // Avoid SSR hydration mismatch flashes
 
@@ -92,20 +91,9 @@ export default function CartPage() {
 
                         {/* Order Summary — same card, below products */}
                         <div className="px-5 py-4 border-t border-white/10 bg-white/5">
-                            <div className="space-y-2 text-sm text-gray-300">
-                                <div className="flex justify-between">
-                                    <span>Subtotal</span>
-                                    <span className="font-medium text-foreground">${subtotal.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>Envío</span>
-                                    <span className="font-medium text-foreground">${delivery.toFixed(2)}</span>
-                                </div>
-                                <div className="h-px w-full bg-white/10 my-1" />
-                                <div className="flex justify-between items-center text-base">
-                                    <span className="font-bold text-foreground">Total</span>
-                                    <span className="font-black text-xl text-primary">${total.toFixed(2)}</span>
-                                </div>
+                            <div className="flex justify-between items-center">
+                                <span className="font-bold text-foreground text-base">Total</span>
+                                <span className="font-black text-xl text-primary">${total.toFixed(2)}</span>
                             </div>
                         </div>
                     </div>

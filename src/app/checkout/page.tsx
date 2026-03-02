@@ -29,8 +29,7 @@ export default function CheckoutPage() {
     const formMountedRef = useRef(false);
 
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const delivery = 35.00;
-    const total = subtotal + delivery;
+    const total = subtotal;
 
     useEffect(() => {
         setMounted(true);
@@ -342,15 +341,6 @@ export default function CheckoutPage() {
                 {/* Cash Summary */}
                 {paymentMethod === "CASH" && (
                     <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-3 animate-in slide-in-from-top-2 duration-300">
-                        <div className="flex justify-between text-sm text-gray-300">
-                            <span>Subtotal</span>
-                            <span className="text-foreground font-medium">${subtotal.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-sm text-gray-300">
-                            <span>Envío</span>
-                            <span className="text-foreground font-medium">${delivery.toFixed(2)}</span>
-                        </div>
-                        <div className="h-px bg-white/10" />
                         <div className="flex justify-between items-center">
                             <span className="font-bold text-foreground text-base">Total a pagar:</span>
                             <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
