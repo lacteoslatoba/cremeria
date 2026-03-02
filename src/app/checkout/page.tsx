@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
-import { ChevronLeft, Banknote, Loader2, CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
+import { ChevronLeft, Banknote, Loader2, CreditCard, CheckCircle2, AlertCircle, PartyPopper } from "lucide-react";
 import { BottomNav } from "@/components/layout/bottom-nav";
 
 declare global {
@@ -25,6 +25,8 @@ export default function CheckoutPage() {
     const [paymentMethod, setPaymentMethod] = useState<"CARD" | "CASH">("CASH");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [paymentSuccess, setPaymentSuccess] = useState(false);
+    const [successOrderId, setSuccessOrderId] = useState("");
     const [mpLoaded, setMpLoaded] = useState(false);
     const mpPublicKeyRef = useRef("");
 
@@ -178,9 +180,14 @@ export default function CheckoutPage() {
         if (res.ok) {
             const data = await res.json();
             clearCart();
-            router.push(`/tracking?orderId=${data.id}`);
+            // Show success screen first, then redirect
+            setSuccessOrderId(data.id);
+            setPaymentSuccess(true);
+            setTimeout(() => {
+                router.push(`/tracking?orderId=${data.id}`);
+            }, 2800);
         } else {
-            setError("Error al registrar el pedido.");
+            setError("Error al registrar el pedido. Intenta de nuevo.");
             setIsSubmitting(false);
         }
     };
@@ -191,6 +198,26 @@ export default function CheckoutPage() {
     if (!mounted) return null;
 
     const inputClass = "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-foreground font-medium outline-none focus:ring-2 focus:ring-[#009EE3]/50 focus:border-[#009EE3] transition-all placeholder:text-gray-600";
+
+    // ── SUCCESS OVERLAY ──
+    if (paymentSuccess) {
+        return (
+            <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center gap-6 px-8 animate-in fade-in duration-500">
+                <div className="flex items-center justify-center w-28 h-28 rounded-full bg-green-500/15 border-2 border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.4)] animate-in zoom-in duration-500">
+                    <CheckCircle2 size={56} className="text-green-400" />
+                </div>
+                <div className="text-center space-y-2">
+                    <h2 className="text-3xl font-black text-white">¡Pedido realizado!</h2>
+                    <p className="text-gray-400 text-base">Tu orden fue confirmada exitosamente.</p>
+                    <p className="text-xs text-gray-500 mt-1">Folio: #{successOrderId.slice(-6).toUpperCase()}</p>
+                </div>
+                <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
+                    <Loader2 size={16} className="animate-spin" />
+                    Redirigiendo al seguimiento...
+                </div>
+            </div>
+        );
+    }
 
     return (
         <main className="min-h-screen pb-[140px] bg-background text-foreground">
@@ -203,9 +230,22 @@ export default function CheckoutPage() {
                 </div>
             </header>
 
+            {/* Fixed error toast — always visible regardless of scroll */}
+            {error && (
+                <div className="fixed top-4 left-4 right-4 z-50 max-w-[448px] mx-auto flex items-start gap-3 p-4 rounded-2xl bg-red-600 text-white text-sm font-medium shadow-2xl animate-in slide-in-from-top-4 duration-300">
+                    <AlertCircle size={20} className="shrink-0 mt-0.5" />
+                    <span className="flex-1">{error}</span>
+                    <button onClick={() => setError("")} className="shrink-0 text-white/70 hover:text-white">✕</button>
+                </div>
+            )}
+
             <div className="pt-20 px-4 flex flex-col gap-5">
 
-                {error && (
+                {/* spacer when error is shown */}
+                {error && <div className="h-14" />}
+
+                {/* placeholder for removed inline error — keep structure */}
+                {false && (
                     <div className="flex items-start gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-medium animate-in slide-in-from-top-2">
                         <AlertCircle size={20} className="shrink-0 mt-0.5" />
                         <span>{error}</span>
