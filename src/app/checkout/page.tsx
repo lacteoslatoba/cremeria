@@ -143,8 +143,16 @@ export default function CheckoutPage() {
                     cc_rejected_bad_filled_card_number: "Número de tarjeta incorrecto.",
                     cc_rejected_card_disabled: "Tarjeta deshabilitada. Contacta tu banco.",
                     cc_rejected_call_for_authorize: "Llama a tu banco para autorizar el pago.",
+                    cc_rejected_other_reason: "Tu banco rechazó el pago. Intenta con otra tarjeta o llama a tu banco.",
+                    cc_rejected_high_risk: "Pago bloqueado por seguridad. Intenta con otra tarjeta.",
                 };
-                setError(msgs[payData.detail] || `Pago rechazado: ${payData.detail || "verifica tus datos"}.`);
+                // Always show the exact detail code for diagnosis
+                const exactDetail = payData.detail || payData.rawDetail || "sin_detalle";
+                const friendlyMsg = msgs[exactDetail];
+                setError(friendlyMsg
+                    ? `${friendlyMsg} (código: ${exactDetail})`
+                    : `Pago rechazado por Mercado Pago. Código: "${exactDetail}". Estado: "${payData.status}"`
+                );
                 setIsSubmitting(false);
                 return;
             }
