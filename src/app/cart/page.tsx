@@ -19,7 +19,7 @@ export default function CartPage() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleCheckout = async () => {
+    const handleCheckout = () => {
         if (items.length === 0) return;
 
         if (user?.role === "GUEST") {
@@ -27,38 +27,7 @@ export default function CartPage() {
             return;
         }
 
-        setIsSubmitting(true);
-
-        try {
-            const delivery = 35.00;
-            const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-            const total = subtotal + delivery;
-
-            const res = await fetch("/api/orders", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    userId: user?.id,
-                    customerName: user?.name || user?.email || "Invitado Móvil",
-                    address: "Ubicación GPS (Actual)",
-                    total: total,
-                    items: items.map(i => ({
-                        productId: i.productId,
-                        quantity: i.quantity,
-                        price: i.price
-                    }))
-                })
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                clearCart();
-                router.push(`/tracking?orderId=${data.id}`);
-            }
-        } catch (error) {
-            console.error(error);
-            setIsSubmitting(false);
-        }
+        router.push("/checkout");
     };
 
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -148,7 +117,7 @@ export default function CartPage() {
                     disabled={isSubmitting || items.length === 0}
                     className="flex items-center disabled:opacity-50 justify-center w-full py-4 rounded-2xl bg-primary text-white font-bold text-lg transition-all"
                 >
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : (user?.role === "GUEST" ? "Inicia sesión para ordenar →" : "Deslizar para Ordenar →")}
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : (user?.role === "GUEST" ? "Inicia sesión para ordenar →" : "Continuar →")}
                 </button>
             </div>
 
