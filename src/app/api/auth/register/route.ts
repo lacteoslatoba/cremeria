@@ -14,7 +14,7 @@ export async function POST(request: Request) {
         const cleanEmail = email ? email.trim().toLowerCase() : null;
 
         // Check if user exists
-        const orConditions = [
+        const orConditions: any[] = [
             { username: cleanUser }
         ];
 
