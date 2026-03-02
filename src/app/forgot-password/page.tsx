@@ -4,11 +4,30 @@ import { useRouter } from "next/navigation";
 import { Loader2, ArrowLeft, KeyRound, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
+
 export default function ForgotPasswordPage() {
     const router = useRouter();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+
+    const [mounted, setMounted] = useState(false);
+
+    // If user is already logged in (not as guest), redirect to home
+    useEffect(() => {
+        setMounted(true);
+        if (typeof window !== "undefined") {
+            const authStr = localStorage.getItem("auth-storage");
+            if (authStr) {
+                try {
+                    const auth = JSON.parse(authStr);
+                    if (auth.state?.user && auth.state.user.role !== "GUEST") {
+                        router.push("/");
+                    }
+                } catch (e) { }
+            }
+        }
+    }, [router]);
 
     // Form fields
     const [identifier, setIdentifier] = useState("");
@@ -118,6 +137,8 @@ export default function ForgotPasswordPage() {
             setLoading(false);
         }
     };
+
+    if (!mounted) return null;
 
     return (
         <main className="font-sans antialiased min-h-[100dvh]" style={{ background: "radial-gradient(circle at 50% 50%, #fff 0%, #f9fafb 100%)" }}>
