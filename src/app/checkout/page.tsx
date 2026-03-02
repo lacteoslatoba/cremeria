@@ -65,36 +65,57 @@ export default function CheckoutPage() {
     /* ── Tokenise card data via MP then pay ── */
     const handleCardPay = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError("");
+
+        // Basic validation
+        const cleanCard = cardNumber.replace(/\s/g, "");
+        if (cleanCard.length < 15) { setError("Número de tarjeta inválido."); return; }
+        if (!expMonth || !expYear) { setError("Fecha de vencimiento incompleta."); return; }
+        if (cvv.length < 3) { setError("CVV inválido."); return; }
+        if (!holderName.trim()) { setError("Escribe el nombre del titular."); return; }
+
         if (!mpLoaded || !window.MercadoPago) {
-            setError("El SDK de pago aún está cargando, espera un momento.");
+            setError("El formulario de pago aún está cargando. Espera un momento e inténtalo.");
             return;
         }
-        setError("");
+
         setIsSubmitting(true);
         try {
-            const mp = new window.MercadoPago(mpPublicKeyRef.current);
+            const mp = new window.MercadoPago(mpPublicKeyRef.current, { locale: "es-MX" });
 
-            // Build card data object matching MP createCardToken spec
+            const fullYear = expYear.length === 2 ? `20${expYear}` : expYear;
+
+            console.log("[MP] Creando token de tarjeta...");
+
             const tokenResponse = await mp.createCardToken({
-                cardNumber: cardNumber.replace(/\s/g, ""),
-                cardholderName: holderName,
+                cardNumber: cleanCard,
+                cardholderName: holderName.trim(),
                 cardExpirationMonth: expMonth.padStart(2, "0"),
-                cardExpirationYear: expYear.length === 2 ? `20${expYear}` : expYear,
+                cardExpirationYear: fullYear,
                 securityCode: cvv,
-                identificationType: "CURP",
-                identificationNumber: docNumber,
+                identificationType: "RFC",
+                identificationNumber: docNumber || "XAXX010101000",
             });
 
+            console.log("[MP] Token response:", JSON.stringify(tokenResponse));
+
             if (!tokenResponse?.id) {
-                setError("No se pudo generar el token de la tarjeta. Revisa tus datos.");
+                const cause = tokenResponse?.cause?.[0]?.code;
+                const causeDesc = tokenResponse?.cause?.[0]?.description;
+                console.error("[MP] Token sin ID. Causa:", cause, causeDesc);
+                setError(
+                    cause === "E301" ? "Número de tarjeta inválido." :
+                        cause === "E302" ? "CVV inválido." :
+                            cause === "E303" ? "Fecha de vencimiento inválida." :
+                                causeDesc || "No se pudo verificar la tarjeta. Revisa los datos."
+                );
                 setIsSubmitting(false);
                 return;
             }
 
-            // Determine paymentMethodId from the card number (MP returns it in the token response)
             const paymentMethodId = tokenResponse.payment_method_id || "visa";
+            console.log("[MP] Token OK:", tokenResponse.id, "Método:", paymentMethodId);
 
-            // Call backend
             const payRes = await fetch("/api/payments/create-payment", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -104,30 +125,32 @@ export default function CheckoutPage() {
                     paymentMethodId,
                     installments: 1,
                     payerEmail: user?.email || "cliente@cremeria.com",
-                    payerName: holderName || user?.name || "Cliente",
+                    payerName: holderName.trim() || user?.name || "Cliente",
                     description: `Pedido Cremería del Rancho`,
                 }),
             });
 
             const payData = await payRes.json();
+            console.log("[MP] Payment response:", payData);
 
             if (!payRes.ok || !payData.success) {
                 const msgs: Record<string, string> = {
-                    cc_rejected_insufficient_amount: "Fondos insuficientes.",
+                    cc_rejected_insufficient_amount: "Fondos insuficientes en la tarjeta.",
                     cc_rejected_bad_filled_security_code: "CVV incorrecto.",
                     cc_rejected_bad_filled_date: "Fecha de vencimiento incorrecta.",
                     cc_rejected_bad_filled_card_number: "Número de tarjeta incorrecto.",
                     cc_rejected_card_disabled: "Tarjeta deshabilitada. Contacta tu banco.",
+                    cc_rejected_call_for_authorize: "Llama a tu banco para autorizar el pago.",
                 };
-                setError(msgs[payData.detail] || "Pago rechazado. Verifica tus datos.");
+                setError(msgs[payData.detail] || `Pago rechazado: ${payData.detail || "verifica tus datos"}.`);
                 setIsSubmitting(false);
                 return;
             }
 
             await createOrder(String(payData.paymentId));
         } catch (err: any) {
-            console.error("MP pay error:", err);
-            setError(err?.message || "Error inesperado al procesar el pago.");
+            console.error("[MP] Error completo:", err);
+            setError(err?.message || "Error inesperado. Por favor intenta de nuevo.");
             setIsSubmitting(false);
         }
     };
