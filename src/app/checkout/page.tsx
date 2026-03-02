@@ -287,7 +287,7 @@ export default function CheckoutPage() {
                         {/* CURP/RFC */}
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">CURP / RFC (sin guiones)</label>
-                            <input required value={docNumber} onChange={e => setDocNumber(e.target.value)}
+                            <input required value={docNumber} onChange={e => setDocNumber(e.target.value.toUpperCase())}
                                 placeholder="Ej: AAAA800101HDFXXX01" className={inputClass} />
                         </div>
 
