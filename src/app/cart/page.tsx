@@ -48,66 +48,68 @@ export default function CartPage() {
                 </div>
             </header>
 
-            {/* Cart Items */}
-            <div className="pt-20 px-4 flex flex-col gap-4">
+            {/* Unified card: Products + Order Summary */}
+            <div className="pt-20 px-4">
                 {items.length === 0 ? (
-                    <div className="text-center mt-10 text-gray-500">Tu carrito está vacío.</div>
+                    <div className="text-center mt-16 text-gray-500">Tu carrito está vacío.</div>
                 ) : (
-                    items.map((item) => (
-                        <div key={item.productId} className="flex gap-4 p-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-sm">
-                            <img src={item.image} alt={item.name} className="w-20 h-20 rounded-xl object-cover" />
+                    <div className="rounded-3xl bg-white/5 backdrop-blur-md border border-white/10 shadow-sm overflow-hidden">
+                        {/* Products */}
+                        <div className="flex flex-col divide-y divide-white/5">
+                            {items.map((item) => (
+                                <div key={item.productId} className="flex gap-4 p-4">
+                                    <img src={item.image} alt={item.name} className="w-20 h-20 rounded-xl object-cover shrink-0" />
 
-                            <div className="flex flex-col flex-1 justify-between py-1">
-                                <div className="flex justify-between items-start">
-                                    <h3 className="font-semibold text-[15px] leading-tight line-clamp-2 pr-2">{item.name}</h3>
-                                    <button onClick={() => removeItem(item.productId)} className="text-gray-500 hover:text-red-500 transition-colors cursor-pointer">
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
+                                    <div className="flex flex-col flex-1 justify-between py-1">
+                                        <div className="flex justify-between items-start">
+                                            <h3 className="font-semibold text-[15px] leading-tight line-clamp-2 pr-2">{item.name}</h3>
+                                            <button onClick={() => removeItem(item.productId)} className="text-gray-500 hover:text-red-500 transition-colors cursor-pointer shrink-0">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
 
-                                <div className="flex justify-between items-end">
-                                    <p className="text-primary font-bold">
-                                        ${item.price.toFixed(2)}
-                                    </p>
+                                        <div className="flex justify-between items-end mt-2">
+                                            <p className="text-primary font-bold">
+                                                ${(item.price * item.quantity).toFixed(2)}
+                                                {item.quantity > 1 && <span className="text-xs text-gray-400 font-normal ml-1">(${item.price.toFixed(2)} c/u)</span>}
+                                            </p>
 
-                                    {/* Quantity Selector */}
-                                    <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-full px-1 py-1">
-                                        <button onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="p-1 rounded-full text-foreground hover:bg-white/10 transition-colors">
-                                            <Minus size={14} />
-                                        </button>
-                                        <span className="font-semibold text-sm w-4 text-center">{item.quantity}</span>
-                                        <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="p-1 rounded-full text-primary hover:bg-primary-hover transition-colors">
-                                            <Plus size={14} />
-                                        </button>
+                                            {/* Quantity Selector */}
+                                            <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-full px-1 py-1">
+                                                <button onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="p-1 rounded-full text-foreground hover:bg-white/10 transition-colors">
+                                                    <Minus size={14} />
+                                                </button>
+                                                <span className="font-semibold text-sm w-4 text-center">{item.quantity}</span>
+                                                <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="p-1 rounded-full text-primary hover:bg-primary-hover transition-colors">
+                                                    <Plus size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Order Summary — same card, below products */}
+                        <div className="px-5 py-4 border-t border-white/10 bg-white/5">
+                            <div className="space-y-2 text-sm text-gray-300">
+                                <div className="flex justify-between">
+                                    <span>Subtotal</span>
+                                    <span className="font-medium text-foreground">${subtotal.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>Envío</span>
+                                    <span className="font-medium text-foreground">${delivery.toFixed(2)}</span>
+                                </div>
+                                <div className="h-px w-full bg-white/10 my-1" />
+                                <div className="flex justify-between items-center text-base">
+                                    <span className="font-bold text-foreground">Total</span>
+                                    <span className="font-black text-xl text-primary">${total.toFixed(2)}</span>
                                 </div>
                             </div>
                         </div>
-                    ))
+                    </div>
                 )}
-            </div>
-
-            {/* Order Summary */}
-            <div className="mt-6 mx-4 p-5 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
-                <h2 className="font-bold text-lg mb-4">Resumen de Orden</h2>
-
-                <div className="space-y-3 text-sm text-gray-300">
-                    <div className="flex justify-between">
-                        <span>Subtotal</span>
-                        <span className="font-medium text-foreground">${subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span>Envío</span>
-                        <span className="font-medium text-foreground">${delivery.toFixed(2)}</span>
-                    </div>
-                    <div className="h-px w-full bg-border/20 my-2" />
-                    <div className="flex justify-between items-center text-base">
-                        <span className="font-bold text-foreground">Total</span>
-                        <span className="font-black text-xl text-primary">
-                            ${total.toFixed(2)}
-                        </span>
-                    </div>
-                </div>
             </div>
 
             {/* Checkout Button */}
