@@ -43,7 +43,6 @@ export default function CheckoutPage() {
     const [expYear, setExpYear] = useState("");
     const [cvv, setCvv] = useState("");
     const [holderName, setHolderName] = useState("");
-    const [docNumber, setDocNumber] = useState("");
 
     const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
     const total = subtotal;
@@ -128,7 +127,7 @@ export default function CheckoutPage() {
                 cardExpirationYear: fullYear,
                 securityCode: cvv,
                 identificationType: "RFC",
-                identificationNumber: docNumber || "XAXX010101000",
+                identificationNumber: "XAXX010101000", // RFC genérico para México (no requerido)
             });
 
             console.log("[MP] Token respuesta:", JSON.stringify(tokenResponse));
@@ -513,12 +512,6 @@ export default function CheckoutPage() {
                                         placeholder="Como aparece en tu tarjeta" className={inputClass} />
                                 </div>
 
-                                {/* CURP/RFC */}
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">CURP / RFC (sin guiones)</label>
-                                    <input required value={docNumber} onChange={e => setDocNumber(e.target.value.toUpperCase())}
-                                        placeholder="Ej: AAAA800101HDFXXX01" className={inputClass} />
-                                </div>
 
                                 {/* Guardar tarjeta checkbox */}
                                 {user?.id && user.id !== "guest" && (
