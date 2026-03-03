@@ -2,9 +2,15 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const admin = searchParams.get("admin") === "true";
+
         const products = await prisma.product.findMany({
+            where: admin
+                ? undefined  // Admin ve todos
+                : { status: "ACTIVE", stock: { gt: 0 } }, // Tienda: solo disponibles con stock
             orderBy: { createdAt: "desc" },
         });
         return NextResponse.json(products);

@@ -84,15 +84,21 @@ export default async function AdminInventoryPage() {
 
                                     <td className="px-4 md:px-6 py-4">
                                         <div className="flex items-center gap-2">
-                                            <span className="font-bold text-gray-700">{product.stock} un.</span>
+                                            <span className={`font-bold ${product.stock === 0 ? "text-red-500" : "text-gray-700"}`}>
+                                                {product.stock} un.
+                                            </span>
                                             {product.stock === 0 && (
-                                                <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Agotado"></span>
+                                                <span className="px-2 py-0.5 text-[10px] font-black bg-red-100 text-red-600 border border-red-200 rounded-full uppercase tracking-wider">
+                                                    Agotado
+                                                </span>
                                             )}
                                             {product.stock > 0 && product.stock <= 15 && (
-                                                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Poco stock"></span>
+                                                <span className="px-2 py-0.5 text-[10px] font-black bg-amber-100 text-amber-600 border border-amber-200 rounded-full uppercase tracking-wider">
+                                                    Poco stock
+                                                </span>
                                             )}
                                             {product.stock > 15 && (
-                                                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="En stock"></span>
+                                                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="En stock" />
                                             )}
                                         </div>
                                     </td>
