@@ -38,7 +38,9 @@ export async function POST(request: Request) {
 
         const accessToken = process.env.MP_ACCESS_TOKEN!;
         let finalToken = token;
-        let finalPaymentMethodId = normalizePaymentMethodId(paymentMethodId || "");
+        // For new card (token provided): use paymentMethodId as-is from MP (debvisa, debmaster, visa, master…)
+        // For saved card (customer+card): we'll look it up from MP and normalize
+        let finalPaymentMethodId = paymentMethodId || "";
 
         // ── Si se paga con tarjeta guardada: crear nuevo token desde customer+card ──
         if (!finalToken && customerId && cardId) {

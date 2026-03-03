@@ -146,9 +146,10 @@ export default function CheckoutPage() {
                 return;
             }
 
-            // Use detected paymentMethodId OR from token
+            // Use the EXACT paymentMethodId from MP — debvisa, debmaster, etc.
+            // DO NOT normalize here; bin_exclusion happens when we send "visa" for a debvisa BIN
             const finalPaymentMethodId = tokenResponse.payment_method_id || paymentMethodId;
-            console.log("[MP] Token OK:", tokenResponse.id, "Método:", finalPaymentMethodId);
+            console.log("[MP] Token OK:", tokenResponse.id, "Método (raw):", finalPaymentMethodId);
 
             const payRes = await fetch("/api/payments/create-payment", {
                 method: "POST",
@@ -156,7 +157,7 @@ export default function CheckoutPage() {
                 body: JSON.stringify({
                     token: tokenResponse.id,
                     amount: total,
-                    paymentMethodId: finalPaymentMethodId,
+                    paymentMethodId: finalPaymentMethodId, // raw: debvisa, visa, master, debmaster…
                     installments: 1,
                     payerEmail: user?.email || "cliente@cremeria.com",
                     payerName: holderName.trim() || user?.name || "Cliente",
