@@ -86,9 +86,21 @@ export default function CheckoutPage() {
             const mp = new window.MercadoPago(mpPublicKeyRef.current, { locale: "es-MX" });
 
             const fullYear = expYear.length === 2 ? `20${expYear}` : expYear;
+            const bin = cleanCard.slice(0, 6);
 
-            console.log("[MP] Creando token de tarjeta...");
+            // Step 1: Detect payment method from card BIN
+            console.log("[MP] Detectando tipo de tarjeta para BIN:", bin);
+            let paymentMethodId = "visa";
+            try {
+                const pmRes = await mp.getPaymentMethods({ bin });
+                paymentMethodId = pmRes?.results?.[0]?.id || "visa";
+                console.log("[MP] Tipo de tarjeta detectado:", paymentMethodId);
+            } catch (pmErr) {
+                console.warn("[MP] No se pudo detectar tipo de tarjeta, usando 'visa'", pmErr);
+            }
 
+            // Step 2: Create card token
+            console.log("[MP] Creando token...");
             const tokenResponse = await mp.createCardToken({
                 cardNumber: cleanCard,
                 cardholderName: holderName.trim(),
@@ -99,7 +111,7 @@ export default function CheckoutPage() {
                 identificationNumber: docNumber || "XAXX010101000",
             });
 
-            console.log("[MP] Token response:", JSON.stringify(tokenResponse));
+            console.log("[MP] Token respuesta:", JSON.stringify(tokenResponse));
 
             if (!tokenResponse?.id) {
                 const cause = tokenResponse?.cause?.[0]?.code;
@@ -115,8 +127,9 @@ export default function CheckoutPage() {
                 return;
             }
 
-            const paymentMethodId = tokenResponse.payment_method_id || "visa";
-            console.log("[MP] Token OK:", tokenResponse.id, "Método:", paymentMethodId);
+            // Use detected paymentMethodId OR from token
+            const finalPaymentMethodId = tokenResponse.payment_method_id || paymentMethodId;
+            console.log("[MP] Token OK:", tokenResponse.id, "Método:", finalPaymentMethodId);
 
             const payRes = await fetch("/api/payments/create-payment", {
                 method: "POST",
@@ -124,7 +137,7 @@ export default function CheckoutPage() {
                 body: JSON.stringify({
                     token: tokenResponse.id,
                     amount: total,
-                    paymentMethodId,
+                    paymentMethodId: finalPaymentMethodId,
                     installments: 1,
                     payerEmail: user?.email || "cliente@cremeria.com",
                     payerName: holderName.trim() || user?.name || "Cliente",
@@ -143,16 +156,20 @@ export default function CheckoutPage() {
                     cc_rejected_bad_filled_card_number: "Número de tarjeta incorrecto.",
                     cc_rejected_card_disabled: "Tarjeta deshabilitada. Contacta tu banco.",
                     cc_rejected_call_for_authorize: "Llama a tu banco para autorizar el pago.",
-                    cc_rejected_other_reason: "Tu banco rechazó el pago. Intenta con otra tarjeta o llama a tu banco.",
+                    cc_rejected_other_reason: "Tu banco rechazó el cobro. Llama a tu banco o intenta con otra tarjeta.",
                     cc_rejected_high_risk: "Pago bloqueado por seguridad. Intenta con otra tarjeta.",
                 };
-                // Always show the exact detail code for diagnosis
-                const exactDetail = payData.detail || payData.rawDetail || "sin_detalle";
-                const friendlyMsg = msgs[exactDetail];
-                setError(friendlyMsg
-                    ? `${friendlyMsg} (código: ${exactDetail})`
-                    : `Pago rechazado por Mercado Pago. Código: "${exactDetail}". Estado: "${payData.status}"`
-                );
+                const exactDetail = payData.detail || payData.rawDetail;
+                // 500 case: backend exception — show the actual server error
+                if (!exactDetail && payData.error) {
+                    setError(`Error del servidor: ${payData.error}`);
+                } else {
+                    const friendlyMsg = exactDetail ? msgs[exactDetail] : undefined;
+                    setError(friendlyMsg
+                        ? `${friendlyMsg} (código: ${exactDetail})`
+                        : `Pago rechazado. Código: "${exactDetail || "sin_detalle"}"`
+                    );
+                }
                 setIsSubmitting(false);
                 return;
             }
