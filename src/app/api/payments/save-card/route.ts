@@ -57,17 +57,28 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "No se pudo guardar la tarjeta en Mercado Pago" }, { status: 500 });
         }
 
+        // Normaliza debvisa → visa, debmaster → master, etc.
+        const normalizeMethodId = (id: string) => {
+            const map: Record<string, string> = {
+                debvisa: "visa", debmaster: "master",
+                debcabal: "cabal", debnaranja: "naranja",
+            };
+            return map[id?.toLowerCase()] ?? id?.toLowerCase() ?? "visa";
+        };
+
         // Step 3: Save card reference to our DB
+        // Prefer MP's own data (from cardData) over what the client sent
+        const rawBrand = cardData.payment_method?.id || cardBrand || "visa";
         await prisma.savedCard.create({
             data: {
                 userId,
-                mpCustomerId,
+                mpCustomerId: mpCustomerId!,
                 mpCardId: cardData.id,
-                lastFour: lastFour || cardData.last_four_digits || "****",
-                cardBrand: cardBrand || cardData.payment_method?.id || "visa",
-                expirationMonth: expirationMonth || cardData.expiration_month?.toString() || "??",
-                expirationYear: expirationYear || cardData.expiration_year?.toString() || "??",
-                holderName: holderName || cardData.cardholder?.name || "Titular",
+                lastFour: cardData.last_four_digits || lastFour || "****",
+                cardBrand: normalizeMethodId(rawBrand),
+                expirationMonth: cardData.expiration_month?.toString() || expirationMonth || "??",
+                expirationYear: cardData.expiration_year?.toString() || expirationYear || "??",
+                holderName: cardData.cardholder?.name || holderName || "Titular",
             }
         });
 
