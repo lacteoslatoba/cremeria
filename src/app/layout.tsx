@@ -1,6 +1,7 @@
 ﻿import type { Metadata } from "next";
 import "./globals.css";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { SideNav } from "@/components/layout/side-nav";
 
 export const metadata: Metadata = {
     title: "Cremeria del Rancho",
@@ -14,18 +15,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-    width: 'device-width',
+    width: "device-width",
     initialScale: 1,
     maximumScale: 1,
     userScalable: false,
-    themeColor: '#ee2b34',
+    themeColor: "#ee2b34",
 };
 
-export default function RootLayout({
-    children,
-}: Readonly<{
-    children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
         <html lang="es">
             <head>
@@ -34,11 +31,15 @@ export default function RootLayout({
                 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
             </head>
             <body>
-                <div className="app-wrapper">
-                    <AuthGuard>
+                <AuthGuard>
+                    {/* Desktop sidebar — only visible on md+ */}
+                    <SideNav />
+
+                    {/* Main content */}
+                    <div className="app-wrapper">
                         {children}
-                    </AuthGuard>
-                </div>
+                    </div>
+                </AuthGuard>
             </body>
         </html>
     );
