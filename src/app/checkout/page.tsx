@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
-import { ChevronLeft, Banknote, Loader2, CreditCard, CheckCircle2, AlertCircle, PartyPopper } from "lucide-react";
+import { ChevronLeft, Banknote, Loader2, CreditCard, CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
 import { BottomNav } from "@/components/layout/bottom-nav";
 
 declare global {
@@ -30,6 +30,12 @@ export default function CheckoutPage() {
     const [mpLoaded, setMpLoaded] = useState(false);
     const mpPublicKeyRef = useRef("");
 
+    // Saved cards
+    const [savedCards, setSavedCards] = useState<any[]>([]);
+    const [selectedSavedCard, setSelectedSavedCard] = useState<any | null>(null);
+    const [saveCard, setSaveCard] = useState(false);
+    const [useNewCard, setUseNewCard] = useState(false); // toggle new card form vs saved
+
     // Card fields (plain inputs — MP tokenises them client-side)
     const [cardNumber, setCardNumber] = useState("");
     const [expMonth, setExpMonth] = useState("");
@@ -45,7 +51,7 @@ export default function CheckoutPage() {
         setMounted(true);
         if (items.length === 0) router.push("/cart");
 
-        // Load public key
+        // Load public key + SDK
         fetch("/api/payments/config")
             .then(r => r.json())
             .then(({ publicKey }) => {
@@ -53,6 +59,19 @@ export default function CheckoutPage() {
                 loadSDK(publicKey);
             })
             .catch(console.error);
+
+        // Load saved cards for logged-in user
+        if (user?.id && user.id !== "guest") {
+            fetch(`/api/payments/save-card?userId=${user.id}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (Array.isArray(data) && data.length > 0) {
+                        setSavedCards(data);
+                        setSelectedSavedCard(data[0]);
+                    }
+                })
+                .catch(console.error);
+        }
     }, []);
 
     const loadSDK = (publicKey: string) => {
@@ -172,6 +191,28 @@ export default function CheckoutPage() {
                 }
                 setIsSubmitting(false);
                 return;
+            }
+
+            // ✅ Payment approved — save card if requested
+            if (saveCard && user?.id && user.id !== "guest") {
+                try {
+                    await fetch("/api/payments/save-card", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            userId: user.id,
+                            token: tokenResponse.id,
+                            lastFour: cleanCard.slice(-4),
+                            cardBrand: finalPaymentMethodId,
+                            expirationMonth: expMonth,
+                            expirationYear: expYear.length === 2 ? `20${expYear}` : expYear,
+                            holderName: holderName.trim(),
+                            payerEmail: user?.email || "cliente@cremeria.com",
+                        }),
+                    });
+                } catch (saveErr) {
+                    console.warn("[MP] No se pudo guardar la tarjeta:", saveErr);
+                }
             }
 
             await createOrder(String(payData.paymentId));
@@ -308,70 +349,172 @@ export default function CheckoutPage() {
 
                 {/* ────── CARD FORM ────── */}
                 {paymentMethod === "CARD" && (
-                    <form onSubmit={handleCardPay} className="flex flex-col gap-4 animate-in slide-in-from-bottom-2 duration-300">
+                    <div className="flex flex-col gap-4 animate-in slide-in-from-bottom-2 duration-300">
 
                         <div className="flex items-center gap-2 px-1">
                             <span className="font-black text-[#009EE3] text-base">Mercado Pago</span>
                             <span className="text-xs text-gray-500">· 🔒 Pago encriptado</span>
                         </div>
 
-                        {/* Número */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Número de tarjeta</label>
-                            <input required value={cardNumber} onChange={e => setCardNumber(fmtCard(e.target.value))}
-                                placeholder="0000 0000 0000 0000" inputMode="numeric" maxLength={19}
-                                className={inputClass} />
-                        </div>
+                        {/* ── SAVED CARDS ── */}
+                        {savedCards.length > 0 && !useNewCard && (
+                            <div className="flex flex-col gap-3">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Tus tarjetas guardadas</p>
+                                {savedCards.map(card => (
+                                    <div key={card.id}
+                                        onClick={() => setSelectedSavedCard(card)}
+                                        className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedSavedCard?.id === card.id ? "border-[#009EE3] bg-[#009EE3]/10" : "border-white/10 bg-white/5 hover:border-white/30"}`}>
+                                        <CreditCard size={22} className="text-[#009EE3] shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-sm capitalize">{card.cardBrand} ···· {card.lastFour}</p>
+                                            <p className="text-xs text-gray-400">{card.holderName} · Vence {card.expirationMonth}/{card.expirationYear}</p>
+                                        </div>
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedSavedCard?.id === card.id ? "border-[#009EE3]" : "border-gray-500"}`}>
+                                            {selectedSavedCard?.id === card.id && <div className="w-2.5 h-2.5 bg-[#009EE3] rounded-full" />}
+                                        </div>
+                                        <button type="button" onClick={async (e) => {
+                                            e.stopPropagation();
+                                            await fetch(`/api/payments/save-card?cardId=${card.id}`, { method: "DELETE" });
+                                            setSavedCards(prev => prev.filter(c => c.id !== card.id));
+                                            if (selectedSavedCard?.id === card.id) setSelectedSavedCard(null);
+                                        }} className="p-1.5 text-gray-500 hover:text-red-400 transition-colors shrink-0">
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
 
-                        {/* Fecha + CVV */}
-                        <div className="flex gap-3">
-                            <div className="flex-1 space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Mes</label>
-                                <input required value={expMonth} onChange={e => setExpMonth(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                                    placeholder="MM" inputMode="numeric" maxLength={2} className={inputClass} />
+                                {/* Use saved card pay button */}
+                                {selectedSavedCard && (
+                                    <>
+                                        <div className="flex justify-between items-center px-1 py-1">
+                                            <span className="font-bold text-lg">Total:</span>
+                                            <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
+                                        </div>
+                                        <button onClick={async () => {
+                                            setIsSubmitting(true);
+                                            setError("");
+                                            try {
+                                                // Pay with saved card via MP Customer+Card
+                                                const payRes = await fetch("/api/payments/create-payment", {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({
+                                                        customerId: selectedSavedCard.mpCustomerId,
+                                                        cardId: selectedSavedCard.mpCardId,
+                                                        amount: total,
+                                                        paymentMethodId: selectedSavedCard.cardBrand,
+                                                        installments: 1,
+                                                        payerEmail: user?.email || "cliente@cremeria.com",
+                                                        payerName: selectedSavedCard.holderName,
+                                                        description: "Pedido Cremería del Rancho",
+                                                    }),
+                                                });
+                                                const payData = await payRes.json();
+                                                if (!payRes.ok || !payData.success) {
+                                                    setError(`Pago rechazado: ${payData.detail || payData.error || "intenta de nuevo"}`);
+                                                    setIsSubmitting(false);
+                                                    return;
+                                                }
+                                                await createOrder(String(payData.paymentId));
+                                            } catch (err: any) {
+                                                setError(err?.message || "Error inesperado");
+                                                setIsSubmitting(false);
+                                            }
+                                        }} disabled={isSubmitting}
+                                            className="w-full py-4 rounded-2xl bg-[#009EE3] text-white font-bold text-lg shadow-lg shadow-[#009EE3]/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                                            {isSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
+                                        </button>
+                                    </>
+                                )}
+
+                                <button type="button" onClick={() => { setUseNewCard(true); setSelectedSavedCard(null); }}
+                                    className="text-sm text-[#009EE3] font-bold text-center underline underline-offset-4">
+                                    + Usar otra tarjeta
+                                </button>
                             </div>
-                            <div className="flex-1 space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Año</label>
-                                <input required value={expYear} onChange={e => setExpYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                                    placeholder="AA" inputMode="numeric" maxLength={4} className={inputClass} />
-                            </div>
-                            <div className="flex-1 space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">CVV</label>
-                                <input required value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                                    placeholder="•••" inputMode="numeric" maxLength={4} type="password" className={inputClass} />
-                            </div>
-                        </div>
+                        )}
 
-                        {/* Nombre */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Nombre del titular</label>
-                            <input required value={holderName} onChange={e => setHolderName(e.target.value.toUpperCase())}
-                                placeholder="Como aparece en tu tarjeta" className={inputClass} />
-                        </div>
+                        {/* ── NEW CARD FORM ── */}
+                        {(savedCards.length === 0 || useNewCard) && (
+                            <form onSubmit={handleCardPay} className="flex flex-col gap-4">
+                                {useNewCard && (
+                                    <button type="button" onClick={() => { setUseNewCard(false); setSelectedSavedCard(savedCards[0] || null); }}
+                                        className="text-sm text-gray-400 font-medium text-left pl-1 underline underline-offset-2">
+                                        ← Usar tarjeta guardada
+                                    </button>
+                                )}
 
-                        {/* CURP/RFC */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">CURP / RFC (sin guiones)</label>
-                            <input required value={docNumber} onChange={e => setDocNumber(e.target.value.toUpperCase())}
-                                placeholder="Ej: AAAA800101HDFXXX01" className={inputClass} />
-                        </div>
+                                {/* Número */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Número de tarjeta</label>
+                                    <input required value={cardNumber} onChange={e => setCardNumber(fmtCard(e.target.value))}
+                                        placeholder="0000 0000 0000 0000" inputMode="numeric" maxLength={19}
+                                        className={inputClass} />
+                                </div>
 
-                        {/* Total */}
-                        <div className="flex justify-between items-center px-1 py-1">
-                            <span className="font-bold text-lg">Total:</span>
-                            <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
-                        </div>
+                                {/* Fecha + CVV */}
+                                <div className="flex gap-3">
+                                    <div className="flex-1 space-y-1.5">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Mes</label>
+                                        <input required value={expMonth} onChange={e => setExpMonth(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                                            placeholder="MM" inputMode="numeric" maxLength={2} className={inputClass} />
+                                    </div>
+                                    <div className="flex-1 space-y-1.5">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Año</label>
+                                        <input required value={expYear} onChange={e => setExpYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                                            placeholder="AA" inputMode="numeric" maxLength={4} className={inputClass} />
+                                    </div>
+                                    <div className="flex-1 space-y-1.5">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">CVV</label>
+                                        <input required value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                                            placeholder="•••" inputMode="numeric" maxLength={4} type="password" className={inputClass} />
+                                    </div>
+                                </div>
 
-                        <button type="submit" disabled={isSubmitting}
-                            className="w-full py-4 rounded-2xl bg-[#009EE3] text-white font-bold text-lg shadow-lg shadow-[#009EE3]/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
-                            {isSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
-                        </button>
+                                {/* Nombre */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Nombre del titular</label>
+                                    <input required value={holderName} onChange={e => setHolderName(e.target.value.toUpperCase())}
+                                        placeholder="Como aparece en tu tarjeta" className={inputClass} />
+                                </div>
 
-                        <p className="text-center text-xs text-gray-500 pb-2">
-                            🔒 Tus datos se procesan de forma segura por Mercado Pago. Nunca los guardamos.
-                        </p>
-                    </form>
+                                {/* CURP/RFC */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">CURP / RFC (sin guiones)</label>
+                                    <input required value={docNumber} onChange={e => setDocNumber(e.target.value.toUpperCase())}
+                                        placeholder="Ej: AAAA800101HDFXXX01" className={inputClass} />
+                                </div>
+
+                                {/* Guardar tarjeta checkbox */}
+                                {user?.id && user.id !== "guest" && (
+                                    <label className="flex items-center gap-3 cursor-pointer select-none px-1">
+                                        <div onClick={() => setSaveCard(!saveCard)}
+                                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all shrink-0 ${saveCard ? "bg-[#009EE3] border-[#009EE3]" : "border-gray-500 bg-white/5"}`}>
+                                            {saveCard && <CheckCircle2 size={13} className="text-white" />}
+                                        </div>
+                                        <span className="text-sm text-gray-300">Guardar tarjeta para futuras compras</span>
+                                    </label>
+                                )}
+
+                                {/* Total */}
+                                <div className="flex justify-between items-center px-1 py-1">
+                                    <span className="font-bold text-lg">Total:</span>
+                                    <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
+                                </div>
+
+                                <button type="submit" disabled={isSubmitting}
+                                    className="w-full py-4 rounded-2xl bg-[#009EE3] text-white font-bold text-lg shadow-lg shadow-[#009EE3]/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                                    {isSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
+                                </button>
+
+                                <p className="text-center text-xs text-gray-500 pb-2">
+                                    🔒 Tus datos se procesan de forma segura por Mercado Pago. Nunca los guardamos.
+                                </p>
+                            </form>
+                        )}
+                    </div>
                 )}
+
 
                 {/* ────── CASH ────── */}
                 {paymentMethod === "CASH" && (

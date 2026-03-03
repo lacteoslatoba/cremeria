@@ -19,10 +19,13 @@ model User {
   phone     String?
   username  String?  @unique
   password  String?
+  address   String?
+  mpCustomerId String?
   resetToken String?
   resetTokenExpiry DateTime?
   role      String   @default("CUSTOMER") // CUSTOMER or ADMIN
   orders    Order[]
+  savedCards SavedCard[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -63,4 +66,18 @@ model OrderItem {
   product   Product  @relation(fields: [productId], references: [id])
   quantity  Int
   price     Float
+}
+
+model SavedCard {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mpCustomerId     String
+  mpCardId         String
+  lastFour         String
+  cardBrand        String   // visa, master, amex, etc.
+  expirationMonth  String
+  expirationYear   String
+  holderName       String
+  createdAt        DateTime @default(now())
 }

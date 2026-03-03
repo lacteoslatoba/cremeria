@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, MapPin, Navigation } from "lucide-react";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -27,8 +27,10 @@ export default function LoginPage() {
     const [regEmail, setRegEmail] = useState("");
     const [regPassword, setRegPassword] = useState("");
     const [regConfirmPassword, setRegConfirmPassword] = useState("");
+    const [regAddress, setRegAddress] = useState("");
     const [showRegPassword, setShowRegPassword] = useState(false);
     const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
+    const [gpsLoading, setGpsLoading] = useState(false);
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -41,6 +43,47 @@ export default function LoginPage() {
             router.push("/");
         }
     }, [user, router]);
+
+    // Auto title-case: capitalize first letter of each word
+    const toTitleCase = (str: string) =>
+        str.replace(/\b\w/g, c => c.toUpperCase());
+
+    // Get GPS address
+    const handleGPS = () => {
+        if (!navigator.geolocation) {
+            setError("Tu navegador no soporta geolocalización.");
+            return;
+        }
+        setGpsLoading(true);
+        navigator.geolocation.getCurrentPosition(
+            async ({ coords }) => {
+                try {
+                    const res = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json&accept-language=es`
+                    );
+                    const data = await res.json();
+                    const a = data.address;
+                    const parts = [
+                        a.road || a.pedestrian || a.neighbourhood,
+                        a.house_number,
+                        a.suburb || a.neighbourhood || a.quarter,
+                        a.city || a.town || a.village,
+                        a.state,
+                    ].filter(Boolean);
+                    setRegAddress(parts.join(", "));
+                } catch {
+                    setError("No se pudo obtener la dirección. Escríbela manualmente.");
+                } finally {
+                    setGpsLoading(false);
+                }
+            },
+            () => {
+                setError("Permiso de ubicación denegado. Escribe tu dirección manualmente.");
+                setGpsLoading(false);
+            },
+            { timeout: 10000 }
+        );
+    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -90,7 +133,8 @@ export default function LoginPage() {
                     username: regUsername,
                     phone: regPhone,
                     email: regEmail,
-                    password: regPassword
+                    password: regPassword,
+                    address: regAddress || null,
                 })
             });
 
@@ -232,9 +276,9 @@ export default function LoginPage() {
                                     <input
                                         type="text"
                                         required
-                                        placeholder="Ej. Pedro Pérez"
+                                        placeholder="Ej. Pedro Pérez García"
                                         value={regName}
-                                        onChange={(e) => setRegName(e.target.value)}
+                                        onChange={(e) => setRegName(toTitleCase(e.target.value))}
                                         className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium"
                                     />
                                 </div>
@@ -283,6 +327,32 @@ export default function LoginPage() {
                                         onChange={(e) => setRegEmail(e.target.value)}
                                         className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium"
                                     />
+                                </div>
+
+                                {/* Address field with GPS button */}
+                                <div className="space-y-1 text-left">
+                                    <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">Dirección de Entrega</label>
+                                    <div className="relative flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Calle, número, colonia..."
+                                            value={regAddress}
+                                            onChange={(e) => setRegAddress(e.target.value)}
+                                            className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleGPS}
+                                            disabled={gpsLoading}
+                                            title="Usar mi ubicación actual"
+                                            className="shrink-0 flex items-center justify-center w-12 h-12 bg-primary/10 hover:bg-primary text-primary hover:text-white border border-primary/30 rounded-xl transition-all disabled:opacity-50"
+                                        >
+                                            {gpsLoading
+                                                ? <Loader2 size={18} className="animate-spin" />
+                                                : <Navigation size={18} />}
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 pl-1">📍 Toca el botón para detectar tu ubicación automáticamente</p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
