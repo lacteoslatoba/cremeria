@@ -47,6 +47,9 @@ model Product {
 model Order {
   id            String      @id @default(cuid())
   stripeId      String?
+  mpPaymentId   String?     // Mercado Pago payment ID
+  paymentStatus String      @default("PENDING") // PENDING, APPROVED, REJECTED
+  paymentMethod String      @default("CASH")    // CASH, CARD
   userId        String?
   user          User?       @relation(fields: [userId], references: [id])
   customerName  String?

@@ -22,11 +22,23 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-
-        // items should be array of { productId, quantity, price }
         const items = body.items || [];
 
-        // Create order and update stock in a transaction
+        // paymentMethod: CASH | CARD
+        // mpPaymentId: MP payment ID (only for card payments)
+        // mpPaymentStatus: approved | in_process | rejected (from MP)
+        const paymentMethod = body.paymentMethod || "CASH";
+        const mpPaymentId = body.mpPaymentId || null;
+        const mpPaymentStatus = body.mpPaymentStatus || null;
+
+        // Determine paymentStatus to store
+        let paymentStatus = "APPROVED"; // cash is always "approved" immediately
+        if (paymentMethod === "CARD") {
+            if (mpPaymentStatus === "approved") paymentStatus = "APPROVED";
+            else if (mpPaymentStatus === "rejected" || mpPaymentStatus === "cancelled") paymentStatus = "REJECTED";
+            else paymentStatus = "PENDING"; // in_process, pending → waiting for webhook
+        }
+
         const order = await prisma.$transaction(async (tx: any) => {
             const newOrder = await tx.order.create({
                 data: {
@@ -34,6 +46,9 @@ export async function POST(request: Request) {
                     address: body.address,
                     total: body.total,
                     status: "PENDING",
+                    paymentMethod,
+                    mpPaymentId,
+                    paymentStatus,
                     ...(body.userId ? { user: { connect: { id: body.userId } } } : {}),
                     items: {
                         create: items.map((item: any) => ({
@@ -43,17 +58,18 @@ export async function POST(request: Request) {
                         }))
                     }
                 },
-                include: {
-                    items: true
-                }
+                include: { items: true }
             });
 
-            // Deduct inventory
-            for (const item of items) {
-                await tx.product.update({
-                    where: { id: item.productId },
-                    data: { stock: { decrement: item.quantity } }
-                });
+            // Deduct inventory only immediately if payment is approved or cash
+            // (webhook will handle restoring stock if rejected later)
+            if (paymentStatus !== "REJECTED") {
+                for (const item of items) {
+                    await tx.product.update({
+                        where: { id: item.productId },
+                        data: { stock: { decrement: item.quantity } }
+                    });
+                }
             }
 
             return newOrder;

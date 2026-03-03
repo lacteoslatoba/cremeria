@@ -27,6 +27,7 @@ export default function CheckoutPage() {
     const [error, setError] = useState("");
     const [paymentSuccess, setPaymentSuccess] = useState(false);
     const [successOrderId, setSuccessOrderId] = useState("");
+    const [mpFinalStatus, setMpFinalStatus] = useState(""); // "approved" | "in_process"
     const [mpLoaded, setMpLoaded] = useState(false);
     const mpPublicKeyRef = useRef("");
 
@@ -215,7 +216,7 @@ export default function CheckoutPage() {
                 }
             }
 
-            await createOrder(String(payData.paymentId));
+            await createOrder(String(payData.paymentId), payData.status, "CARD");
         } catch (err: any) {
             console.error("[MP] Error completo:", err);
             setError(err?.message || "Error inesperado. Por favor intenta de nuevo.");
@@ -226,11 +227,11 @@ export default function CheckoutPage() {
     const processCash = async () => {
         setIsSubmitting(true);
         setError("");
-        try { await createOrder(null); }
+        try { await createOrder(null, "approved", "CASH"); }
         catch { setError("Error al crear el pedido."); setIsSubmitting(false); }
     };
 
-    const createOrder = async (mpId: string | null) => {
+    const createOrder = async (mpId: string | null, mpPaymentStatus?: string, paymentMethod?: string) => {
         const res = await fetch("/api/orders", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -240,18 +241,23 @@ export default function CheckoutPage() {
                 address: "Ubicación GPS (Actual)",
                 total,
                 mpPaymentId: mpId,
+                mpPaymentStatus: mpPaymentStatus || null,
+                paymentMethod: paymentMethod || "CASH",
                 items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
             }),
         });
         if (res.ok) {
             const data = await res.json();
             clearCart();
-            // Show success screen first, then redirect
             setSuccessOrderId(data.id);
+            setMpFinalStatus(mpPaymentStatus || "approved");
             setPaymentSuccess(true);
-            setTimeout(() => {
-                router.push(`/tracking?orderId=${data.id}`);
-            }, 2800);
+            // For approved: redirect after 2.8s. For in_process: stay on screen (webhook will update)
+            if (mpPaymentStatus === "approved" || !mpPaymentStatus) {
+                setTimeout(() => {
+                    router.push(`/tracking?orderId=${data.id}`);
+                }, 2800);
+            }
         } else {
             setError("Error al registrar el pedido. Intenta de nuevo.");
             setIsSubmitting(false);
@@ -265,8 +271,37 @@ export default function CheckoutPage() {
 
     const inputClass = "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-foreground font-medium outline-none focus:ring-2 focus:ring-[#009EE3]/50 focus:border-[#009EE3] transition-all placeholder:text-gray-600";
 
-    // ── SUCCESS OVERLAY ──
+    // ── SUCCESS / PROCESSING OVERLAY ──
     if (paymentSuccess) {
+        const isInProcess = mpFinalStatus === "in_process" || mpFinalStatus === "pending";
+
+        if (isInProcess) {
+            // Yellow — payment being reviewed by MP
+            return (
+                <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center gap-6 px-8 animate-in fade-in duration-500">
+                    <div className="flex items-center justify-center w-28 h-28 rounded-full bg-amber-500/15 border-2 border-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.4)] animate-in zoom-in duration-500">
+                        <Loader2 size={52} className="text-amber-400 animate-spin" />
+                    </div>
+                    <div className="text-center space-y-2">
+                        <h2 className="text-2xl font-black text-white">Verificando pago...</h2>
+                        <p className="text-gray-400 text-sm">Tu pago está siendo revisado por Mercado Pago.</p>
+                        <p className="text-xs text-gray-500 mt-1">Folio: #{successOrderId.slice(-6).toUpperCase()}</p>
+                    </div>
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-center max-w-xs">
+                        <p className="text-amber-300 text-sm font-medium">⏳ Esto puede tomar unos minutos.</p>
+                        <p className="text-gray-400 text-xs mt-1">Recibirás confirmación de Mercado Pago. Si el pago es rechazado, tu pedido será cancelado automáticamente.</p>
+                    </div>
+                    <button
+                        onClick={() => router.push(`/tracking?orderId=${successOrderId}`)}
+                        className="mt-2 px-8 py-3 bg-white/10 border border-white/20 rounded-2xl text-white font-bold text-sm hover:bg-white/20 transition-all"
+                    >
+                        Ver estado del pedido →
+                    </button>
+                </div>
+            );
+        }
+
+        // Green — payment approved ✅
         return (
             <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center gap-6 px-8 animate-in fade-in duration-500">
                 <div className="flex items-center justify-center w-28 h-28 rounded-full bg-green-500/15 border-2 border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.4)] animate-in zoom-in duration-500">
@@ -274,7 +309,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="text-center space-y-2">
                     <h2 className="text-3xl font-black text-white">¡Pedido realizado!</h2>
-                    <p className="text-gray-400 text-base">Tu orden fue confirmada exitosamente.</p>
+                    <p className="text-gray-400 text-base">Tu pago fue confirmado por Mercado Pago.</p>
                     <p className="text-xs text-gray-500 mt-1">Folio: #{successOrderId.slice(-6).toUpperCase()}</p>
                 </div>
                 <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
