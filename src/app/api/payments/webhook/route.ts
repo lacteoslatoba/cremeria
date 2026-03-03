@@ -1,34 +1,71 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createHmac } from "crypto";
 
-// MP sends a POST here when payment status changes
-// Configure this URL in your MP account:
-//   https://www.mercadopago.com.mx/developers/panel/app → Webhooks
-//   URL: https://your-app.vercel.app/api/payments/webhook
+// ── Mercado Pago Webhook Signature Verification ──
+// MP sends: x-signature header with format: ts=<timestamp>,v1=<signature>
+// and: x-request-id header
+// Signed string: "id:<data.id>;request-id:<x-request-id>;ts:<ts>;"
+function verifyMPSignature(
+    rawBody: string,
+    signature: string | null,
+    requestId: string | null,
+    dataId: string
+): boolean {
+    const secret = process.env.MP_WEBHOOK_SECRET;
+    if (!secret || !signature || !requestId) return false;
+
+    // Parse ts and v1 from signature header
+    const parts: Record<string, string> = {};
+    signature.split(",").forEach(part => {
+        const [k, v] = part.split("=");
+        parts[k.trim()] = v?.trim();
+    });
+
+    const ts = parts["ts"];
+    const v1 = parts["v1"];
+    if (!ts || !v1) return false;
+
+    // Build the manifest string
+    const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
+
+    // Compute HMAC-SHA256
+    const expected = createHmac("sha256", secret).update(manifest).digest("hex");
+
+    return expected === v1;
+}
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
+        const rawBody = await request.text();
+        const body = JSON.parse(rawBody);
         console.log("[MP Webhook] Recibido:", JSON.stringify(body));
 
-        // MP sends: { action, type, data: { id } }
         const { type, data } = body;
 
         if (type !== "payment" || !data?.id) {
-            // Other event types (merchant_orders, etc.) — acknowledge and ignore
             return NextResponse.json({ received: true });
         }
 
         const mpPaymentId = String(data.id);
 
-        // Verify with MP API (never trust the webhook body alone)
+        // ── Verify signature ──
+        const signature = request.headers.get("x-signature");
+        const requestId = request.headers.get("x-request-id");
+        const isValid = verifyMPSignature(rawBody, signature, requestId, mpPaymentId);
+
+        if (!isValid) {
+            console.warn("[MP Webhook] ⚠️  Firma inválida — ignorando notificación");
+            // Return 200 anyway so MP doesn't keep retrying (we already logged it)
+            return NextResponse.json({ received: true, warning: "invalid_signature" });
+        }
+
+        console.log("[MP Webhook] ✅ Firma válida. Verificando pago con MP API...");
+
+        // ── Verify payment status directly from MP ──
         const mpRes = await fetch(
             `https://api.mercadopago.com/v1/payments/${mpPaymentId}`,
-            {
-                headers: {
-                    "Authorization": `Bearer ${process.env.MP_ACCESS_TOKEN}`,
-                },
-            }
+            { headers: { "Authorization": `Bearer ${process.env.MP_ACCESS_TOKEN}` } }
         );
         const payment = await mpRes.json();
         console.log("[MP Webhook] Payment verificado:", {
@@ -39,17 +76,16 @@ export async function POST(request: Request) {
 
         const mpStatus = payment.status; // approved | rejected | in_process | cancelled
 
-        // Map MP status to our paymentStatus
         let paymentStatus: string;
         if (mpStatus === "approved") {
             paymentStatus = "APPROVED";
         } else if (mpStatus === "rejected" || mpStatus === "cancelled") {
             paymentStatus = "REJECTED";
         } else {
-            paymentStatus = "PENDING"; // in_process, pending
+            paymentStatus = "PENDING";
         }
 
-        // Find the order with this mpPaymentId
+        // ── Find and update the order ──
         const order = await prisma.order.findFirst({
             where: { mpPaymentId },
         });
@@ -59,19 +95,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ received: true });
         }
 
-        // Update order status based on payment result
         const updateData: any = { paymentStatus };
 
-        if (paymentStatus === "APPROVED") {
-            // Only move to PENDING delivery queue when payment is confirmed
-            if (order.status === "PENDING") {
-                updateData.status = "PENDING"; // stay PENDING for admin to pick up
-            }
-        } else if (paymentStatus === "REJECTED") {
-            // If rejected, cancel the order and restore stock
+        if (paymentStatus === "REJECTED") {
+            // Cancel order and restore stock
             updateData.status = "CANCELLED";
-
-            // Restore inventory for cancelled order
             const orderItems = await prisma.orderItem.findMany({
                 where: { orderId: order.id },
             });
@@ -81,6 +109,9 @@ export async function POST(request: Request) {
                     data: { stock: { increment: item.quantity } },
                 });
             }
+            console.log(`[MP Webhook] ❌ Pago rechazado. Orden ${order.id} cancelada, stock restaurado.`);
+        } else if (paymentStatus === "APPROVED") {
+            console.log(`[MP Webhook] ✅ Pago aprobado. Orden ${order.id} confirmada.`);
         }
 
         await prisma.order.update({
@@ -88,16 +119,13 @@ export async function POST(request: Request) {
             data: updateData,
         });
 
-        console.log(`[MP Webhook] Orden ${order.id} actualizada: paymentStatus=${paymentStatus}`);
         return NextResponse.json({ received: true });
     } catch (error: any) {
         console.error("[MP Webhook] Error:", error?.message);
-        // Always return 200 to MP even on error so they don't retry forever
         return NextResponse.json({ received: true });
     }
 }
 
-// MP also does a GET to verify the webhook URL exists
 export async function GET() {
     return NextResponse.json({ ok: true });
 }
