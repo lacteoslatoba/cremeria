@@ -95,6 +95,17 @@ export default function CheckoutPage() {
         if (cvv.length < 3) { setError("CVV inválido."); return; }
         if (!holderName.trim()) { setError("Escribe el nombre del titular."); return; }
 
+        // Validate expiration date — must be future
+        const fullYear = expYear.length === 2 ? `20${expYear}` : expYear;
+        const expDate = new Date(parseInt(fullYear), parseInt(expMonth) - 1, 1);
+        const now = new Date();
+        now.setDate(1); now.setHours(0, 0, 0, 0);
+        if (expDate < now) {
+            setError("La tarjeta está vencida. Verifica el mes y año de vencimiento.");
+            return;
+        }
+
+
         if (!mpLoaded || !window.MercadoPago) {
             setError("El formulario de pago aún está cargando. Espera un momento e inténtalo.");
             return;
@@ -104,7 +115,7 @@ export default function CheckoutPage() {
         try {
             const mp = new window.MercadoPago(mpPublicKeyRef.current, { locale: "es-MX" });
 
-            const fullYear = expYear.length === 2 ? `20${expYear}` : expYear;
+            // fullYear already computed above in validation
             const bin = cleanCard.slice(0, 6);
 
             // Step 1: Detect payment method from card BIN
