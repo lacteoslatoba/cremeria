@@ -1,8 +1,14 @@
 ﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createOrderWithStockCheck, OrderCreationError } from "@/lib/create-order";
+import { requireAuth } from "@/lib/auth";
 
-export async function GET() {
+// Solo ADMIN puede listar todos los pedidos: incluye datos de clientes
+// (nombre, dirección) y el código de verificación de entrega de cada uno.
+export async function GET(request: Request) {
+    const auth = await requireAuth(request, ["ADMIN"]);
+    if (!auth.user) return auth.response;
+
     try {
         const orders = await prisma.order.findMany({
             include: {

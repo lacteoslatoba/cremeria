@@ -1,7 +1,8 @@
 ﻿"use client"
 
 import { useState, useEffect } from "react";
-import { ExternalLink, Search, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ExternalLink, Search, Loader2, KeyRound, ShieldCheck } from "lucide-react";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
 import { OrderDeleteButton } from "@/components/admin/order-delete-button";
 import { AssignDriver } from "@/components/admin/assign-driver";
@@ -29,6 +30,7 @@ const getStatusLabel = (status: string) => {
 };
 
 export default function AdminOrdersPage() {
+    const router = useRouter();
     const [orders, setOrders] = useState<any[]>([]);
     const [query, setQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
@@ -36,9 +38,13 @@ export default function AdminOrdersPage() {
 
     useEffect(() => {
         fetch("/api/orders")
-            .then(r => r.json())
-            .then(data => { setOrders(data); setLoading(false); })
+            .then(r => {
+                if (r.status === 401 || r.status === 403) { router.push("/login"); return null; }
+                return r.json();
+            })
+            .then(data => { if (data) setOrders(data); setLoading(false); })
             .catch(() => setLoading(false));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const filtered = orders.filter(o => {
@@ -93,7 +99,7 @@ export default function AdminOrdersPage() {
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[800px]">
+                        <table className="w-full text-left border-collapse min-w-[900px]">
                             <thead>
                                 <tr className="bg-gray-50/50 border-b border-gray-100 uppercase text-xs font-bold text-gray-500 tracking-wider">
                                     <th className="px-4 md:px-6 py-4">ID / Fecha</th>
@@ -101,6 +107,7 @@ export default function AdminOrdersPage() {
                                     <th className="px-4 md:px-6 py-4">Items</th>
                                     <th className="px-4 md:px-6 py-4">Total</th>
                                     <th className="px-4 md:px-6 py-4 text-center">Estado</th>
+                                    <th className="px-4 md:px-6 py-4 text-center">Código entrega</th>
                                     <th className="px-4 md:px-6 py-4 text-center">Repartidor</th>
                                     <th className="px-4 md:px-6 py-4 text-center">Acción</th>
                                 </tr>
@@ -108,7 +115,7 @@ export default function AdminOrdersPage() {
                             <tbody className="divide-y divide-gray-100 text-slate-700">
                                 {filtered.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-12 text-center text-gray-400 font-medium">
+                                        <td colSpan={8} className="px-6 py-12 text-center text-gray-400 font-medium">
                                             No se encontraron pedidos{query ? ` para "${query}"` : ""}
                                         </td>
                                     </tr>
@@ -142,6 +149,22 @@ export default function AdminOrdersPage() {
                                             <span className={`inline-block px-3 py-1.5 text-xs font-bold rounded-lg ${getStatusColor(order.status)}`}>
                                                 {getStatusLabel(order.status)}
                                             </span>
+                                        </td>
+
+                                        <td className="px-4 md:px-6 py-4 text-center">
+                                            {order.deliveryCode ? (
+                                                order.deliveryCodeStatus === "VERIFIED" ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-green-100 text-green-700" title="El repartidor confirmó este código con el cliente">
+                                                        <ShieldCheck size={13} /> Verificado
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-100 text-gray-600 font-mono tracking-widest" title="Código que el cliente le da al repartidor para confirmar la entrega">
+                                                        <KeyRound size={13} /> {order.deliveryCode}
+                                                    </span>
+                                                )
+                                            ) : (
+                                                <span className="text-gray-300 text-xs">—</span>
+                                            )}
                                         </td>
 
                                         <td className="px-4 md:px-6 py-4 text-center">
