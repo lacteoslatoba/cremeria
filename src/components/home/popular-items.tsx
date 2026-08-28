@@ -1,5 +1,6 @@
 ﻿import { prisma } from "@/lib/prisma";
 import { AddToCartButton } from "./add-to-cart-button";
+import { SafeImage } from "@/components/ui/safe-image";
 
 export async function PopularItems({ categoryFilter, queryFilter }: { categoryFilter?: string, queryFilter?: string }) {
     const products = await prisma.product.findMany({
@@ -26,8 +27,8 @@ export async function PopularItems({ categoryFilter, queryFilter }: { categoryFi
                     {products.map((item: any) => (
                         <div key={item.id}
                             className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-sm md:flex-col md:items-start md:p-4 md:gap-3 hover:border-white/20 transition-all">
-                            <img
-                                src={item.image || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=300"}
+                            <SafeImage
+                                src={item.image}
                                 alt={item.name}
                                 className="w-20 h-20 md:w-full md:h-44 rounded-xl object-cover shadow-inner bg-gray-800 shrink-0"
                             />

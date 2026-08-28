@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
+import { SafeImage } from "@/components/ui/safe-image";
 
 export default function CartPage() {
     const router = useRouter();
@@ -57,7 +58,7 @@ export default function CartPage() {
                         <div className="flex flex-col divide-y divide-white/5">
                             {items.map((item) => (
                                 <div key={item.productId} className="flex gap-4 p-4">
-                                    <img src={item.image} alt={item.name} className="w-20 h-20 rounded-xl object-cover shrink-0" />
+                                    <SafeImage src={item.image} alt={item.name} className="w-20 h-20 rounded-xl object-cover shrink-0" />
 
                                     <div className="flex flex-col flex-1 justify-between py-1">
                                         <div className="flex justify-between items-start">

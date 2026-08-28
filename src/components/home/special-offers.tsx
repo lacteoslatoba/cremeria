@@ -1,4 +1,6 @@
-﻿const OFFERS = [
+﻿import { SafeImage } from "@/components/ui/safe-image";
+
+const OFFERS = [
     {
         id: 1,
         title: "50% Dto.",
@@ -28,7 +30,7 @@ export function SpecialOffers() {
                         key={offer.id}
                         className="relative flex-none w-72 h-40 rounded-3xl overflow-hidden snap-center shadow-[0_8px_30px_rgba(238,43,52,0.15)]"
                     >
-                        <img
+                        <SafeImage
                             src={offer.image}
                             alt={offer.title}
                             className="absolute inset-0 w-full h-full object-cover"

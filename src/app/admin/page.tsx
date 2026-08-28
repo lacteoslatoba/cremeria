@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Search, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { ProductActions } from "@/components/admin/product-actions";
+import { SafeImage } from "@/components/ui/safe-image";
 
 export default function AdminInventoryPage() {
     const [products, setProducts] = useState<any[]>([]);
@@ -91,8 +92,8 @@ export default function AdminInventoryPage() {
                                     <tr key={product.id} className="hover:bg-gray-50/50 transition-colors">
                                         <td className="px-4 md:px-6 py-4">
                                             <div className="flex items-center gap-4">
-                                                <img
-                                                    src={product.image || "https://images.unsplash.com/photo-1542838132-92c53300491e"}
+                                                <SafeImage
+                                                    src={product.image}
                                                     alt={product.name}
                                                     className="w-10 h-10 md:w-12 md:h-12 rounded-lg object-cover shadow-sm border border-gray-100 shrink-0"
                                                 />
