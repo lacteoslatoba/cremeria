@@ -22,6 +22,7 @@ function TrackingContent() {
 
     const [status, setStatus] = useState<string | null>(null);
     const [delivery, setDelivery] = useState<Delivery | null>(null);
+    const [deliveryCode, setDeliveryCode] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -39,6 +40,7 @@ function TrackingContent() {
                     const data = await res.json();
                     setStatus(data.status);
                     setDelivery(data.delivery || null);
+                    setDeliveryCode(data.deliveryCode || null);
 
                     if (data.status === "COMPLETED" || data.status === "CANCELLED") {
                         clearInterval(interval);
@@ -124,6 +126,21 @@ function TrackingContent() {
                             </h2>
                             <p className="text-xs text-gray-500 mt-2">Folio: #{orderId.slice(-6).toUpperCase()}</p>
                         </div>
+
+                        {/* Código de verificación de entrega: el cliente se lo da al repartidor */}
+                        {deliveryCode && !step3Active && !isCancelled && (
+                            <div className="mb-8 p-4 rounded-2xl bg-primary/15 border border-primary/40 text-center">
+                                <p className="text-[11px] text-gray-300 font-medium uppercase tracking-wider mb-2">
+                                    Tu código de entrega
+                                </p>
+                                <p className="text-3xl font-black text-white tracking-[0.35em] drop-shadow-[0_0_10px_rgba(238,43,52,0.6)]">
+                                    {deliveryCode}
+                                </p>
+                                <p className="text-xs text-gray-300 mt-3 leading-relaxed">
+                                    Compártelo con tu repartidor al recibir tu pedido para confirmar la entrega.
+                                </p>
+                            </div>
+                        )}
 
                         {/* Progress Tracker */}
                         <div className="flex justify-between items-center mb-10 px-2 transition-all">

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { notifyOrderStatus } from "@/lib/notify";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, readSession } from "@/lib/auth";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
     const auth = await requireAuth(request, ["ADMIN", "DELIVERY"]);
@@ -12,6 +12,45 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
         const body = await request.json();
         const { orderId } = await params;
 
+        // ── Verificación de entrega con código ──
+        // El repartidor (DELIVERY) debe capturar el código que el cliente le da
+        // para marcar COMPLETED (entrega final). Esto confirma que se entregó a
+        // la persona correcta. El ADMIN (dueño del negocio) puede completar
+        // directamente por tener acceso administrativo total.
+        if (body.status === "COMPLETED") {
+            const current = await prisma.order.findUnique({ where: { id: orderId } });
+            if (!current) return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 });
+
+            let deliveryCodeStatus = "GENERATED";
+
+            if (auth.user.role === "DELIVERY") {
+                if (!current.deliveryCode) {
+                    return NextResponse.json({ error: "Este pedido no tiene código de entrega" }, { status: 400 });
+                }
+                const provided = String(body.deliveryCode || "").trim();
+                if (provided !== current.deliveryCode) {
+                    return NextResponse.json({ error: "Código de entrega incorrecto. No se completó la entrega." }, { status: 403 });
+                }
+                deliveryCodeStatus = "VERIFIED";
+            }
+
+            const completed = await prisma.order.update({
+                where: { id: orderId },
+                data: {
+                    status: "COMPLETED",
+                    deliveryCodeStatus,
+                    deliveryConfirmedAt: new Date(),
+                },
+                include: { user: { select: { phone: true } } },
+            });
+
+            // Avisa al cliente que su pedido fue entregado.
+            notifyOrderStatus(completed, completed.user?.phone).catch(() => { });
+            revalidatePath("/admin/orders");
+            return NextResponse.json(completed);
+        }
+
+        // ── Otros cambios de estado (PREPARING, OUT_FOR_DELIVERY, CANCELLED) ──
         const data: { status?: string; deliveryId?: string | null } = {};
         if (body.status !== undefined) data.status = body.status;
         if (body.deliveryId !== undefined) data.deliveryId = body.deliveryId || null;
@@ -45,6 +84,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
                 status: true,
                 customerName: true,
                 total: true,
+                paymentStatus: true,
+                deliveryCode: true,
+                userId: true,
                 delivery: {
                     select: { id: true, name: true, phone: true, currentLat: true, currentLng: true, locationUpdatedAt: true }
                 },
@@ -53,11 +95,26 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
 
         if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-        // Protección de acceso al detalle/tracking:
-        // - Si hay sesión, solo el inicio (owner), un ADMIN o el repartidor asignado pueden ver el pedido.
-        // - Si no hay sesión (p. ej. checkout de invitado), se mantiene el acceso por orderId (compatibilidad),
-        //   ya que sin cookies de sesión no hay forma de verificar el owner; aun así se devuelven campos mínimos.
-        return NextResponse.json(order);
+        // Mostrar o no el código de verificación de entrega.
+        // Solo se entrega al cliente que levanta (compra aprobada) mientras la
+        // orden NO ha sido entregada. Se oculta el código si hay sesión de admin
+        // o repartidor (que no deben verlo) y, por defecto (invitado), solo se
+        // muestra si aún no está COMPLETED/CANCELLED.
+        const session = await readSession(request);
+        const isOwner = order.userId && session?.id === order.userId;
+        // Para invitados (sin sesión) mostramos el código mientras el pedido esté
+        // en curso, para que el cliente pueda dárselo al repartidor.
+        const orderActive = !["COMPLETED", "CANCELLED"].includes(order.status);
+        const shouldHideCode =
+            (session && !isOwner) // sesión de otro usuario (admin/repartidor/cliente ajeno)
+            || (order.paymentStatus !== "APPROVED") // aún no pagado
+            || !orderActive; // ya entregado o cancelado
+
+        const result = {
+            ...order,
+            deliveryCode: shouldHideCode ? undefined : (order.deliveryCode as string | undefined),
+        };
+        return NextResponse.json(result);
     } catch (error) {
         return NextResponse.json({ error: "Failed to fetch order" }, { status: 500 });
     }

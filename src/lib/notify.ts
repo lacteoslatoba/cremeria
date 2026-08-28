@@ -48,3 +48,15 @@ export async function notifyOrderStatus(order: { id: string; status: string }, p
     const folio = order.id.slice(-6).toUpperCase();
     await sendSms(phone, `Cremeria del Rancho: Pedido #${folio}, ${text}.`);
 }
+
+// Notifica al cliente el CÓDIGO de verificación de entrega cuando levanta su
+// compra (pago aprobado). Deberá mostrarlo al repartidor para que confirme
+// que la entrega se realiza a la persona correcta.
+export async function notifyDeliveryCode(order: { id: string; deliveryCode?: string | null }, phone: string | null | undefined) {
+    if (!phone || !order.deliveryCode) return;
+    const folio = order.id.slice(-6).toUpperCase();
+    await sendSms(
+        phone,
+        `Cremeria del Rancho: Pedido #${folio}. Tu codigo de entrega es: ${order.deliveryCode}. Compartelo con tu repartidor al recibir tu pedido.`
+    );
+}

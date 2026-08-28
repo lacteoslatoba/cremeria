@@ -65,6 +65,12 @@ model Order {
   status        String      @default("PENDING") // PENDING, PREPARING, OUT_FOR_DELIVERY, COMPLETED, CANCELLED
   deliveryId    String?
   delivery      User?       @relation("DeliveryOrders", fields: [deliveryId], references: [id])
+  // Código de verificación de entrega: se genera al crear la orden y se envía
+  // por SMS al cliente. El repartidor debe ingresarlo para poder marcar la
+  // orden como COMPLETED (confirma que se entregó a la persona correcta).
+  deliveryCode        String?
+  deliveryCodeStatus  String?   // GENERATED | VERIFIED
+  deliveryConfirmedAt DateTime?
   items         OrderItem[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt

@@ -134,18 +134,32 @@ export default function DriverPage() {
         }
     };
 
-    const updateStatus = async (orderId: string, status: string) => {
+    const updateStatus = async (orderId: string, status: string, deliveryCode?: string) => {
         setBusyId(orderId);
         try {
-            await fetch(`/api/orders/${orderId}`, {
+            const res = await fetch(`/api/orders/${orderId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status }),
+                body: JSON.stringify(deliveryCode !== undefined ? { status, deliveryCode } : { status }),
             });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                alert(data.error || "No se pudo actualizar el pedido");
+            }
             fetchOrders();
         } finally {
             setBusyId(null);
         }
+    };
+
+    // Al marcar como entregado, el repartidor debe capturar el código que el
+    // cliente le da. El servidor valida que coincida antes de confirmar la entrega.
+    const handleComplete = (orderId: string) => {
+        const code = window.prompt(
+            "Pídele el código de entrega al cliente y escríbelo aquí:"
+        );
+        if (code === null) return; // el repartidor canceló
+        updateStatus(orderId, "COMPLETED", code.trim());
     };
 
     if (!mounted) return null;
@@ -219,7 +233,7 @@ export default function DriverPage() {
                                                 ) : (
                                                     <button
                                                         disabled={busyId === order.id}
-                                                        onClick={() => updateStatus(order.id, "COMPLETED")}
+                                                        onClick={() => handleComplete(order.id)}
                                                         className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-600/30 disabled:opacity-60"
                                                     >
                                                         {busyId === order.id ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}

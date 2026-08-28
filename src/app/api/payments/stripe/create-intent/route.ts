@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { createOrderWithStockCheck, OrderCreationError } from "@/lib/create-order";
+import { notifyDeliveryCode } from "@/lib/notify";
 
 // Crea la orden (PENDING/PENDING, stock reservado — igual que un pago con
 // tarjeta "in_process" de MP) y una PaymentIntent de Stripe para ese monto.
@@ -22,6 +23,20 @@ export async function POST(request: Request) {
             paymentMethod: "STRIPE",
             paymentStatus: "PENDING",
         });
+
+        // Envía por SMS el código de verificación de entrega al cliente cuando
+        // levanta su compra. Fire-and-forget: un fallo de SMS no bloquea el pago.
+        if (body.userId) {
+            try {
+                const u = await prisma.user.findUnique({
+                    where: { id: body.userId },
+                    select: { phone: true },
+                });
+                if (u?.phone) notifyDeliveryCode(order, u.phone).catch(() => { });
+            } catch {
+                // no bloquear el flujo si falla la consulta del teléfono
+            }
+        }
 
         const stripe = getStripe();
         const amountInCents = Math.round(Number(body.total) * 100);

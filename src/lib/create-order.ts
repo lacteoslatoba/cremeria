@@ -10,6 +10,11 @@ export class OrderCreationError extends Error {
 
 type OrderItemInput = { productId: string; quantity: number; price: number; name?: string };
 
+// Código numérico aleatorio de 6 dígitos para verificar la entrega.
+export function generateDeliveryCode(): string {
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
+
 export async function createOrderWithStockCheck(params: {
     customerName?: string;
     address: string;
@@ -52,6 +57,8 @@ export async function createOrderWithStockCheck(params: {
                 paymentStatus: params.paymentStatus,
                 mpPaymentId: params.mpPaymentId || null,
                 clipPaymentId: params.clipPaymentId || null,
+                deliveryCode: generateDeliveryCode(),
+                deliveryCodeStatus: "GENERATED",
                 ...(params.userId ? { user: { connect: { id: params.userId } } } : {}),
                 items: {
                     create: items.map((item) => ({
