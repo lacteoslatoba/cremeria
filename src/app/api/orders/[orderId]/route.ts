@@ -1,16 +1,27 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { notifyOrderStatus } from "@/lib/notify";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
     try {
         const body = await request.json();
         const { orderId } = await params;
 
+        const data: { status?: string; deliveryId?: string | null } = {};
+        if (body.status !== undefined) data.status = body.status;
+        if (body.deliveryId !== undefined) data.deliveryId = body.deliveryId || null;
+
         const updatedOrder = await prisma.order.update({
             where: { id: orderId },
-            data: { status: body.status },
+            data,
+            include: { user: { select: { phone: true } } },
         });
+
+        // Fire-and-forget: notify the customer by SMS on status changes.
+        if (body.status !== undefined) {
+            notifyOrderStatus(updatedOrder, updatedOrder.user?.phone).catch(() => { });
+        }
 
         revalidatePath("/admin/orders");
         return NextResponse.json(updatedOrder);
@@ -23,7 +34,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     try {
         const { orderId } = await params;
         const order = await prisma.order.findUnique({
-            where: { id: orderId }
+            where: { id: orderId },
+            include: {
+                delivery: {
+                    select: { id: true, name: true, phone: true, currentLat: true, currentLng: true, locationUpdatedAt: true }
+                }
+            },
         });
         if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
         return NextResponse.json(order);

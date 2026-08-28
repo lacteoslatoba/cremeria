@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 // ── Mercado Pago Webhook Signature Verification ──
 // MP sends: x-signature header with format: ts=<timestamp>,v1=<signature>
@@ -30,9 +30,12 @@ function verifyMPSignature(
     const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
 
     // Compute HMAC-SHA256
-    const expected = createHmac("sha256", secret).update(manifest).digest("hex");
+    const expected = createHmac("sha256", secret).update(manifest).digest();
+    const received = Buffer.from(v1, "hex");
 
-    return expected === v1;
+    // Comparación segura contra timing attacks
+    if (expected.length !== received.length) return false;
+    return timingSafeEqual(expected, received);
 }
 
 export async function POST(request: Request) {
@@ -92,6 +95,12 @@ export async function POST(request: Request) {
 
         if (!order) {
             console.warn("[MP Webhook] No se encontró orden con mpPaymentId:", mpPaymentId);
+            return NextResponse.json({ received: true });
+        }
+
+        // ── Idempotencia: si la orden ya tiene ese estado final, no reprocesar ──
+        if (order.paymentStatus === paymentStatus) {
+            console.log(`[MP Webhook] Sin cambios (ya está en ${paymentStatus}). Ignorando duplicado.`);
             return NextResponse.json({ received: true });
         }
 

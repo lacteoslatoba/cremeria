@@ -5,12 +5,23 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { LiveMap } from "@/components/tracking/live-map";
+
+type Delivery = {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    currentLat: number | null;
+    currentLng: number | null;
+    locationUpdatedAt: string | null;
+};
 
 function TrackingContent() {
     const searchParams = useSearchParams();
     const orderId = searchParams.get("orderId");
 
     const [status, setStatus] = useState<string | null>(null);
+    const [delivery, setDelivery] = useState<Delivery | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -27,6 +38,7 @@ function TrackingContent() {
                 if (res.ok) {
                     const data = await res.json();
                     setStatus(data.status);
+                    setDelivery(data.delivery || null);
 
                     if (data.status === "COMPLETED" || data.status === "CANCELLED") {
                         clearInterval(interval);
@@ -44,6 +56,8 @@ function TrackingContent() {
 
         return () => clearInterval(interval);
     }, [orderId]);
+
+    const hasLiveLocation = !!(delivery?.currentLat && delivery?.currentLng);
 
     if (loading) {
         return <div className="absolute inset-0 flex justify-center items-center bg-[#121212] z-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
@@ -69,19 +83,25 @@ function TrackingContent() {
         <>
             {/* Map Area */}
             <div className="absolute inset-0 top-0 h-[55%] w-full bg-[#121212] flex items-center justify-center">
-                <div className="absolute inset-0 opacity-40 bg-[url('https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=600')] bg-cover bg-center grayscale" />
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10" />
+                {step2Active && !step3Active && hasLiveLocation ? (
+                    <LiveMap lat={delivery!.currentLat!} lng={delivery!.currentLng!} />
+                ) : (
+                    <div className="absolute inset-0 opacity-40 bg-[url('https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=600')] bg-cover bg-center grayscale" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none" />
 
-                {/* Route Line & Driver Marker (Mueve la animación si ya salió) */}
-                <div className="relative z-20 w-full h-full flex flex-col justify-center items-center">
-                    <div className={`h-32 w-1 border-l-2 border-dashed relative transition-all duration-1000 ${step2Active && !step3Active ? "border-primary drop-shadow-[0_0_8px_rgba(238,43,52,0.8)] animate-pulse" : "border-white/20"}`}>
-                        <div className={`absolute -left-3 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-1000 ${step3Active ? "top-32 bg-green-500 shadow-[0_0_15px_rgba(34,197,94,1)]" :
-                                step2Active ? "-top-3 bg-primary shadow-[0_0_15px_rgba(238,43,52,1)]" : "top-0 bg-gray-500"
-                            }`}>
-                            <MapPin size={14} className="text-white" />
+                {/* Route Line & Driver Marker fallback (sin ubicación GPS real todavía) */}
+                {!(step2Active && !step3Active && hasLiveLocation) && (
+                    <div className="relative z-20 w-full h-full flex flex-col justify-center items-center">
+                        <div className={`h-32 w-1 border-l-2 border-dashed relative transition-all duration-1000 ${step2Active && !step3Active ? "border-primary drop-shadow-[0_0_8px_rgba(238,43,52,0.8)] animate-pulse" : "border-white/20"}`}>
+                            <div className={`absolute -left-3 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-1000 ${step3Active ? "top-32 bg-green-500 shadow-[0_0_15px_rgba(34,197,94,1)]" :
+                                    step2Active ? "-top-3 bg-primary shadow-[0_0_15px_rgba(238,43,52,1)]" : "top-0 bg-gray-500"
+                                }`}>
+                                <MapPin size={14} className="text-white" />
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Bottom Sheet Card */}
@@ -141,17 +161,26 @@ function TrackingContent() {
                 {/* Driver Info */}
                 <div className={`flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl shadow-inner transition-opacity duration-1000 ${(!step2Active || step3Active || isCancelled) ? "opacity-50 grayscale" : "opacity-100"}`}>
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary shadow-[0_0_8px_rgba(238,43,52,0.5)] bg-slate-800">
-                            <img src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=150&q=80" alt="Repartidor" className="w-full h-full object-cover" />
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary shadow-[0_0_8px_rgba(238,43,52,0.5)] bg-slate-800 flex items-center justify-center text-white font-bold">
+                            {delivery?.name ? delivery.name.charAt(0).toUpperCase() : "?"}
                         </div>
                         <div>
                             <p className="text-gray-400 text-xs font-medium mb-1">Tu Repartidor</p>
-                            <h4 className="text-white font-bold">Carlos M.</h4>
+                            <h4 className="text-white font-bold">{delivery?.name || "Por asignar"}</h4>
                         </div>
                     </div>
-                    <button className="flex items-center justify-center w-12 h-12 bg-primary/20 text-primary border border-primary/50 hover:bg-primary hover:text-white rounded-full transition-colors drop-shadow-[0_0_8px_rgba(238,43,52,0.4)]">
-                        <PhoneCall size={20} />
-                    </button>
+                    {delivery?.phone ? (
+                        <a
+                            href={`tel:${delivery.phone}`}
+                            className="flex items-center justify-center w-12 h-12 bg-primary/20 text-primary border border-primary/50 hover:bg-primary hover:text-white rounded-full transition-colors drop-shadow-[0_0_8px_rgba(238,43,52,0.4)]"
+                        >
+                            <PhoneCall size={20} />
+                        </a>
+                    ) : (
+                        <button disabled className="flex items-center justify-center w-12 h-12 bg-white/5 text-gray-500 border border-white/10 rounded-full cursor-not-allowed">
+                            <PhoneCall size={20} />
+                        </button>
+                    )}
                 </div>
             </div>
         </>

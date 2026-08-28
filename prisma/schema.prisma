@@ -23,9 +23,15 @@ model User {
   mpCustomerId String?
   resetToken String?
   resetTokenExpiry DateTime?
-  role      String   @default("CUSTOMER") // CUSTOMER or ADMIN
+  role      String   @default("CUSTOMER") // CUSTOMER, ADMIN or DELIVERY
   orders    Order[]
+  deliveryOrders Order[] @relation("DeliveryOrders")
   savedCards SavedCard[]
+  // Live GPS location, updated by the DELIVERY app while a route is active
+  currentLat  Float?
+  currentLng  Float?
+  locationUpdatedAt DateTime?
+  isOnline    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -46,7 +52,6 @@ model Product {
 
 model Order {
   id            String      @id @default(cuid())
-  stripeId      String?
   mpPaymentId   String?     // Mercado Pago payment ID
   paymentStatus String      @default("PENDING") // PENDING, APPROVED, REJECTED
   paymentMethod String      @default("CASH")    // CASH, CARD
@@ -56,6 +61,8 @@ model Order {
   address       String
   total         Float
   status        String      @default("PENDING") // PENDING, PREPARING, OUT_FOR_DELIVERY, COMPLETED, CANCELLED
+  deliveryId    String?
+  delivery      User?       @relation("DeliveryOrders", fields: [deliveryId], references: [id])
   items         OrderItem[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt

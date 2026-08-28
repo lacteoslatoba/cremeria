@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { ExternalLink, Search, Loader2 } from "lucide-react";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
 import { OrderDeleteButton } from "@/components/admin/order-delete-button";
+import { AssignDriver } from "@/components/admin/assign-driver";
 
 const getStatusColor = (status: string) => {
     switch (status) {
@@ -100,13 +101,14 @@ export default function AdminOrdersPage() {
                                     <th className="px-4 md:px-6 py-4">Items</th>
                                     <th className="px-4 md:px-6 py-4">Total</th>
                                     <th className="px-4 md:px-6 py-4 text-center">Estado</th>
+                                    <th className="px-4 md:px-6 py-4 text-center">Repartidor</th>
                                     <th className="px-4 md:px-6 py-4 text-center">Acción</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 text-slate-700">
                                 {filtered.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-12 text-center text-gray-400 font-medium">
+                                        <td colSpan={7} className="px-6 py-12 text-center text-gray-400 font-medium">
                                             No se encontraron pedidos{query ? ` para "${query}"` : ""}
                                         </td>
                                     </tr>
@@ -140,6 +142,10 @@ export default function AdminOrdersPage() {
                                             <span className={`inline-block px-3 py-1.5 text-xs font-bold rounded-lg ${getStatusColor(order.status)}`}>
                                                 {getStatusLabel(order.status)}
                                             </span>
+                                        </td>
+
+                                        <td className="px-4 md:px-6 py-4 text-center">
+                                            <AssignDriver orderId={order.id} currentDeliveryId={order.deliveryId || null} />
                                         </td>
 
                                         <td className="px-4 md:px-6 py-4">

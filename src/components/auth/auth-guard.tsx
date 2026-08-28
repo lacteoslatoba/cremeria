@@ -24,8 +24,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
         // No bloquear a usuarios entrando al /admin
         const isAdmin = pathname.startsWith("/admin");
+        // El propio /driver muestra su pantalla de login si hace falta
+        const isDriver = pathname.startsWith("/driver");
 
-        if (!user && !isLogin && !isAdmin && !isForgotPassword && !isCheckout && !isTracking) {
+        if (!user && !isLogin && !isAdmin && !isDriver && !isForgotPassword && !isCheckout && !isTracking) {
             router.push("/login");
         }
     }, [user, pathname, router, mounted]);

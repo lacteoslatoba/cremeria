@@ -1,7 +1,7 @@
 ﻿"use client"
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, ShoppingCart, Users, LogOut } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, Bike, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
     { href: "/admin/orders", icon: ShoppingCart, label: "Pedidos" },
     { href: "/admin/sales", icon: Package, label: "Historial de Ventas" },
     { href: "/admin/customers", icon: Users, label: "Clientes" },
+    { href: "/admin/deliveries", icon: Bike, label: "Repartidores" },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {

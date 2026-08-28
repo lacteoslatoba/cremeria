@@ -39,6 +39,27 @@ export async function POST(request: Request) {
             else paymentStatus = "PENDING"; // in_process, pending → waiting for webhook
         }
 
+        // ── Validar stock disponible antes de crear la orden ──
+        for (const item of items) {
+            const product = await prisma.product.findUnique({
+                where: { id: item.productId },
+                select: { id: true, stock: true, status: true },
+            });
+
+            if (!product) {
+                return NextResponse.json(
+                    { error: `El producto ${item.productId} ya no existe` },
+                    { status: 400 }
+                );
+            }
+            if (product.status !== "ACTIVE" || product.stock < item.quantity) {
+                return NextResponse.json(
+                    { error: `No hay suficiente stock para "${item.name || item.productId}"` },
+                    { status: 409 }
+                );
+            }
+        }
+
         const order = await prisma.$transaction(async (tx: any) => {
             const newOrder = await tx.order.create({
                 data: {
@@ -61,13 +82,14 @@ export async function POST(request: Request) {
                 include: { items: true }
             });
 
-            // Deduct inventory only immediately if payment is approved or cash
-            // (webhook will handle restoring stock if rejected later)
+            // Deduct inventory only immediately if payment will not be rejected.
+            // For CARD payments still "in_process"/PENDING we reserve the stock,
+            // and the webhook restores it if the payment is later rejected.
             if (paymentStatus !== "REJECTED") {
                 for (const item of items) {
                     await tx.product.update({
                         where: { id: item.productId },
-                        data: { stock: { decrement: item.quantity } }
+                        data: { stock: { decrement: item.quantity } },
                     });
                 }
             }

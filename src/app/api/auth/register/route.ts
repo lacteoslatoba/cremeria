@@ -4,11 +4,14 @@ import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
     try {
-        const { name, username, phone, email, password, address } = await request.json();
+        const { name, username, phone, email, password, address, role } = await request.json();
 
         if (!username || !password) {
             return NextResponse.json({ error: "El usuario y contraseña son requeridos" }, { status: 400 });
         }
+
+        // Only CUSTOMER (public sign-up) or DELIVERY (created by admin) are allowed here.
+        const safeRole = role === "DELIVERY" ? "DELIVERY" : "CUSTOMER";
 
         const cleanUser = username.trim().toLowerCase();
         const cleanEmail = email ? email.trim().toLowerCase() : null;
@@ -39,7 +42,7 @@ export async function POST(request: Request) {
                 email: cleanEmail || null,
                 address: address || null,
                 password: hashedPassword,
-                role: "CUSTOMER"
+                role: safeRole
             }
         });
 

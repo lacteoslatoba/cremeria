@@ -1,38 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cremería del Rancho 🧀
 
-## Getting Started
+Tienda en línea de una cremería construida con **Next.js 16 (App Router)** + **React 19** + **TypeScript**, con **Prisma** (PostgreSQL / Supabase) como ORM e integración de pagos con **Mercado Pago**. Incluye PWA y notificaciones SMS con **Twilio**.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Framework:** Next.js 16 (`app/` router) + Turbopack
+- **Frontend:** React 19, Tailwind CSS, framer-motion, lucide-react, zustand (estado)
+- **Backend / ORM:** Next.js Route Handlers + Prisma (PostgreSQL)
+- **Pagos:** Mercado Pago (SDK JS del lado del cliente + API del servidor)
+- **Otros:** Twilio (SMS), next-pwa (offline), playwright (test)
+
+## Características
+
+- Catálogo de productos con búsqueda, categorías y ofertas especiales.
+- Carrito persistente en el navegador (localStorage vía zustand).
+- Checkout con efectivo (**CASH**) o tarjeta (**CARD**) vía Mercado Pago.
+- Tarjetas guardadas por cliente (Mercado Pago Customers API).
+- Webhook de Mercado Pago con verificación de firma **HMAC-SHA256** y confirmación del pago contra la API.
+- Control de inventario: se descuenta stock al crear la orden y se restaura si el pago es rechazado; los productos sin stock se ocultan en la tienda.
+- Panel de administración: productos, pedidos, ventas y clientes.
+- Usuarios con roles (`CUSTOMER` / `ADMIN`) y recuperación de contraseña.
+
+## Requisitos previos
+
+- Node.js 18+
+- Una base de datos PostgreSQL (p. ej. Supabase)
+- Credenciales de Mercado Pago y Twilio
+
+## Configuración
+
+Crea un `.env.local` con las siguientes variables:
+
+```env
+# Base de datos
+DATABASE_URL="postgresql://..."
+DIRECT_URL="postgresql://..."
+
+# Mercado Pago
+MP_ACCESS_TOKEN="TEST-..."
+MP_PUBLIC_KEY="TEST-..."
+MP_WEBHOOK_SECRET="..."
+
+# Twilio (opcional)
+TWILIO_ACCOUNT_SID="..."
+TWILIO_AUTH_TOKEN="..."
+TWILIO_PHONE_NUMBER="+1..."
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> **Nunca** versiones `.env*.local` con credenciales reales.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Puesta en marcha
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Instalar dependencias
+npm install
 
-## Learn More
+# Generar el cliente de Prisma
+npx prisma generate
 
-To learn more about Next.js, take a look at the following resources:
+# Aplicar el esquema a la base de datos
+npx prisma migrate dev
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# (Opcional) sembrar productos de ejemplo
+npx tsx seed.ts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Levantar el servidor de desarrollo
+npm run dev
+```
 
-## Deploy on Vercel
+Abrir [http://localhost:3000](http://localhost:3000).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-"# cremeria"  
-"# cremeria"  
+| Comando            | Descripción                       |
+| ------------------ | --------------------------------- |
+| `npm run dev`      | Servidor de desarrollo            |
+| `npm run build`    | Genera el cliente Prisma y el build de producción |
+| `npm run start`    | Sirve el build de producción      |
+| `npm run lint`     | Ejecuta ESLint                    |
+
+## Estructura
+
+```
+src/
+├── app/                  # Páginas y rutas (App Router)
+│   ├── admin/            # Panel de administración
+│   ├── api/              # Route Handlers (auth, orders, products, users, payments)
+│   ├── cart/             # Carrito
+│   ├── checkout/         # Pago
+│   ├── login/            # Inicio de sesión
+│   └── tracking/         # Seguimiento de pedidos
+├── components/           # Componentes de UI (home, admin, layout, auth)
+└── lib/                  # Utilidades, stores y cliente Prisma
+prisma/
+└── schema.prisma         # Esquema de base de datos
+```
+
+## Despliegue
+
+Optimizado para [Vercel](https://vercel.com). Al desplegar, configura las variables de entorno del proyecto (ver sección **Configuración**).
