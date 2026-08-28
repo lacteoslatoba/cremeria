@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { signSession, setSessionCookie } from "@/lib/auth";
+import { signSession, setSessionCookie, requireAuth } from "@/lib/auth";
 
 // Serializa un usuario para responder, garantizando que NUNCA se expone el hash.
 function toSafeUser(user: any) {
@@ -11,16 +11,25 @@ function toSafeUser(user: any) {
 
 export async function POST(request: Request) {
     try {
-        const { name, username, phone, email, password, address } = await request.json();
+        const { name, username, phone, email, password, address, role } = await request.json();
 
         if (!username || !password) {
             return NextResponse.json({ error: "El usuario y contraseña son requeridos" }, { status: 400 });
         }
 
-        // Registro público: SIEMPRE asigna rol CUSTOMER. El alta de repartidores/admin
-        // la realiza un administrador autenticado desde /admin, nunca desde aquí,
-        // para evitar que cualquiera cree cuentas elevadas.
-        const safeRole = "CUSTOMER";
+        // Registro público (sin sesión): SIEMPRE CUSTOMER. Solo un ADMIN ya
+        // autenticado puede pedir un rol elevado (p. ej. el admin dando de
+        // alta un repartidor desde /admin/deliveries) — así se cierra el
+        // hueco de que cualquiera se cree una cuenta ADMIN/DELIVERY, sin
+        // romper la función legítima de admin de crear repartidores.
+        let safeRole = "CUSTOMER";
+        let createdByAdmin = false;
+        if (role === "DELIVERY" || role === "ADMIN") {
+            const auth = await requireAuth(request, ["ADMIN"]);
+            if (!auth.user) return auth.response;
+            safeRole = role;
+            createdByAdmin = true;
+        }
 
         const cleanUser = username.trim().toLowerCase();
         const cleanEmail = email ? email.trim().toLowerCase() : null;
@@ -55,12 +64,16 @@ export async function POST(request: Request) {
             }
         });
 
-        // Firmar sesión y emitir cookie HttpOnly, igual que en login — sin esto
-        // el usuario "parece" logueado en la UI pero pierde la sesión en el
-        // siguiente refresh/navegación completa (no hay cookie que restaurar).
-        const token = await signSession({ id: newUser.id, role: newUser.role });
         const response = NextResponse.json(toSafeUser(newUser), { status: 201 });
-        setSessionCookie(response, token);
+
+        // Solo firmamos sesión para el propio registro público (el usuario
+        // se está logueando a sí mismo). Si fue un ADMIN quien creó esta
+        // cuenta (p. ej. un repartidor), NO tocamos la cookie — de lo
+        // contrario le robaríamos la sesión al admin que hizo la llamada.
+        if (!createdByAdmin) {
+            const token = await signSession({ id: newUser.id, role: newUser.role });
+            setSessionCookie(response, token);
+        }
 
         return response;
     } catch (error) {
