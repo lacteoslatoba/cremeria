@@ -275,9 +275,18 @@ export default function CheckoutPage() {
                         <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
                     </div>
 
+                    {/* Mientras el formulario real de Stripe termina de montarse, se
+                        ve un boceto estático (no una pantalla de "cargando") para
+                        que el método de pago se sienta listo desde que se abre esta
+                        pantalla. La espera real -- si la hay -- se siente al tocar
+                        "Pagar", no antes. */}
                     {!stripeReady && !error && (
-                        <div className="flex items-center justify-center py-8 gap-2 text-gray-400">
-                            <Loader2 size={20} className="animate-spin" /> Preparando formulario seguro…
+                        <div className="flex flex-col gap-3 animate-pulse" aria-hidden>
+                            <div className="h-12 rounded-xl bg-white/10 border border-white/10" />
+                            <div className="flex gap-3">
+                                <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
+                                <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
+                            </div>
                         </div>
                     )}
 
@@ -291,9 +300,12 @@ export default function CheckoutPage() {
                     {/* Stripe monta aquí su Payment Element (campos de tarjeta reales) */}
                     <div ref={stripeMountRef} className={stripeReady ? "" : "hidden"} />
 
-                    {stripeReady && (
-                        <button onClick={handleStripePay} disabled={stripeSubmitting}
-                            className="w-full py-4 rounded-2xl bg-violet-500 text-white font-bold text-lg shadow-lg shadow-violet-500/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
+                    {/* El botón de pagar siempre está a la vista -- solo se activa
+                        (deja de estar atenuado) cuando el formulario ya está listo
+                        para recibir el pago. */}
+                    {!error && (
+                        <button onClick={handleStripePay} disabled={stripeSubmitting || !stripeReady}
+                            className="w-full py-4 rounded-2xl bg-violet-500 text-white font-bold text-lg shadow-lg shadow-violet-500/30 disabled:opacity-40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
                             {stripeSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
                         </button>
                     )}
