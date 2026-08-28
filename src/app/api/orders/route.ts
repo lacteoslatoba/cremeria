@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { createOrderWithStockCheck, OrderCreationError } from "@/lib/create-order";
 import { requireAuth } from "@/lib/auth";
+import { notifyDeliveryCode } from "@/lib/notify";
 
 // Solo ADMIN puede listar todos los pedidos: incluye datos de clientes
 // (nombre, dirección) y el código de verificación de entrega de cada uno.
@@ -56,6 +57,18 @@ export async function POST(request: Request) {
             paymentStatus,
             mpPaymentId,
         });
+
+        // Igual que en el flujo de tarjeta: si el pedido queda aprobado
+        // (efectivo siempre lo está de inmediato), avisamos por SMS el
+        // código de verificación de entrega.
+        if (paymentStatus === "APPROVED" && body.userId) {
+            try {
+                const u = await prisma.user.findUnique({ where: { id: body.userId }, select: { phone: true } });
+                if (u?.phone) notifyDeliveryCode(order, u.phone).catch(() => { });
+            } catch {
+                // no bloquear el flujo si falla la consulta del teléfono
+            }
+        }
 
         return NextResponse.json(order, { status: 201 });
     } catch (error) {

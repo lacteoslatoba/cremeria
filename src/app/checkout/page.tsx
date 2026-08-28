@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
-import { ChevronLeft, Loader2, CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
+import { ChevronLeft, Loader2, CreditCard, CheckCircle2, AlertCircle, Banknote } from "lucide-react";
 import { BottomNav } from "@/components/layout/bottom-nav";
 
 declare global {
@@ -12,10 +12,13 @@ declare global {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Único método de pago: Stripe (Payment Element). El formulario de
-   tarjeta se monta directo en esta pantalla — el cliente nunca sale
-   de la página. Efectivo y Mercado Pago se retiraron a pedido del
-   dueño del negocio.
+   Dos métodos de pago: tarjeta (Stripe, Payment Element embebido)
+   y efectivo contra entrega. Efectivo existe como respaldo: no
+   depende de ningún script de terceros, así que si el celular de
+   un cliente bloquea Stripe (bloqueador de anuncios, DNS con
+   filtro, etc. — no hay forma de "liberarlo" desde el servidor),
+   siempre puede pagar en efectivo en vez de quedarse sin poder
+   completar su pedido.
    ───────────────────────────────────────────────────────────── */
 export default function CheckoutPage() {
     const router = useRouter();
@@ -24,6 +27,8 @@ export default function CheckoutPage() {
 
     const [mounted, setMounted] = useState(false);
     const [error, setError] = useState("");
+    const [method, setMethod] = useState<"CARD" | "CASH">("CARD");
+    const [cashSubmitting, setCashSubmitting] = useState(false);
 
     // Stripe (Payment Element)
     const [stripeSdkLoaded, setStripeSdkLoaded] = useState(false);
@@ -228,14 +233,46 @@ export default function CheckoutPage() {
         }
     };
 
-    // Monta el formulario de tarjeta en cuanto Stripe.js termina de cargar
-    // (único método de pago — no hace falta que el cliente elija nada antes).
+    // Monta el formulario de tarjeta en cuanto Stripe.js termina de cargar,
+    // solo si el cliente sigue en la pestaña de tarjeta.
     useEffect(() => {
-        if (stripeSdkLoaded && !stripeElementsRef.current) {
+        if (method === "CARD" && stripeSdkLoaded && !stripeElementsRef.current) {
             setupStripeCheckout();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [stripeSdkLoaded]);
+    }, [stripeSdkLoaded, method]);
+
+    // Efectivo: no depende de Stripe ni de ningún script externo -- crea el
+    // pedido directo y ya, el repartidor cobra en persona al entregar.
+    const handleCashPay = async () => {
+        setCashSubmitting(true);
+        setError("");
+        try {
+            const res = await fetch("/api/orders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: user?.id,
+                    customerName: user?.name || user?.email || "Cliente",
+                    address: "Ubicación GPS (Actual)",
+                    total,
+                    paymentMethod: "CASH",
+                    items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setError(data.error || "No se pudo crear el pedido.");
+                setCashSubmitting(false);
+                return;
+            }
+            clearCart();
+            router.push(`/tracking?orderId=${data.id}`);
+        } catch {
+            setError("Error al crear el pedido. Verifica tu conexión e intenta de nuevo.");
+            setCashSubmitting(false);
+        }
+    };
 
     if (!mounted) return null;
 
@@ -264,55 +301,102 @@ export default function CheckoutPage() {
                 {/* spacer when error is shown */}
                 {error && <div className="h-14" />}
 
-                <div className="flex items-center gap-2 px-1">
-                    <CreditCard size={18} className="text-violet-400" />
-                    <span className="font-bold text-lg">Pago con tarjeta</span>
+                {/* Selector de método -- efectivo es el respaldo: si el celular
+                    del cliente bloquea Stripe por lo que sea, siempre puede
+                    cambiar aquí y pagar sin depender de ningún script externo. */}
+                <div className="flex gap-2 p-1 rounded-2xl bg-white/5 border border-white/10">
+                    <button
+                        onClick={() => { setMethod("CARD"); setError(""); }}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${method === "CARD" ? "bg-violet-500 text-white shadow-lg shadow-violet-500/30" : "text-gray-400"}`}
+                    >
+                        <CreditCard size={16} /> Tarjeta
+                    </button>
+                    <button
+                        onClick={() => { setMethod("CASH"); setError(""); }}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${method === "CASH" ? "bg-green-600 text-white shadow-lg shadow-green-600/30" : "text-gray-400"}`}
+                    >
+                        <Banknote size={16} /> Efectivo
+                    </button>
                 </div>
 
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
-                    <div className="flex justify-between items-center">
-                        <span className="font-bold text-lg">Total a pagar:</span>
-                        <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
-                    </div>
-
-                    {/* Mientras el formulario real de Stripe termina de montarse, se
-                        ve un boceto estático (no una pantalla de "cargando") para
-                        que el método de pago se sienta listo desde que se abre esta
-                        pantalla. La espera real -- si la hay -- se siente al tocar
-                        "Pagar", no antes. */}
-                    {!stripeReady && !error && (
-                        <div className="flex flex-col gap-3 animate-pulse" aria-hidden>
-                            <div className="h-12 rounded-xl bg-white/10 border border-white/10" />
-                            <div className="flex gap-3">
-                                <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
-                                <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
-                            </div>
+                {/* Los dos bloques quedan SIEMPRE montados (solo se ocultan con
+                    CSS) -- si el de tarjeta se desmontara al cambiar de pestaña,
+                    el mount() de Stripe truena porque busca un DOM que ya no
+                    existe (le puede tocar mientras el cliente ya cambió a
+                    Efectivo, ya que la carga del SDK sigue en segundo plano). */}
+                <div className={method === "CARD" ? "flex flex-col gap-5" : "hidden"}>
+                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
+                        <div className="flex justify-between items-center">
+                            <span className="font-bold text-lg">Total a pagar:</span>
+                            <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
                         </div>
-                    )}
 
-                    {!stripeReady && error && (
-                        <button onClick={retryStripeCheckout} disabled={stripeSubmitting}
-                            className="w-full py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
-                            {stripeSubmitting ? <Loader2 className="animate-spin" size={20} /> : "Reintentar"}
+                        {/* Mientras el formulario real de Stripe termina de montarse, se
+                            ve un boceto estático (no una pantalla de "cargando") para
+                            que el método de pago se sienta listo desde que se abre esta
+                            pantalla. La espera real -- si la hay -- se siente al tocar
+                            "Pagar", no antes. */}
+                        {!stripeReady && !error && (
+                            <div className="flex flex-col gap-3 animate-pulse" aria-hidden>
+                                <div className="h-12 rounded-xl bg-white/10 border border-white/10" />
+                                <div className="flex gap-3">
+                                    <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
+                                    <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
+                                </div>
+                            </div>
+                        )}
+
+                        {!stripeReady && error && (
+                            <button onClick={retryStripeCheckout} disabled={stripeSubmitting}
+                                className="w-full py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                                {stripeSubmitting ? <Loader2 className="animate-spin" size={20} /> : "Reintentar"}
+                            </button>
+                        )}
+
+                        {/* Stripe monta aquí su Payment Element (campos de tarjeta reales) */}
+                        <div ref={stripeMountRef} className={stripeReady ? "" : "hidden"} />
+
+                        {/* El botón de pagar siempre está a la vista -- solo se activa
+                            (deja de estar atenuado) cuando el formulario ya está listo
+                            para recibir el pago. */}
+                        {!error && (
+                            <button onClick={handleStripePay} disabled={stripeSubmitting || !stripeReady}
+                                className="w-full py-4 rounded-2xl bg-violet-500 text-white font-bold text-lg shadow-lg shadow-violet-500/30 disabled:opacity-40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
+                                {stripeSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
+                            </button>
+                        )}
+
+                        {method === "CARD" && !stripeReady && error && (
+                            <p className="text-center text-xs text-gray-500">
+                                ¿Sigue sin cargar? Cambia a <button onClick={() => { setMethod("CASH"); setError(""); }} className="text-green-400 font-bold underline">Efectivo</button> para completar tu pedido de todos modos.
+                            </p>
+                        )}
+
+                        <p className="text-center text-xs text-gray-500 pb-2">
+                            🔒 Tus datos se procesan de forma segura por Stripe. Nunca los guardamos.
+                        </p>
+                    </div>
+                </div>
+
+                <div className={method === "CASH" ? "flex flex-col gap-5" : "hidden"}>
+                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
+                        <div className="flex justify-between items-center">
+                            <span className="font-bold text-lg">Total a pagar:</span>
+                            <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
+                        </div>
+
+                        <div className="flex items-start gap-3 p-4 rounded-xl bg-green-600/10 border border-green-600/20">
+                            <Banknote size={20} className="text-green-400 shrink-0 mt-0.5" />
+                            <p className="text-sm text-gray-300">
+                                Pagas en efectivo directo al repartidor cuando te entregue tu pedido. Ten el monto exacto listo si puedes.
+                            </p>
+                        </div>
+
+                        <button onClick={handleCashPay} disabled={cashSubmitting}
+                            className="w-full py-4 rounded-2xl bg-green-600 text-white font-bold text-lg shadow-lg shadow-green-600/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                            {cashSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Confirmar pedido</>}
                         </button>
-                    )}
-
-                    {/* Stripe monta aquí su Payment Element (campos de tarjeta reales) */}
-                    <div ref={stripeMountRef} className={stripeReady ? "" : "hidden"} />
-
-                    {/* El botón de pagar siempre está a la vista -- solo se activa
-                        (deja de estar atenuado) cuando el formulario ya está listo
-                        para recibir el pago. */}
-                    {!error && (
-                        <button onClick={handleStripePay} disabled={stripeSubmitting || !stripeReady}
-                            className="w-full py-4 rounded-2xl bg-violet-500 text-white font-bold text-lg shadow-lg shadow-violet-500/30 disabled:opacity-40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
-                            {stripeSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
-                        </button>
-                    )}
-
-                    <p className="text-center text-xs text-gray-500 pb-2">
-                        🔒 Tus datos se procesan de forma segura por Stripe. Nunca los guardamos.
-                    </p>
+                    </div>
                 </div>
             </div>
             <BottomNav />
