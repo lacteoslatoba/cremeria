@@ -4,17 +4,18 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
-import { ChevronLeft, Banknote, Loader2, CreditCard, CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
+import { ChevronLeft, Loader2, CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
 import { BottomNav } from "@/components/layout/bottom-nav";
 
 declare global {
-    interface Window { MercadoPago: any; MP_DEVICE_SESSION_ID?: string; Stripe: any; }
+    interface Window { Stripe: any; }
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Simple hand-rolled card form (no SDK iframes needed).
-   We collect raw fields here, tokenise them with the MP JS SDK
-   CardForm helper, then send only the token to our backend.
+   Único método de pago: Stripe (Payment Element). El formulario de
+   tarjeta se monta directo en esta pantalla — el cliente nunca sale
+   de la página. Efectivo y Mercado Pago se retiraron a pedido del
+   dueño del negocio.
    ───────────────────────────────────────────────────────────── */
 export default function CheckoutPage() {
     const router = useRouter();
@@ -22,16 +23,9 @@ export default function CheckoutPage() {
     const { user } = useAuthStore();
 
     const [mounted, setMounted] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<"CARD" | "CASH" | "STRIPE">("CASH");
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
-    const [paymentSuccess, setPaymentSuccess] = useState(false);
-    const [successOrderId, setSuccessOrderId] = useState("");
-    const [mpFinalStatus, setMpFinalStatus] = useState(""); // "approved" | "in_process"
-    const [mpLoaded, setMpLoaded] = useState(false);
-    const mpPublicKeyRef = useRef("");
 
-    // Stripe (Payment Element — tarjeta directo en la página, sin salir)
+    // Stripe (Payment Element)
     const [stripeSdkLoaded, setStripeSdkLoaded] = useState(false);
     const [stripeReady, setStripeReady] = useState(false);
     const [stripeSubmitting, setStripeSubmitting] = useState(false);
@@ -41,76 +35,15 @@ export default function CheckoutPage() {
     const stripeOrderIdRef = useRef("");
     const stripeMountRef = useRef<HTMLDivElement>(null);
 
-    // Saved cards
-    const [savedCards, setSavedCards] = useState<any[]>([]);
-    const [selectedSavedCard, setSelectedSavedCard] = useState<any | null>(null);
-    const [saveCard, setSaveCard] = useState(false);
-    const [useNewCard, setUseNewCard] = useState(false); // toggle new card form vs saved
-
-    // Card fields (plain inputs — MP tokenises them client-side)
-    const [cardNumber, setCardNumber] = useState("");
-    const [expMonth, setExpMonth] = useState("");
-    const [expYear, setExpYear] = useState("");
-    const [cvv, setCvv] = useState("");
-    const [holderName, setHolderName] = useState("");
-
     const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
     const total = subtotal;
 
     useEffect(() => {
         setMounted(true);
         if (items.length === 0) router.push("/cart");
-
-        // Load public key + SDK
-        fetch("/api/payments/config")
-            .then(r => r.json())
-            .then(({ publicKey }) => {
-                mpPublicKeyRef.current = publicKey;
-                loadSDK(publicKey);
-            })
-            .catch(console.error);
-
-        // MP's device fingerprint script — sets window.MP_DEVICE_SESSION_ID,
-        // which we send with every card payment. Without it, MP's fraud
-        // engine has almost no signal and tends to reject with
-        // cc_rejected_high_risk even for legitimate cards.
-        loadSecurityScript();
-
-        // Stripe.js — cargado de una vez para que esté listo si el cliente
-        // elige "Tarjeta (Stripe)".
         loadStripeSDK();
-
-        // Load saved cards for logged-in user
-        if (user?.id && user.id !== "guest") {
-            fetch(`/api/payments/save-card?userId=${user.id}`)
-                .then(r => r.json())
-                .then(data => {
-                    if (Array.isArray(data) && data.length > 0) {
-                        setSavedCards(data);
-                        setSelectedSavedCard(data[0]);
-                    }
-                })
-                .catch(console.error);
-        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    const loadSDK = (publicKey: string) => {
-        if (document.getElementById("mp-sdk-v2")) { setMpLoaded(true); return; }
-        const s = document.createElement("script");
-        s.id = "mp-sdk-v2";
-        s.src = "https://sdk.mercadopago.com/js/v2";
-        s.onload = () => setMpLoaded(true);
-        document.body.appendChild(s);
-    };
-
-    const loadSecurityScript = () => {
-        if (document.getElementById("mp-security")) return;
-        const s = document.createElement("script");
-        s.id = "mp-security";
-        s.src = "https://www.mercadopago.com/v2/security.js";
-        s.setAttribute("view", "checkout");
-        document.body.appendChild(s);
-    };
 
     const loadStripeSDK = () => {
         if (document.getElementById("stripe-sdk-v3")) { setStripeSdkLoaded(true); return; }
@@ -130,7 +63,7 @@ export default function CheckoutPage() {
         try {
             if (!stripePublicKeyRef.current) {
                 const cfg = await fetch("/api/payments/stripe/config").then(r => r.json());
-                if (!cfg.publicKey) throw new Error("Stripe no está configurado todavía.");
+                if (!cfg.publicKey) throw new Error("El pago con tarjeta no está disponible todavía.");
                 stripePublicKeyRef.current = cfg.publicKey;
             }
 
@@ -148,7 +81,7 @@ export default function CheckoutPage() {
             });
             const data = await res.json();
             if (!res.ok || !data.clientSecret) {
-                setError(data.error || "No se pudo iniciar el pago con Stripe.");
+                setError(data.error || "No se pudo iniciar el pago.");
                 setStripeSubmitting(false);
                 return;
             }
@@ -160,7 +93,7 @@ export default function CheckoutPage() {
             stripeElementsRef.current = elements;
             setStripeReady(true);
         } catch (err: any) {
-            setError(err?.message || "Error al conectar con Stripe.");
+            setError(err?.message || "Error al conectar con el sistema de pago.");
         } finally {
             setStripeSubmitting(false);
         }
@@ -171,7 +104,7 @@ export default function CheckoutPage() {
         setStripeSubmitting(true);
         setError("");
         try {
-            const { error: confirmError, paymentIntent } = await stripeRef.current.confirmPayment({
+            const { error: confirmError } = await stripeRef.current.confirmPayment({
                 elements: stripeElementsRef.current,
                 confirmParams: {
                     return_url: `${window.location.origin}/checkout/stripe-return?orderId=${stripeOrderIdRef.current}`,
@@ -198,7 +131,7 @@ export default function CheckoutPage() {
                 clearCart();
                 router.push(`/tracking?orderId=${stripeOrderIdRef.current}`);
             } else if (order.paymentStatus === "REJECTED") {
-                setError("Tu pago con Stripe no se completó. No se hizo ningún cargo.");
+                setError("Tu pago no se completó. No se hizo ningún cargo.");
                 setStripeSubmitting(false);
             } else {
                 // paymentIntent en proceso (raro con redirect:if_required, pero por si acaso)
@@ -206,268 +139,21 @@ export default function CheckoutPage() {
                 setStripeSubmitting(false);
             }
         } catch {
-            setError("Error al confirmar el pago con Stripe.");
+            setError("Error al confirmar el pago.");
             setStripeSubmitting(false);
         }
     };
 
-    // Al elegir "Tarjeta (Stripe)" (y una vez cargado Stripe.js), montamos
-    // su formulario de tarjeta automáticamente — sin un clic extra.
+    // Monta el formulario de tarjeta en cuanto Stripe.js termina de cargar
+    // (único método de pago — no hace falta que el cliente elija nada antes).
     useEffect(() => {
-        if (paymentMethod === "STRIPE" && stripeSdkLoaded && !stripeElementsRef.current) {
+        if (stripeSdkLoaded && !stripeElementsRef.current) {
             setupStripeCheckout();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [paymentMethod, stripeSdkLoaded]);
-
-    /* ── Tokenise card data via MP then pay ── */
-    const handleCardPay = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError("");
-
-        // Basic validation
-        const cleanCard = cardNumber.replace(/\s/g, "");
-        if (cleanCard.length < 15) { setError("Número de tarjeta inválido."); return; }
-        if (!expMonth || !expYear) { setError("Fecha de vencimiento incompleta."); return; }
-        if (cvv.length < 3) { setError("CVV inválido."); return; }
-        if (!holderName.trim()) { setError("Escribe el nombre del titular."); return; }
-
-        // Validate expiration date — must be future
-        const fullYear = expYear.length === 2 ? `20${expYear}` : expYear;
-        const expDate = new Date(parseInt(fullYear), parseInt(expMonth) - 1, 1);
-        const now = new Date();
-        now.setDate(1); now.setHours(0, 0, 0, 0);
-        if (expDate < now) {
-            setError("La tarjeta está vencida. Verifica el mes y año de vencimiento.");
-            return;
-        }
-
-
-        if (!mpLoaded || !window.MercadoPago) {
-            setError("El formulario de pago aún está cargando. Espera un momento e inténtalo.");
-            return;
-        }
-
-        setIsSubmitting(true);
-        try {
-            const mp = new window.MercadoPago(mpPublicKeyRef.current, { locale: "es-MX" });
-
-            // fullYear already computed above in validation
-            const bin = cleanCard.slice(0, 6);
-
-            // Step 1: Detect payment method from card BIN
-            console.log("[MP] Detectando tipo de tarjeta para BIN:", bin);
-            let paymentMethodId = "visa";
-            try {
-                const pmRes = await mp.getPaymentMethods({ bin });
-                paymentMethodId = pmRes?.results?.[0]?.id || "visa";
-                console.log("[MP] Tipo de tarjeta detectado:", paymentMethodId);
-            } catch (pmErr) {
-                console.warn("[MP] No se pudo detectar tipo de tarjeta, usando 'visa'", pmErr);
-            }
-
-            // Step 2: Create card token
-            console.log("[MP] Creando token...");
-            const tokenResponse = await mp.createCardToken({
-                cardNumber: cleanCard,
-                cardholderName: holderName.trim(),
-                cardExpirationMonth: expMonth.padStart(2, "0"),
-                cardExpirationYear: fullYear,
-                securityCode: cvv,
-                identificationType: "RFC",
-                identificationNumber: "XAXX010101000", // RFC genérico para México (no requerido)
-            });
-
-            console.log("[MP] Token respuesta:", JSON.stringify(tokenResponse));
-
-            if (!tokenResponse?.id) {
-                const cause = tokenResponse?.cause?.[0]?.code;
-                const causeDesc = tokenResponse?.cause?.[0]?.description;
-                console.error("[MP] Token sin ID. Causa:", cause, causeDesc);
-                setError(
-                    cause === "E301" ? "Número de tarjeta inválido." :
-                        cause === "E302" ? "CVV inválido." :
-                            cause === "E303" ? "Fecha de vencimiento inválida." :
-                                causeDesc || "No se pudo verificar la tarjeta. Revisa los datos."
-                );
-                setIsSubmitting(false);
-                return;
-            }
-
-            // Use the EXACT paymentMethodId from MP — debvisa, debmaster, etc.
-            // DO NOT normalize here; bin_exclusion happens when we send "visa" for a debvisa BIN
-            const finalPaymentMethodId = tokenResponse.payment_method_id || paymentMethodId;
-            console.log("[MP] Token OK:", tokenResponse.id, "Método (raw):", finalPaymentMethodId);
-
-            const payRes = await fetch("/api/payments/create-payment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    token: tokenResponse.id,
-                    amount: total,
-                    paymentMethodId: finalPaymentMethodId, // raw: debvisa, visa, master, debmaster…
-                    installments: 1,
-                    payerEmail: user?.email || "cliente@cremeria.com",
-                    payerName: holderName.trim() || user?.name || "Cliente",
-                    description: `Pedido Cremería del Rancho`,
-                    deviceId: window.MP_DEVICE_SESSION_ID,
-                }),
-            });
-
-            const payData = await payRes.json();
-            console.log("[MP] Payment response:", payData);
-
-            if (!payRes.ok || !payData.success) {
-                const msgs: Record<string, string> = {
-                    cc_rejected_insufficient_amount: "Fondos insuficientes en la tarjeta.",
-                    cc_rejected_bad_filled_security_code: "CVV incorrecto.",
-                    cc_rejected_bad_filled_date: "Fecha de vencimiento incorrecta.",
-                    cc_rejected_bad_filled_card_number: "Número de tarjeta incorrecto.",
-                    cc_rejected_card_disabled: "Tarjeta deshabilitada. Contacta tu banco.",
-                    cc_rejected_call_for_authorize: "Llama a tu banco para autorizar el pago.",
-                    cc_rejected_other_reason: "Tu banco rechazó el cobro. Llama a tu banco o intenta con otra tarjeta.",
-                    cc_rejected_high_risk: "Pago bloqueado por seguridad. Intenta con otra tarjeta.",
-                };
-                const exactDetail = payData.detail || payData.rawDetail;
-                // 500 case: backend exception — show the actual server error
-                if (!exactDetail && payData.error) {
-                    setError(`Error del servidor: ${payData.error}`);
-                } else {
-                    const friendlyMsg = exactDetail ? msgs[exactDetail] : undefined;
-                    setError(friendlyMsg
-                        ? `${friendlyMsg} (código: ${exactDetail})`
-                        : `Pago rechazado. Código: "${exactDetail || "sin_detalle"}"`
-                    );
-                }
-                setIsSubmitting(false);
-                return;
-            }
-
-            // ✅ Payment approved — save card if requested
-            if (saveCard && user?.id && user.id !== "guest") {
-                try {
-                    await fetch("/api/payments/save-card", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            userId: user.id,
-                            token: tokenResponse.id,
-                            lastFour: cleanCard.slice(-4),
-                            cardBrand: finalPaymentMethodId,
-                            expirationMonth: expMonth,
-                            expirationYear: expYear.length === 2 ? `20${expYear}` : expYear,
-                            holderName: holderName.trim(),
-                            payerEmail: user?.email || "cliente@cremeria.com",
-                        }),
-                    });
-                } catch (saveErr) {
-                    console.warn("[MP] No se pudo guardar la tarjeta:", saveErr);
-                }
-            }
-
-            await createOrder(String(payData.paymentId), payData.status, "CARD");
-        } catch (err: any) {
-            console.error("[MP] Error completo:", err);
-            setError(err?.message || "Error inesperado. Por favor intenta de nuevo.");
-            setIsSubmitting(false);
-        }
-    };
-
-    const processCash = async () => {
-        setIsSubmitting(true);
-        setError("");
-        try { await createOrder(null, "approved", "CASH"); }
-        catch { setError("Error al crear el pedido."); setIsSubmitting(false); }
-    };
-
-    const createOrder = async (mpId: string | null, mpPaymentStatus?: string, paymentMethod?: string) => {
-        const res = await fetch("/api/orders", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                userId: user?.id,
-                customerName: user?.name || user?.email || "Cliente",
-                address: "Ubicación GPS (Actual)",
-                total,
-                mpPaymentId: mpId,
-                mpPaymentStatus: mpPaymentStatus || null,
-                paymentMethod: paymentMethod || "CASH",
-                items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
-            }),
-        });
-        if (res.ok) {
-            const data = await res.json();
-            clearCart();
-            setSuccessOrderId(data.id);
-            setMpFinalStatus(mpPaymentStatus || "approved");
-            setPaymentSuccess(true);
-            // For approved: redirect after 2.8s. For in_process: stay on screen (webhook will update)
-            if (mpPaymentStatus === "approved" || !mpPaymentStatus) {
-                setTimeout(() => {
-                    router.push(`/tracking?orderId=${data.id}`);
-                }, 2800);
-            }
-        } else {
-            setError("Error al registrar el pedido. Intenta de nuevo.");
-            setIsSubmitting(false);
-        }
-    };
-
-    // Format card number with spaces
-    const fmtCard = (v: string) => v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
+    }, [stripeSdkLoaded]);
 
     if (!mounted) return null;
-
-    const inputClass = "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-foreground font-medium outline-none focus:ring-2 focus:ring-[#009EE3]/50 focus:border-[#009EE3] transition-all placeholder:text-gray-600";
-
-    // ── SUCCESS / PROCESSING OVERLAY ──
-    if (paymentSuccess) {
-        const isInProcess = mpFinalStatus === "in_process" || mpFinalStatus === "pending";
-
-        if (isInProcess) {
-            // Yellow — payment being reviewed by MP
-            return (
-                <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center gap-6 px-8 animate-in fade-in duration-500">
-                    <div className="flex items-center justify-center w-28 h-28 rounded-full bg-amber-500/15 border-2 border-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.4)] animate-in zoom-in duration-500">
-                        <Loader2 size={52} className="text-amber-400 animate-spin" />
-                    </div>
-                    <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-black text-white">Verificando pago...</h2>
-                        <p className="text-gray-400 text-sm">Tu pago está siendo revisado por Mercado Pago.</p>
-                        <p className="text-xs text-gray-500 mt-1">Folio: #{successOrderId.slice(-6).toUpperCase()}</p>
-                    </div>
-                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-center max-w-xs">
-                        <p className="text-amber-300 text-sm font-medium">⏳ Esto puede tomar unos minutos.</p>
-                        <p className="text-gray-400 text-xs mt-1">Recibirás confirmación de Mercado Pago. Si el pago es rechazado, tu pedido será cancelado automáticamente.</p>
-                    </div>
-                    <button
-                        onClick={() => router.push(`/tracking?orderId=${successOrderId}`)}
-                        className="mt-2 px-8 py-3 bg-white/10 border border-white/20 rounded-2xl text-white font-bold text-sm hover:bg-white/20 transition-all"
-                    >
-                        Ver estado del pedido →
-                    </button>
-                </div>
-            );
-        }
-
-        // Green — payment approved ✅
-        return (
-            <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center gap-6 px-8 animate-in fade-in duration-500">
-                <div className="flex items-center justify-center w-28 h-28 rounded-full bg-green-500/15 border-2 border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.4)] animate-in zoom-in duration-500">
-                    <CheckCircle2 size={56} className="text-green-400" />
-                </div>
-                <div className="text-center space-y-2">
-                    <h2 className="text-3xl font-black text-white">¡Pedido realizado!</h2>
-                    <p className="text-gray-400 text-base">Tu pago fue confirmado por Mercado Pago.</p>
-                    <p className="text-xs text-gray-500 mt-1">Folio: #{successOrderId.slice(-6).toUpperCase()}</p>
-                </div>
-                <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
-                    <Loader2 size={16} className="animate-spin" />
-                    Redirigiendo al seguimiento...
-                </div>
-            </div>
-        );
-    }
 
     return (
         <main className="min-h-screen pb-[140px] bg-background text-foreground">
@@ -494,272 +180,44 @@ export default function CheckoutPage() {
                 {/* spacer when error is shown */}
                 {error && <div className="h-14" />}
 
-                {/* placeholder for removed inline error — keep structure */}
-                {false && (
-                    <div className="flex items-start gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-medium animate-in slide-in-from-top-2">
-                        <AlertCircle size={20} className="shrink-0 mt-0.5" />
-                        <span>{error}</span>
-                    </div>
-                )}
-
-                {/* Selector */}
-                <div className="flex flex-col gap-3">
-                    <p className="font-bold text-lg px-1">¿Cómo prefieres pagar?</p>
-
-                    <button onClick={() => { setPaymentMethod("CASH"); setError(""); }}
-                        className={`flex items-center p-4 rounded-2xl border-2 transition-all text-left ${paymentMethod === "CASH" ? "bg-primary/10 border-primary" : "bg-white/5 border-white/10"}`}>
-                        <div className={`p-2.5 rounded-xl mr-4 ${paymentMethod === "CASH" ? "bg-primary text-white" : "bg-gray-700 text-gray-300"}`}><Banknote size={22} /></div>
-                        <div className="flex-1">
-                            <p className="font-bold">Efectivo al recibir</p>
-                            <p className="text-sm text-gray-400">Paga cuando llegue tu pedido</p>
-                        </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === "CASH" ? "border-primary" : "border-gray-500"}`}>
-                            {paymentMethod === "CASH" && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
-                        </div>
-                    </button>
-
-                    <button onClick={() => { setPaymentMethod("CARD"); setError(""); }}
-                        className={`flex items-center p-4 rounded-2xl border-2 transition-all text-left ${paymentMethod === "CARD" ? "bg-[#009EE3]/10 border-[#009EE3]" : "bg-white/5 border-white/10"}`}>
-                        <div className={`p-2.5 rounded-xl mr-4 ${paymentMethod === "CARD" ? "bg-[#009EE3] text-white" : "bg-gray-700 text-gray-300"}`}><CreditCard size={22} /></div>
-                        <div className="flex-1">
-                            <p className="font-bold">Tarjeta débito / crédito</p>
-                            <p className="text-sm text-gray-400">Visa, Mastercard, Amex · Pago seguro</p>
-                        </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === "CARD" ? "border-[#009EE3]" : "border-gray-500"}`}>
-                            {paymentMethod === "CARD" && <div className="w-2.5 h-2.5 bg-[#009EE3] rounded-full" />}
-                        </div>
-                    </button>
-
-                    <button onClick={() => { setPaymentMethod("STRIPE"); setError(""); }}
-                        className={`flex items-center p-4 rounded-2xl border-2 transition-all text-left ${paymentMethod === "STRIPE" ? "bg-violet-500/10 border-violet-500" : "bg-white/5 border-white/10"}`}>
-                        <div className={`p-2.5 rounded-xl mr-4 ${paymentMethod === "STRIPE" ? "bg-violet-500 text-white" : "bg-gray-700 text-gray-300"}`}><CreditCard size={22} /></div>
-                        <div className="flex-1">
-                            <p className="font-bold">Tarjeta (Stripe)</p>
-                            <p className="text-sm text-gray-400">Opción alterna · Pago seguro sin salir de aquí</p>
-                        </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === "STRIPE" ? "border-violet-500" : "border-gray-500"}`}>
-                            {paymentMethod === "STRIPE" && <div className="w-2.5 h-2.5 bg-violet-500 rounded-full" />}
-                        </div>
-                    </button>
-
+                <div className="flex items-center gap-2 px-1">
+                    <CreditCard size={18} className="text-violet-400" />
+                    <span className="font-bold text-lg">Pago con tarjeta</span>
                 </div>
 
-                {/* ────── CARD FORM ────── */}
-                {paymentMethod === "CARD" && (
-                    <div className="flex flex-col gap-4 animate-in slide-in-from-bottom-2 duration-300">
-
-                        <div className="flex items-center gap-2 px-1">
-                            <span className="font-black text-[#009EE3] text-base">Mercado Pago</span>
-                            <span className="text-xs text-gray-500">· 🔒 Pago encriptado</span>
-                        </div>
-
-                        {/* ── SAVED CARDS ── */}
-                        {savedCards.length > 0 && !useNewCard && (
-                            <div className="flex flex-col gap-3">
-                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Tus tarjetas guardadas</p>
-                                {savedCards.map(card => (
-                                    <div key={card.id}
-                                        onClick={() => setSelectedSavedCard(card)}
-                                        className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedSavedCard?.id === card.id ? "border-[#009EE3] bg-[#009EE3]/10" : "border-white/10 bg-white/5 hover:border-white/30"}`}>
-                                        <CreditCard size={22} className="text-[#009EE3] shrink-0" />
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-sm capitalize">{card.cardBrand} ···· {card.lastFour}</p>
-                                            <p className="text-xs text-gray-400">{card.holderName} · Vence {card.expirationMonth}/{card.expirationYear}</p>
-                                        </div>
-                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedSavedCard?.id === card.id ? "border-[#009EE3]" : "border-gray-500"}`}>
-                                            {selectedSavedCard?.id === card.id && <div className="w-2.5 h-2.5 bg-[#009EE3] rounded-full" />}
-                                        </div>
-                                        <button type="button" onClick={async (e) => {
-                                            e.stopPropagation();
-                                            await fetch(`/api/payments/save-card?cardId=${card.id}`, { method: "DELETE" });
-                                            setSavedCards(prev => prev.filter(c => c.id !== card.id));
-                                            if (selectedSavedCard?.id === card.id) setSelectedSavedCard(null);
-                                        }} className="p-1.5 text-gray-500 hover:text-red-400 transition-colors shrink-0">
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                ))}
-
-                                {/* Use saved card pay button */}
-                                {selectedSavedCard && (
-                                    <>
-                                        <div className="flex justify-between items-center px-1 py-1">
-                                            <span className="font-bold text-lg">Total:</span>
-                                            <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
-                                        </div>
-                                        <button onClick={async () => {
-                                            setIsSubmitting(true);
-                                            setError("");
-                                            try {
-                                                // Pay with saved card via MP Customer+Card
-                                                const payRes = await fetch("/api/payments/create-payment", {
-                                                    method: "POST",
-                                                    headers: { "Content-Type": "application/json" },
-                                                    body: JSON.stringify({
-                                                        customerId: selectedSavedCard.mpCustomerId,
-                                                        cardId: selectedSavedCard.mpCardId,
-                                                        amount: total,
-                                                        paymentMethodId: selectedSavedCard.cardBrand,
-                                                        installments: 1,
-                                                        payerEmail: user?.email || "cliente@cremeria.com",
-                                                        payerName: selectedSavedCard.holderName,
-                                                        description: "Pedido Cremería del Rancho",
-                                                        deviceId: window.MP_DEVICE_SESSION_ID,
-                                                    }),
-                                                });
-                                                const payData = await payRes.json();
-                                                if (!payRes.ok || !payData.success) {
-                                                    setError(`Pago rechazado: ${payData.detail || payData.error || "intenta de nuevo"}`);
-                                                    setIsSubmitting(false);
-                                                    return;
-                                                }
-                                                await createOrder(String(payData.paymentId));
-                                            } catch (err: any) {
-                                                setError(err?.message || "Error inesperado");
-                                                setIsSubmitting(false);
-                                            }
-                                        }} disabled={isSubmitting}
-                                            className="w-full py-4 rounded-2xl bg-[#009EE3] text-white font-bold text-lg shadow-lg shadow-[#009EE3]/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
-                                            {isSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
-                                        </button>
-                                    </>
-                                )}
-
-                                <button type="button" onClick={() => { setUseNewCard(true); setSelectedSavedCard(null); }}
-                                    className="text-sm text-[#009EE3] font-bold text-center underline underline-offset-4">
-                                    + Usar otra tarjeta
-                                </button>
-                            </div>
-                        )}
-
-                        {/* ── NEW CARD FORM ── */}
-                        {(savedCards.length === 0 || useNewCard) && (
-                            <form onSubmit={handleCardPay} className="flex flex-col gap-4">
-                                {useNewCard && (
-                                    <button type="button" onClick={() => { setUseNewCard(false); setSelectedSavedCard(savedCards[0] || null); }}
-                                        className="text-sm text-gray-400 font-medium text-left pl-1 underline underline-offset-2">
-                                        ← Usar tarjeta guardada
-                                    </button>
-                                )}
-
-                                {/* Número */}
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Número de tarjeta</label>
-                                    <input required value={cardNumber} onChange={e => setCardNumber(fmtCard(e.target.value))}
-                                        placeholder="0000 0000 0000 0000" inputMode="numeric" maxLength={19}
-                                        className={inputClass} />
-                                </div>
-
-                                {/* Fecha + CVV */}
-                                <div className="flex gap-3">
-                                    <div className="flex-1 space-y-1.5">
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Mes</label>
-                                        <input required value={expMonth} onChange={e => setExpMonth(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                                            placeholder="MM" inputMode="numeric" maxLength={2} className={inputClass} />
-                                    </div>
-                                    <div className="flex-1 space-y-1.5">
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Año</label>
-                                        <input required value={expYear} onChange={e => setExpYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                                            placeholder="AA" inputMode="numeric" maxLength={4} className={inputClass} />
-                                    </div>
-                                    <div className="flex-1 space-y-1.5">
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">CVV</label>
-                                        <input required value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                                            placeholder="•••" inputMode="numeric" maxLength={4} type="password" className={inputClass} />
-                                    </div>
-                                </div>
-
-                                {/* Nombre */}
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Nombre del titular</label>
-                                    <input required value={holderName} onChange={e => setHolderName(e.target.value.toUpperCase())}
-                                        placeholder="Como aparece en tu tarjeta" className={inputClass} />
-                                </div>
-
-
-                                {/* Guardar tarjeta checkbox */}
-                                {user?.id && user.id !== "guest" && (
-                                    <label className="flex items-center gap-3 cursor-pointer select-none px-1">
-                                        <div onClick={() => setSaveCard(!saveCard)}
-                                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all shrink-0 ${saveCard ? "bg-[#009EE3] border-[#009EE3]" : "border-gray-500 bg-white/5"}`}>
-                                            {saveCard && <CheckCircle2 size={13} className="text-white" />}
-                                        </div>
-                                        <span className="text-sm text-gray-300">Guardar tarjeta para futuras compras</span>
-                                    </label>
-                                )}
-
-                                {/* Total */}
-                                <div className="flex justify-between items-center px-1 py-1">
-                                    <span className="font-bold text-lg">Total:</span>
-                                    <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
-                                </div>
-
-                                <button type="submit" disabled={isSubmitting}
-                                    className="w-full py-4 rounded-2xl bg-[#009EE3] text-white font-bold text-lg shadow-lg shadow-[#009EE3]/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
-                                    {isSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
-                                </button>
-
-                                <p className="text-center text-xs text-gray-500 pb-2">
-                                    🔒 Tus datos se procesan de forma segura por Mercado Pago. Nunca los guardamos.
-                                </p>
-                            </form>
-                        )}
+                <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
+                    <div className="flex justify-between items-center">
+                        <span className="font-bold text-lg">Total a pagar:</span>
+                        <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
                     </div>
-                )}
 
-
-                {/* ────── CASH ────── */}
-                {paymentMethod === "CASH" && (
-                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4 animate-in slide-in-from-bottom-2 duration-300">
-                        <div className="flex justify-between items-center">
-                            <span className="font-bold text-lg">Total a pagar:</span>
-                            <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
+                    {!stripeReady && !error && (
+                        <div className="flex items-center justify-center py-8 gap-2 text-gray-400">
+                            <Loader2 size={20} className="animate-spin" /> Preparando formulario seguro…
                         </div>
-                        <p className="text-sm text-gray-400">Pagarás en efectivo cuando el repartidor llegue a tu domicilio.</p>
-                        <button onClick={processCash} disabled={isSubmitting}
-                            className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-lg shadow-lg shadow-primary/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
-                            {isSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Confirmar Pedido</>}
+                    )}
+
+                    {!stripeReady && error && (
+                        <button onClick={setupStripeCheckout} disabled={stripeSubmitting}
+                            className="w-full py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                            {stripeSubmitting ? <Loader2 className="animate-spin" size={20} /> : "Reintentar"}
                         </button>
-                    </div>
-                )}
+                    )}
 
-                {/* ────── STRIPE ────── */}
-                {paymentMethod === "STRIPE" && (
-                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4 animate-in slide-in-from-bottom-2 duration-300">
-                        <div className="flex justify-between items-center">
-                            <span className="font-bold text-lg">Total a pagar:</span>
-                            <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
-                        </div>
+                    {/* Stripe monta aquí su Payment Element (campos de tarjeta reales) */}
+                    <div ref={stripeMountRef} className={stripeReady ? "" : "hidden"} />
 
-                        {!stripeReady && !error && (
-                            <div className="flex items-center justify-center py-8 gap-2 text-gray-400">
-                                <Loader2 size={20} className="animate-spin" /> Preparando formulario seguro…
-                            </div>
-                        )}
+                    {stripeReady && (
+                        <button onClick={handleStripePay} disabled={stripeSubmitting}
+                            className="w-full py-4 rounded-2xl bg-violet-500 text-white font-bold text-lg shadow-lg shadow-violet-500/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
+                            {stripeSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
+                        </button>
+                    )}
 
-                        {!stripeReady && error && (
-                            <button onClick={setupStripeCheckout} disabled={stripeSubmitting}
-                                className="w-full py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
-                                {stripeSubmitting ? <Loader2 className="animate-spin" size={20} /> : "Reintentar"}
-                            </button>
-                        )}
-
-                        {/* Stripe monta aquí su Payment Element (campos de tarjeta reales) */}
-                        <div ref={stripeMountRef} className={stripeReady ? "" : "hidden"} />
-
-                        {stripeReady && (
-                            <button onClick={handleStripePay} disabled={stripeSubmitting}
-                                className="w-full py-4 rounded-2xl bg-violet-500 text-white font-bold text-lg shadow-lg shadow-violet-500/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
-                                {stripeSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
-                            </button>
-                        )}
-
-                        <p className="text-center text-xs text-gray-500 pb-2">
-                            🔒 Tus datos se procesan de forma segura por Stripe. Nunca los guardamos.
-                        </p>
-                    </div>
-                )}
-
+                    <p className="text-center text-xs text-gray-500 pb-2">
+                        🔒 Tus datos se procesan de forma segura por Stripe. Nunca los guardamos.
+                    </p>
+                </div>
             </div>
             <BottomNav />
         </main>
