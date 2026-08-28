@@ -34,6 +34,8 @@ export default function CheckoutPage() {
     const stripeElementsRef = useRef<any>(null);
     const stripeOrderIdRef = useRef("");
     const stripeMountRef = useRef<HTMLDivElement>(null);
+    const stripeReadyRef = useRef(false);
+    const mountPaymentAttemptRef = useRef(0);
 
     const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
     const total = subtotal;
@@ -89,9 +91,36 @@ export default function CheckoutPage() {
 
             if (!stripeRef.current) stripeRef.current = window.Stripe(stripePublicKeyRef.current);
             const elements = stripeRef.current.elements({ clientSecret: data.clientSecret });
-            elements.create("payment").mount(stripeMountRef.current);
+            const paymentElement = elements.create("payment");
             stripeElementsRef.current = elements;
-            setStripeReady(true);
+
+            // Escuchar el ciclo de vida del Payment Element para no dejar al
+            // usuario en "Preparando…" infinito: si Stripe no logra montar el
+            // formulario (bloqueo de iframe, SDK, etc.), mostramos el motivo.
+            paymentElement.on("ready", () => {
+                stripeReadyRef.current = true;
+                setStripeReady(true);
+            });
+            paymentElement.on("error", (event: any) => {
+                console.error("[STRIPE_ELEMENT_ERROR]", event?.error);
+                setStripeReady(false);
+                setError(event?.error?.message || "El formulario de pago no pudo cargar. Revisa tu conexión y reintenta.");
+            });
+
+            mountPaymentAttemptRef.current = 1;
+            try {
+                paymentElement.mount(stripeMountRef.current);
+            } catch (mountErr: any) {
+                throw mountErr;
+            }
+
+            // Resguardo: si Stripe no confirma "ready" en tiempo, mostrar aviso
+            // en vez de dejar el spinner infinito.
+            window.setTimeout(() => {
+                if (!stripeReadyRef.current) {
+                    setError("El formulario de pago tarda en cargar. Si el problema continúa, recarga la página.");
+                }
+            }, 12000);
         } catch (err: any) {
             setError(err?.message || "Error al conectar con el sistema de pago.");
         } finally {
