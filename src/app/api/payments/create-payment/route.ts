@@ -34,7 +34,14 @@ export async function POST(request: Request) {
             payerName,
             installments,
             paymentMethodId,
+            // Fingerprint del dispositivo (window.MP_DEVICE_SESSION_ID del script
+            // de seguridad de MP) — sin esto, el antifraude de MP tiene muy poca
+            // señal y suele rechazar pagos legítimos como cc_rejected_high_risk.
+            deviceId,
         } = body;
+
+        // IP real del cliente (Vercel la manda en x-forwarded-for)
+        const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
 
         const accessToken = process.env.MP_ACCESS_TOKEN!;
         let finalToken = token;
@@ -92,9 +99,15 @@ export async function POST(request: Request) {
                 last_name: payerName?.split(" ").slice(1).join(" ") || "Cremeria",
                 ...(customerId ? { id: customerId } : {}),
             },
+            ...(ipAddress ? { additional_info: { ip_address: ipAddress } } : {}),
         };
 
-        const result = await payment.create({ body: paymentData });
+        console.log("[MP] Device ID presente:", !!deviceId, "IP:", ipAddress || "(sin IP)");
+
+        const result = await payment.create({
+            body: paymentData,
+            requestOptions: deviceId ? { meliSessionId: deviceId } : undefined,
+        });
 
         console.log("[MP] Resultado:", JSON.stringify({
             id: result.id,

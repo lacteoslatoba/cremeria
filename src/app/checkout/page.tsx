@@ -8,7 +8,7 @@ import { ChevronLeft, Banknote, Loader2, CreditCard, CheckCircle2, AlertCircle, 
 import { BottomNav } from "@/components/layout/bottom-nav";
 
 declare global {
-    interface Window { MercadoPago: any; }
+    interface Window { MercadoPago: any; MP_DEVICE_SESSION_ID?: string; }
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -60,6 +60,12 @@ export default function CheckoutPage() {
             })
             .catch(console.error);
 
+        // MP's device fingerprint script — sets window.MP_DEVICE_SESSION_ID,
+        // which we send with every card payment. Without it, MP's fraud
+        // engine has almost no signal and tends to reject with
+        // cc_rejected_high_risk even for legitimate cards.
+        loadSecurityScript();
+
         // Load saved cards for logged-in user
         if (user?.id && user.id !== "guest") {
             fetch(`/api/payments/save-card?userId=${user.id}`)
@@ -80,6 +86,15 @@ export default function CheckoutPage() {
         s.id = "mp-sdk-v2";
         s.src = "https://sdk.mercadopago.com/js/v2";
         s.onload = () => setMpLoaded(true);
+        document.body.appendChild(s);
+    };
+
+    const loadSecurityScript = () => {
+        if (document.getElementById("mp-security")) return;
+        const s = document.createElement("script");
+        s.id = "mp-security";
+        s.src = "https://www.mercadopago.com/v2/security.js";
+        s.setAttribute("view", "checkout");
         document.body.appendChild(s);
     };
 
@@ -173,6 +188,7 @@ export default function CheckoutPage() {
                     payerEmail: user?.email || "cliente@cremeria.com",
                     payerName: holderName.trim() || user?.name || "Cliente",
                     description: `Pedido Cremería del Rancho`,
+                    deviceId: window.MP_DEVICE_SESSION_ID,
                 }),
             });
 
@@ -453,6 +469,7 @@ export default function CheckoutPage() {
                                                         payerEmail: user?.email || "cliente@cremeria.com",
                                                         payerName: selectedSavedCard.holderName,
                                                         description: "Pedido Cremería del Rancho",
+                                                        deviceId: window.MP_DEVICE_SESSION_ID,
                                                     }),
                                                 });
                                                 const payData = await payRes.json();
