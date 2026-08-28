@@ -5,14 +5,14 @@ const OFFERS = [
         id: 1,
         title: "50% Dto.",
         subtitle: "En Cortes Selectos",
-        image: "https://images.unsplash.com/photo-1448907503123-67254d59ca4f?auto=format&fit=crop&q=80&w=800",
+        image: "/products/offer-1.jpg",
         color: "from-red-600/80 to-black/80",
     },
     {
         id: 2,
         title: "Envíos Gratis",
         subtitle: "Pedidos +$500",
-        image: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800",
+        image: "/products/offer-2.jpg",
         color: "from-blue-600/80 to-black/80",
     },
 ];

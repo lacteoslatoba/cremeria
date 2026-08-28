@@ -1,15 +1,17 @@
 ﻿"use client"
 import Link from 'next/link';
-import { Home, ShoppingCart, User } from 'lucide-react';
+import { Home, ShoppingCart, User, ClipboardList } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import styles from './bottom-nav.module.css';
 import { useCartStore } from '@/lib/cart-store';
+import { useAuthStore } from '@/lib/auth-store';
 import { useState, useEffect } from 'react';
 
 export function BottomNav() {
     const pathname = usePathname();
     const { items } = useCartStore();
+    const { user } = useAuthStore();
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -20,14 +22,17 @@ export function BottomNav() {
 
     return (
         <nav className={cn(styles.nav, "bottom-nav-mobile fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] z-50 bg-[#1e1e1e]/90 backdrop-blur-md border-t border-white/10")}>
-            <div className="flex justify-around items-center h-16 px-4 w-full">
+            <div className="flex items-center h-16 px-4 w-full">
                 <NavItem href="/" icon={Home} label="Inicio" active={pathname === '/'} />
                 <NavItem href="/cart" icon={ShoppingCart} label="Carrito" active={pathname === '/cart'} badge={cartCount} />
-                <NavItem href="/admin/orders" icon={User} label="Pedidos" active={pathname.startsWith('/admin/orders') || pathname === '/admin'} />
+                {user?.role === "ADMIN" && (
+                    <NavItem href="/admin/orders" icon={ClipboardList} label="Pedidos" active={pathname.startsWith('/admin/orders') || pathname === '/admin'} />
+                )}
             </div>
         </nav>
     );
 }
+
 
 function NavItem({ href, icon: Icon, label, active, badge }: { href: string; icon: any; label: string; active: boolean; badge?: number }) {
     return (

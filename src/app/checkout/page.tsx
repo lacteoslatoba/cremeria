@@ -48,12 +48,26 @@ export default function CheckoutPage() {
     }, []);
 
     const loadStripeSDK = () => {
-        if (document.getElementById("stripe-sdk-v3")) { setStripeSdkLoaded(true); return; }
-        const s = document.createElement("script");
-        s.id = "stripe-sdk-v3";
-        s.src = "https://js.stripe.com/v3/";
-        s.onload = () => setStripeSdkLoaded(true);
-        document.body.appendChild(s);
+        // Si el <script> ya existe pero window.Stripe todavía no está listo
+        // (por ejemplo, un intento anterior que se quedó a medias), no lo
+        // demos por cargado a ciegas -- lo esperamos igual que la primera vez.
+        if (window.Stripe) { setStripeSdkLoaded(true); return; }
+        if (!document.getElementById("stripe-sdk-v3")) {
+            const s = document.createElement("script");
+            s.id = "stripe-sdk-v3";
+            s.src = "https://js.stripe.com/v3/";
+            s.onload = () => setStripeSdkLoaded(true);
+            s.onerror = () => setError("No se pudo cargar el sistema de pago. Si tienes un bloqueador de anuncios activo, desactívalo para esta página e intenta de nuevo.");
+            document.body.appendChild(s);
+        }
+        // Resguardo: si en 10s no llegó ni "onload" ni "onerror" (bloqueado
+        // silenciosamente por una extensión, red lenta, etc.), avisamos en
+        // vez de dejar el spinner de "Preparando..." pegado para siempre.
+        window.setTimeout(() => {
+            if (!window.Stripe) {
+                setError("El sistema de pago está tardando en cargar. Revisa tu conexión o desactiva bloqueadores de anuncios y vuelve a intentar.");
+            }
+        }, 10000);
     };
 
     // Crea la orden + PaymentIntent en el servidor, y monta el formulario de
@@ -173,6 +187,19 @@ export default function CheckoutPage() {
         }
     };
 
+    // Botón "Reintentar": si el SDK de Stripe nunca llegó a cargar (bloqueado,
+    // red lenta, etc.) hay que reintentar desde ahí, no solo el mount del
+    // formulario -- si no, truena porque window.Stripe todavía no existe.
+    const retryStripeCheckout = () => {
+        setError("");
+        if (!window.Stripe) {
+            document.getElementById("stripe-sdk-v3")?.remove();
+            loadStripeSDK();
+        } else {
+            setupStripeCheckout();
+        }
+    };
+
     // Monta el formulario de tarjeta en cuanto Stripe.js termina de cargar
     // (único método de pago — no hace falta que el cliente elija nada antes).
     useEffect(() => {
@@ -227,7 +254,7 @@ export default function CheckoutPage() {
                     )}
 
                     {!stripeReady && error && (
-                        <button onClick={setupStripeCheckout} disabled={stripeSubmitting}
+                        <button onClick={retryStripeCheckout} disabled={stripeSubmitting}
                             className="w-full py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
                             {stripeSubmitting ? <Loader2 className="animate-spin" size={20} /> : "Reintentar"}
                         </button>
