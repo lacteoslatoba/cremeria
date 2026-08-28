@@ -57,7 +57,7 @@ export default function CheckoutPage() {
     // veces antes de mostrarle cualquier error. Solo si de plano no jala
     // después de reintentar le pedimos recargar la página.
     const stripeSdkAttemptsRef = useRef(0);
-    const SDK_TIMEOUTS_MS = [3000, 4000, 6000, 8000]; // backoff -- intentos rapidos primero
+    const SDK_TIMEOUTS_MS = [12000, 8000, 10000]; // margen amplio; el SDK necesita tiempo para terminar, no reinicios
 
     const loadStripeSDK = () => {
         if (window.Stripe) { setStripeSdkLoaded(true); return; }
@@ -65,35 +65,43 @@ export default function CheckoutPage() {
         const attempt = stripeSdkAttemptsRef.current;
         stripeSdkAttemptsRef.current += 1;
 
-        // El <script> pudo haber empezado a cargar desde antes (ver
-        // StripePreloader, arranca desde que se abre la app) -- si ya está
-        // ahí y en camino, nos enganchamos a ese en vez de tirarlo y
-        // empezar de cero. Solo en un reintento real (attempt > 0, o sea
-        // que el que ya existía falló/tardó) lo quitamos y probamos de nuevo.
-        const existing = document.getElementById("stripe-sdk-v3") as HTMLScriptElement | null;
-        const s = existing && attempt === 0 ? existing : (() => {
-            existing?.remove();
-            const fresh = document.createElement("script");
-            fresh.id = "stripe-sdk-v3";
-            fresh.src = "https://js.stripe.com/v3/";
-            document.body.appendChild(fresh);
-            return fresh;
-        })();
+        // El <script> del SDK ya pudo haber empezado a cargar desde antes
+        // (ver StripePreloader, lo arranca apenas se abre la app). SIEMPRE
+        // nos enganchamos al que ya esté en el DOM y lo dejamos terminar:
+        // quitarlo a media carga anula la descarga y es justo lo que hacía
+        // que el refresh fallara (el preloader y este checkout arrancaban a
+        // la vez y entre ambos reiniciaban el script una y otra vez, así que
+        // el SDK nunca terminaba de cargar aunque la red estuviera bien).
+        let s = document.getElementById("stripe-sdk-v3") as HTMLScriptElement | null;
+        if (!s) {
+            s = document.createElement("script");
+            s.id = "stripe-sdk-v3";
+            s.src = "https://js.stripe.com/v3/";
+            s.async = true;
+            document.body.appendChild(s);
+        }
         s.onload = () => setStripeSdkLoaded(true);
-        s.onerror = () => retryOrGiveUp(attempt);
+        s.onerror = () => retryOrGiveUp(attempt, true);
 
-        // Si no llegó ni "onload" ni "onerror" a tiempo (red lenta, bloqueo
-        // silencioso, etc.) lo tratamos igual que un fallo y reintentamos.
+        // Si tras un margen amplio no llegó ni "onload" ni "onerror"
+        // (lento o bloqueado en silencio), reintentamos -- solo después de
+        // darle tiempo de sobra, no a los pocos segundos de empezar.
         window.setTimeout(() => {
             if (!window.Stripe && stripeSdkAttemptsRef.current === attempt + 1) {
-                retryOrGiveUp(attempt);
+                retryOrGiveUp(attempt, false);
             }
-        }, SDK_TIMEOUTS_MS[attempt] ?? 8000);
+        }, SDK_TIMEOUTS_MS[attempt] ?? 12000);
     };
 
-    const retryOrGiveUp = (attempt: number) => {
-        if (window.Stripe) return; // ya cargó por otra vía justo a tiempo
+    const retryOrGiveUp = (attempt: number, hardFailure: boolean) => {
+        if (window.Stripe) return; // ya cargó a través de otra vía justo a tiempo
         if (attempt < SDK_TIMEOUTS_MS.length - 1) {
+            // Solo si el script falló de verdad (bloqueado) quitamos el tag
+            // roto para que el siguiente reintento use uno limpio. Por
+            // "tardar" no descartamos el script que sigue en camino.
+            if (hardFailure) {
+                document.getElementById("stripe-sdk-v3")?.remove();
+            }
             loadStripeSDK();
         } else {
             setError("No se pudo conectar con el sistema de pago. Verifica tu conexión a internet e intenta de nuevo.");

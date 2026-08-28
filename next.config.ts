@@ -11,9 +11,25 @@ const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
+  // El Service Worker solo empieza a interceptar peticiones a partir de la
+  // SEGUNDA carga (clientsClaim recién le da control después de la primera
+  // visita) -- por eso el pago con tarjeta cargaba perfecto la primera vez
+  // y fallaba al recargar: la regla genérica de "cross-origin" que trae
+  // next-pwa por default le ponía un timeout de 10s a la petición de
+  // js.stripe.com y la trataba como cacheable, lo cual rompe la carga del
+  // script real. La regla de abajo va ANTES que esa (extendDefaultRuntimeCaching
+  // la antepone) y saca a todo *.stripe.com de esa lógica -- pasa derecho a
+  // la red, tal como en la primera carga sin Service Worker.
+  extendDefaultRuntimeCaching: true,
   workboxOptions: {
     skipWaiting: true,
     clientsClaim: true,
+    runtimeCaching: [
+      {
+        urlPattern: ({ url }: { url: URL }) => url.hostname.endsWith(".stripe.com"),
+        handler: "NetworkOnly",
+      },
+    ],
   },
 });
 
