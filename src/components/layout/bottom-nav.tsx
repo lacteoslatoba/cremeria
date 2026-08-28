@@ -23,7 +23,7 @@ export function BottomNav() {
             <div className="flex justify-around items-center h-16 px-4 w-full">
                 <NavItem href="/" icon={Home} label="Inicio" active={pathname === '/'} />
                 <NavItem href="/cart" icon={ShoppingCart} label="Carrito" active={pathname === '/cart'} badge={cartCount} />
-                <NavItem href="/admin" icon={User} label="Admin" active={pathname === '/admin'} />
+                <NavItem href="/admin/orders" icon={User} label="Pedidos" active={pathname.startsWith('/admin/orders') || pathname === '/admin'} />
             </div>
         </nav>
     );

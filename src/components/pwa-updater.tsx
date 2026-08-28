@@ -23,8 +23,16 @@ export function PwaUpdater() {
     useEffect(() => {
         if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
+        // OJO: "controllerchange" también se dispara la PRIMERA vez que un
+        // usuario nuevo visita la página (el SW recién instalado toma control
+        // de la pestaña gracias a clientsClaim) -- eso no es una actualización,
+        // es la instalación inicial. Si recargamos ahí, la página recarga sola
+        // en cada visita nueva (se ve como que el contenido "carga y se quita").
+        // Solo recargamos si YA había un SW controlando esta pestaña antes.
+        let hadControllerAtStart = !!navigator.serviceWorker.controller;
         let reloaded = false;
         const onControllerChange = () => {
+            if (!hadControllerAtStart) { hadControllerAtStart = true; return; }
             if (reloaded) return;
             reloaded = true;
             window.location.reload();

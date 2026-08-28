@@ -23,7 +23,7 @@ export function SideNav() {
     const links = [
         { href: "/", icon: Home, label: "Inicio" },
         { href: "/cart", icon: ShoppingCart, label: "Carrito", badge: cartCount },
-        ...(user?.role === "ADMIN" ? [{ href: "/admin", icon: Package, label: "Admin", badge: 0 }] : []),
+        ...(user?.role === "ADMIN" ? [{ href: "/admin/orders", icon: Package, label: "Pedidos", badge: 0 }] : []),
         { href: "/admin", icon: User, label: user ? "Mi cuenta" : "Entrar", badge: 0 },
     ];
 

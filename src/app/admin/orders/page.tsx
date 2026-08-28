@@ -29,6 +29,88 @@ const getStatusLabel = (status: string) => {
     }
 };
 
+// Tabla reutilizable de pedidos (se usa tanto para el pedido actual como el historial).
+function OrderTable({ orders, emptyMsg }: { orders: any[]; emptyMsg: string }) {
+    if (orders.length === 0) {
+        return (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm w-full py-12 text-center text-gray-400 font-medium">
+                {emptyMsg}
+            </div>
+        );
+    }
+    return (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead>
+                    <tr className="bg-gray-50/50 border-b border-gray-100 uppercase text-xs font-bold text-gray-500 tracking-wider">
+                        <th className="px-4 md:px-6 py-4">ID / Fecha</th>
+                        <th className="px-4 md:px-6 py-4">Cliente / Dirección</th>
+                        <th className="px-4 md:px-6 py-4">Items</th>
+                        <th className="px-4 md:px-6 py-4">Total</th>
+                        <th className="px-4 md:px-6 py-4 text-center">Estado</th>
+                        <th className="px-4 md:px-6 py-4 text-center">Código entrega</th>
+                        <th className="px-4 md:px-6 py-4 text-center">Repartidor</th>
+                        <th className="px-4 md:px-6 py-4 text-center">Acción</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-slate-700">
+                    {orders.map((order: any) => (
+                        <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-4 md:px-6 py-4">
+                                <div className="font-bold text-gray-900">#{order.id.slice(-6).toUpperCase()}</div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                    {new Date(order.createdAt).toLocaleDateString("es-MX", {
+                                        day: "2-digit", month: "short", year: "numeric"
+                                    })} · {new Date(order.createdAt).toLocaleTimeString("es-MX", {
+                                        hour: "2-digit", minute: "2-digit"
+                                    })}
+                                </div>
+                            </td>
+                            <td className="px-4 md:px-6 py-4">
+                                <div className="font-bold text-gray-800">{order.customerName || "Invitado"}</div>
+                                <div className="text-xs text-gray-500 mt-1">{order.address}</div>
+                            </td>
+                            <td className="px-4 md:px-6 py-4 text-sm font-medium">
+                                {order.items?.reduce((acc: number, item: any) => acc + item.quantity, 0) ?? 0} items
+                            </td>
+                            <td className="px-4 md:px-6 py-4 font-bold text-gray-900">${order.total.toFixed(2)}</td>
+                            <td className="px-4 md:px-6 py-4 text-center">
+                                <span className={`inline-block px-3 py-1.5 text-xs font-bold rounded-lg ${getStatusColor(order.status)}`}>
+                                    {getStatusLabel(order.status)}
+                                </span>
+                            </td>
+                            <td className="px-4 md:px-6 py-4 text-center">
+                                {order.deliveryCode ? (
+                                    order.deliveryCodeStatus === "VERIFIED" ? (
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-green-100 text-green-700" title="El repartidor confirmó este código con el cliente">
+                                            <ShieldCheck size={13} /> Verificado
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-100 text-gray-600 font-mono tracking-widest" title="Código que el cliente le da al repartidor para confirmar la entrega">
+                                            <KeyRound size={13} /> {order.deliveryCode}
+                                        </span>
+                                    )
+                                ) : (
+                                    <span className="text-gray-300 text-xs">—</span>
+                                )}
+                            </td>
+                            <td className="px-4 md:px-6 py-4 text-center">
+                                <AssignDriver orderId={order.id} currentDeliveryId={order.deliveryId || null} />
+                            </td>
+                            <td className="px-4 md:px-6 py-4">
+                                <div className="flex items-center justify-center gap-3">
+                                    <OrderStatusUpdate orderId={order.id} currentStatus={order.status} />
+                                    <OrderDeleteButton orderId={order.id} />
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
 export default function AdminOrdersPage() {
     const router = useRouter();
     const [orders, setOrders] = useState<any[]>([]);
@@ -55,6 +137,11 @@ export default function AdminOrdersPage() {
         const matchesStatus = statusFilter === "ALL" || o.status === statusFilter;
         return matchesQuery && matchesStatus;
     });
+
+    // Pedido actual (en curso) vs historial (realizados/cerrados)
+    const ACTIVE_STATES = ["PENDING", "PREPARING", "OUT_FOR_DELIVERY"];
+    const activeOrders = filtered.filter(o => ACTIVE_STATES.includes(o.status));
+    const historyOrders = filtered.filter(o => !ACTIVE_STATES.includes(o.status));
 
     return (
         <div className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto w-full">
@@ -91,110 +178,28 @@ export default function AdminOrdersPage() {
                 </select>
             </div>
 
-            {/* Table */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm w-full">
+            {/* ── PEDIDO ACTUAL (en curso) ── */}
+            <section className="mb-8">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
+                    Pedido actual {activeOrders.length > 0 && `(${activeOrders.length})`}
+                </h3>
                 {loading ? (
-                    <div className="flex justify-center items-center py-20">
+                    <div className="flex justify-center items-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm w-full">
                         <Loader2 className="animate-spin text-primary" size={32} />
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[900px]">
-                            <thead>
-                                <tr className="bg-gray-50/50 border-b border-gray-100 uppercase text-xs font-bold text-gray-500 tracking-wider">
-                                    <th className="px-4 md:px-6 py-4">ID / Fecha</th>
-                                    <th className="px-4 md:px-6 py-4">Cliente / Dirección</th>
-                                    <th className="px-4 md:px-6 py-4">Items</th>
-                                    <th className="px-4 md:px-6 py-4">Total</th>
-                                    <th className="px-4 md:px-6 py-4 text-center">Estado</th>
-                                    <th className="px-4 md:px-6 py-4 text-center">Código entrega</th>
-                                    <th className="px-4 md:px-6 py-4 text-center">Repartidor</th>
-                                    <th className="px-4 md:px-6 py-4 text-center">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 text-slate-700">
-                                {filtered.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={8} className="px-6 py-12 text-center text-gray-400 font-medium">
-                                            No se encontraron pedidos{query ? ` para "${query}"` : ""}
-                                        </td>
-                                    </tr>
-                                ) : filtered.map((order: any) => (
-                                    <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-4 md:px-6 py-4">
-                                            <div className="font-bold text-gray-900">#{order.id.slice(-6).toUpperCase()}</div>
-                                            <div className="text-xs text-gray-500 mt-1">
-                                                {new Date(order.createdAt).toLocaleDateString("es-MX", {
-                                                    day: "2-digit", month: "short", year: "numeric"
-                                                })} · {new Date(order.createdAt).toLocaleTimeString("es-MX", {
-                                                    hour: "2-digit", minute: "2-digit"
-                                                })}
-                                            </div>
-                                        </td>
-
-                                        <td className="px-4 md:px-6 py-4">
-                                            <div className="font-bold text-gray-800">{order.customerName || "Invitado"}</div>
-                                            <div className="text-xs text-gray-500 mt-1">{order.address}</div>
-                                        </td>
-
-                                        <td className="px-4 md:px-6 py-4 text-sm font-medium">
-                                            {order.items?.reduce((acc: number, item: any) => acc + item.quantity, 0) ?? 0} items
-                                        </td>
-
-                                        <td className="px-4 md:px-6 py-4 font-bold text-gray-900">
-                                            ${order.total.toFixed(2)}
-                                        </td>
-
-                                        <td className="px-4 md:px-6 py-4 text-center">
-                                            <span className={`inline-block px-3 py-1.5 text-xs font-bold rounded-lg ${getStatusColor(order.status)}`}>
-                                                {getStatusLabel(order.status)}
-                                            </span>
-                                        </td>
-
-                                        <td className="px-4 md:px-6 py-4 text-center">
-                                            {order.deliveryCode ? (
-                                                order.deliveryCodeStatus === "VERIFIED" ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-green-100 text-green-700" title="El repartidor confirmó este código con el cliente">
-                                                        <ShieldCheck size={13} /> Verificado
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-100 text-gray-600 font-mono tracking-widest" title="Código que el cliente le da al repartidor para confirmar la entrega">
-                                                        <KeyRound size={13} /> {order.deliveryCode}
-                                                    </span>
-                                                )
-                                            ) : (
-                                                <span className="text-gray-300 text-xs">—</span>
-                                            )}
-                                        </td>
-
-                                        <td className="px-4 md:px-6 py-4 text-center">
-                                            <AssignDriver orderId={order.id} currentDeliveryId={order.deliveryId || null} />
-                                        </td>
-
-                                        <td className="px-4 md:px-6 py-4">
-                                            <div className="flex items-center justify-center gap-3">
-                                                <OrderStatusUpdate orderId={order.id} currentStatus={order.status} />
-                                                <OrderDeleteButton orderId={order.id} />
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <OrderTable orders={activeOrders} emptyMsg="No hay pedidos en curso." />
                 )}
+            </section>
 
-                {/* Footer */}
-                <div className="px-4 md:px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex justify-between items-center text-sm">
-                    <span className="text-gray-500 font-medium">
-                        {filtered.length} de {orders.length} pedidos
-                        {query && ` · Buscando "${query}"`}
-                    </span>
-                    <span className="text-gray-500 font-medium">
-                        Total en pantalla: ${filtered.reduce((s: number, o: any) => s + o.total, 0).toFixed(2)}
-                    </span>
-                </div>
-            </div>
+            {/* ── HISTORIAL (realizados/cerrados) ── */}
+            <section className="mb-8">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
+                    Historial {historyOrders.length > 0 && `(${historyOrders.length})`}
+                </h3>
+                <OrderTable orders={historyOrders} emptyMsg="Todavía no hay historial de pedidos." />
+            </section>
         </div>
     );
 }
+
