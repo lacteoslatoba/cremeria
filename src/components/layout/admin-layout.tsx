@@ -1,8 +1,17 @@
 ﻿"use client"
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { useAuthStore } from "@/lib/auth-store";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
+    const router = useRouter();
+    const { logout } = useAuthStore();
+
+    const handleLogout = async () => {
+        await logout();
+        router.push("/login");
+    };
+
     return (
         <div className="flex flex-col md:flex-row h-screen w-full bg-[#f8f9fa] text-slate-800 font-sans">
 
@@ -14,13 +23,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     <h1 className="text-xl font-black tracking-tight text-gray-900">
                         Cremeria <span className="text-primary italic">Admin</span>
                     </h1>
-                    <Link
-                        href="/"
+                    <button
+                        onClick={handleLogout}
                         className="flex items-center gap-2 p-2 rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                         title="Salir"
                     >
                         <LogOut size={20} />
-                    </Link>
+                    </button>
                 </div>
 
                 {/* Desktop Title */}
@@ -33,13 +42,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
                 {/* Desktop Logout */}
                 <div className="hidden md:block mt-4">
-                    <Link
-                        href="/"
-                        className="flex items-center gap-4 px-4 py-3 rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors font-medium text-base"
+                    <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors font-medium text-base"
                     >
                         <LogOut size={20} />
                         <span>Salir</span>
-                    </Link>
+                    </button>
                 </div>
             </aside>
 

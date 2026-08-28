@@ -40,7 +40,11 @@ export default function LoginPage() {
     useEffect(() => {
         setMounted(true);
         if (user && user.role !== "GUEST") {
-            router.push(user.role === "DELIVERY" ? "/driver" : "/");
+            router.push(
+                user.role === "ADMIN" ? "/admin"
+                : user.role === "DELIVERY" ? "/driver"
+                : "/"
+            );
         }
     }, [user, router]);
 
@@ -106,7 +110,11 @@ export default function LoginPage() {
             }
 
             setUser(data);
-            router.push(data.role === "DELIVERY" ? "/driver" : "/");
+            router.push(
+                data.role === "ADMIN" ? "/admin"
+                : data.role === "DELIVERY" ? "/driver"
+                : "/"
+            );
         } catch (err) {
             setError("Ocurrió un error inesperado al conectar.");
         } finally {

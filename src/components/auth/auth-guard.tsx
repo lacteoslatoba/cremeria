@@ -18,13 +18,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (!initialized) return;
 
-        // Si no hay usuario logueado, redigir al Login salvo que ya estemos en Login o rutas públicas.
         const isLogin = pathname === "/login";
         const isForgotPassword = pathname === "/forgot-password";
         const isCheckout = pathname.startsWith("/checkout"); // incluye /checkout/stripe-return
         const isTracking = pathname.startsWith("/tracking");
         const isAdmin = pathname.startsWith("/admin");
         const isDriver = pathname.startsWith("/driver");
+
+        // Un ADMIN solo ve el panel de administración: cualquier otra ruta lo manda
+        // directamente a /admin (no entra a la tienda).
+        if (user?.role === "ADMIN") {
+            if (!isAdmin) {
+                router.push("/admin");
+            }
+            return;
+        }
 
         if (!user && !isLogin && !isAdmin && !isDriver && !isForgotPassword && !isCheckout && !isTracking) {
             router.push("/login");
