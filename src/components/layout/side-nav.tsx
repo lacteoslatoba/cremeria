@@ -16,6 +16,10 @@ export function SideNav() {
     useEffect(() => { setMounted(true); }, []);
     const cartCount = mounted ? items.reduce((a, i) => a + i.quantity, 0) : 0;
 
+    // El panel /admin trae su propia barra lateral completa (AdminLayout).
+    // Si dejamos esta también, en escritorio salen dos sidebars encimados.
+    if (pathname.startsWith("/admin")) return null;
+
     const links = [
         { href: "/", icon: Home, label: "Inicio" },
         { href: "/cart", icon: ShoppingCart, label: "Carrito", badge: cartCount },

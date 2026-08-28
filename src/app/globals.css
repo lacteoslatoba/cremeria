@@ -86,8 +86,31 @@ body {
   }
 }
 
-/* Admin pages siempre full width */
-.app-wrapper:has(.admin-container) {
-  max-width: 100%;
-  box-shadow: none;
+/* ── Pantallas muy angostas (≤380px): compacta textos para que TODO quepa ──
+   Ajusta títulos y textos grandes que de otro modo desbordan el ancho en
+   pantallas pequeñas (p. ej. el simulador en tamaño S ≈ 360px reales, o
+   teléfonos muy compactos). No afecta a dispositivos estándar (≥390px). */
+@media (max-width: 380px) {
+  html { font-size: 14px; }
+
+  h1, .text-5xl, .text-4xl, .text-3xl {
+    font-size: 1.45rem !important;
+    line-height: 1.15 !important;
+  }
+  .text-2xl { font-size: 1.25rem !important; }
+  .text-xl  { font-size: 1.1rem !important; }
+  .text-lg  { font-size: 1rem !important; }
+
+  /* Reduce padding de tarjetas y pantallas para aprovechar el ancho */
+  .px-5 { padding-left: 1rem !important; padding-right: 1rem !important; }
+  .px-4 { padding-left: 0.9rem !important; padding-right: 0.9rem !important; }
+
+  /* Evita desbordes horizontales por elementos internos */
+  .app-wrapper, main, .overflow-x-auto {
+    overflow-x: hidden;
+  }
+  img {
+    max-width: 100%;
+    height: auto;
+  }
 }
