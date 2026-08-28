@@ -72,12 +72,29 @@ Abrir [http://localhost:3000](http://localhost:3000).
 
 ## Scripts
 
-| Comando            | Descripción                       |
-| ------------------ | --------------------------------- |
-| `npm run dev`      | Servidor de desarrollo            |
-| `npm run build`    | Genera el cliente Prisma y el build de producción |
-| `npm run start`    | Sirve el build de producción      |
-| `npm run lint`     | Ejecuta ESLint                    |
+| Comando                | Descripción                                             |
+| ---------------------- | ------------------------------------------------------- |
+| `npm run dev`          | Servidor de desarrollo                                  |
+| `npm run build`        | Genera el cliente Prisma y el build de producción       |
+| `npm run start`        | Sirve el build de producción                            |
+| `npm run lint`         | Ejecuta ESLint                                          |
+| `npm run stripe:setup` | Diagnostica/crea el webhook de Stripe (ver abajo)       |
+
+### Configurar el webhook de Stripe (automatizado)
+
+```bash
+# 1) Ver estado actual (claves y webhooks existentes)
+npm run stripe:setup
+
+# 2) Crear o alinear el endpoint del webhook
+npm run stripe:setup -- --url https://TU-DOMINIO.vercel.app/api/payments/stripe/webhook
+```
+
+> El webhook requiere el secreto de firma `whsec_...`. La API de Stripe **no lo devuelve**
+> para un endpoint ya creado; obténlo en el **Dashboard → Developers → Webhooks →
+> “Reveal signing secret”** y pégalo en `STRIPE_WEBHOOK_SECRET` (Vercel y `.env.local`).
+> El endpoint escucha los eventos `payment_intent.succeeded`, `payment_intent.payment_failed`
+> y `payment_intent.canceled`.
 
 ## Estructura
 
