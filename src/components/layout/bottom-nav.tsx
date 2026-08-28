@@ -25,8 +25,8 @@ export function BottomNav() {
             <div className="flex items-center h-16 px-4 w-full">
                 <NavItem href="/" icon={Home} label="Inicio" active={pathname === '/'} />
                 <NavItem href="/cart" icon={ShoppingCart} label="Carrito" active={pathname === '/cart'} badge={cartCount} />
-                {user?.role === "ADMIN" && (
-                    <NavItem href="/admin/orders" icon={ClipboardList} label="Pedidos" active={pathname.startsWith('/admin/orders') || pathname === '/admin'} />
+                {user && (
+                    <NavItem href="/mis-pedidos" icon={ClipboardList} label="Pedidos" active={pathname.startsWith('/mis-pedidos') && pathname !== '/'} />
                 )}
             </div>
         </nav>

@@ -47,27 +47,43 @@ export default function CheckoutPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Un cliente real nunca va a leer "desactiva tu bloqueador" ni sabría
+    // cómo -- si la carga del SDK falla o tarda, reintentamos solos varias
+    // veces antes de mostrarle cualquier error. Solo si de plano no jala
+    // después de reintentar le pedimos recargar la página.
+    const stripeSdkAttemptsRef = useRef(0);
+    const SDK_TIMEOUTS_MS = [3000, 4000, 6000, 8000]; // backoff -- intentos rapidos primero
+
     const loadStripeSDK = () => {
-        // Si el <script> ya existe pero window.Stripe todavía no está listo
-        // (por ejemplo, un intento anterior que se quedó a medias), no lo
-        // demos por cargado a ciegas -- lo esperamos igual que la primera vez.
         if (window.Stripe) { setStripeSdkLoaded(true); return; }
-        if (!document.getElementById("stripe-sdk-v3")) {
-            const s = document.createElement("script");
-            s.id = "stripe-sdk-v3";
-            s.src = "https://js.stripe.com/v3/";
-            s.onload = () => setStripeSdkLoaded(true);
-            s.onerror = () => setError("No se pudo cargar el sistema de pago. Si tienes un bloqueador de anuncios activo, desactívalo para esta página e intenta de nuevo.");
-            document.body.appendChild(s);
-        }
-        // Resguardo: si en 10s no llegó ni "onload" ni "onerror" (bloqueado
-        // silenciosamente por una extensión, red lenta, etc.), avisamos en
-        // vez de dejar el spinner de "Preparando..." pegado para siempre.
+
+        const attempt = stripeSdkAttemptsRef.current;
+        stripeSdkAttemptsRef.current += 1;
+
+        document.getElementById("stripe-sdk-v3")?.remove();
+        const s = document.createElement("script");
+        s.id = "stripe-sdk-v3";
+        s.src = "https://js.stripe.com/v3/";
+        s.onload = () => setStripeSdkLoaded(true);
+        s.onerror = () => retryOrGiveUp(attempt);
+        document.body.appendChild(s);
+
+        // Si no llegó ni "onload" ni "onerror" a tiempo (red lenta, bloqueo
+        // silencioso, etc.) lo tratamos igual que un fallo y reintentamos.
         window.setTimeout(() => {
-            if (!window.Stripe) {
-                setError("El sistema de pago está tardando en cargar. Revisa tu conexión o desactiva bloqueadores de anuncios y vuelve a intentar.");
+            if (!window.Stripe && stripeSdkAttemptsRef.current === attempt + 1) {
+                retryOrGiveUp(attempt);
             }
-        }, 10000);
+        }, SDK_TIMEOUTS_MS[attempt] ?? 8000);
+    };
+
+    const retryOrGiveUp = (attempt: number) => {
+        if (window.Stripe) return; // ya cargó por otra vía justo a tiempo
+        if (attempt < SDK_TIMEOUTS_MS.length - 1) {
+            loadStripeSDK();
+        } else {
+            setError("No se pudo conectar con el sistema de pago. Verifica tu conexión a internet e intenta de nuevo.");
+        }
     };
 
     // Crea la orden + PaymentIntent en el servidor, y monta el formulario de
@@ -193,7 +209,7 @@ export default function CheckoutPage() {
     const retryStripeCheckout = () => {
         setError("");
         if (!window.Stripe) {
-            document.getElementById("stripe-sdk-v3")?.remove();
+            stripeSdkAttemptsRef.current = 0;
             loadStripeSDK();
         } else {
             setupStripeCheckout();
