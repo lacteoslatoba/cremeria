@@ -60,13 +60,22 @@ export default function CheckoutPage() {
         const attempt = stripeSdkAttemptsRef.current;
         stripeSdkAttemptsRef.current += 1;
 
-        document.getElementById("stripe-sdk-v3")?.remove();
-        const s = document.createElement("script");
-        s.id = "stripe-sdk-v3";
-        s.src = "https://js.stripe.com/v3/";
+        // El <script> pudo haber empezado a cargar desde antes (ver
+        // StripePreloader, arranca desde que se abre la app) -- si ya está
+        // ahí y en camino, nos enganchamos a ese en vez de tirarlo y
+        // empezar de cero. Solo en un reintento real (attempt > 0, o sea
+        // que el que ya existía falló/tardó) lo quitamos y probamos de nuevo.
+        const existing = document.getElementById("stripe-sdk-v3") as HTMLScriptElement | null;
+        const s = existing && attempt === 0 ? existing : (() => {
+            existing?.remove();
+            const fresh = document.createElement("script");
+            fresh.id = "stripe-sdk-v3";
+            fresh.src = "https://js.stripe.com/v3/";
+            document.body.appendChild(fresh);
+            return fresh;
+        })();
         s.onload = () => setStripeSdkLoaded(true);
         s.onerror = () => retryOrGiveUp(attempt);
-        document.body.appendChild(s);
 
         // Si no llegó ni "onload" ni "onerror" a tiempo (red lenta, bloqueo
         // silencioso, etc.) lo tratamos igual que un fallo y reintentamos.
@@ -209,6 +218,9 @@ export default function CheckoutPage() {
     const retryStripeCheckout = () => {
         setError("");
         if (!window.Stripe) {
+            // El tag que ya está en el DOM a estas alturas ya falló/agotó
+            // sus intentos -- lo quitamos para forzar uno de verdad nuevo.
+            document.getElementById("stripe-sdk-v3")?.remove();
             stripeSdkAttemptsRef.current = 0;
             loadStripeSDK();
         } else {

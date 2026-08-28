@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { SideNav } from "@/components/layout/side-nav";
 import { PwaUpdater } from "@/components/pwa-updater";
+import { StripePreloader } from "@/components/stripe-preloader";
 
 export const metadata: Metadata = {
     title: "Cremeria del Rancho",
@@ -30,10 +31,18 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
                 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+                {/* Deja "tibia" la conexión con Stripe desde que se abre la
+                    app -- para cuando el cliente llega al checkout, el DNS
+                    y el handshake TLS ya están hechos (evita la espera). */}
+                <link rel="preconnect" href="https://js.stripe.com" />
+                <link rel="preconnect" href="https://api.stripe.com" />
+                <link rel="preconnect" href="https://m.stripe.network" />
+                <link rel="dns-prefetch" href="https://js.stripe.com" />
             </head>
             <body>
                 <AuthGuard>
                     <PwaUpdater />
+                    <StripePreloader />
                     {/* Desktop sidebar — only visible on md+ */}
                     <SideNav />
 
