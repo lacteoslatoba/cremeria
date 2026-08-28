@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 
-export function ProductActions({ productId }: { productId: string }) {
+export function ProductActions({ productId, onEdit }: { productId: string; onEdit?: (id: string) => void }) {
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -32,12 +32,22 @@ export function ProductActions({ productId }: { productId: string }) {
 
     return (
         <div className="flex items-center justify-center gap-2">
-            <Link
-                href={`/admin/products/edit/${productId}`}
-                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            >
-                <Edit size={18} />
-            </Link>
+            {onEdit ? (
+                <button
+                    onClick={() => onEdit(productId)}
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Editar Producto"
+                >
+                    <Edit size={18} />
+                </button>
+            ) : (
+                <Link
+                    href={`/admin/products/edit/${productId}`}
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                    <Edit size={18} />
+                </Link>
+            )}
             <button
                 onClick={handleDelete}
                 disabled={isDeleting}

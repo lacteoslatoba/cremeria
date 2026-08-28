@@ -1,20 +1,8 @@
 ﻿"use client"
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, ShoppingCart, Users, Bike, LogOut } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-const NAV_ITEMS = [
-    { href: "/admin", icon: LayoutDashboard, label: "Inventario" },
-    { href: "/admin/orders", icon: ShoppingCart, label: "Pedidos" },
-    { href: "/admin/sales", icon: Package, label: "Historial de Ventas" },
-    { href: "/admin/customers", icon: Users, label: "Clientes" },
-    { href: "/admin/deliveries", icon: Bike, label: "Repartidores" },
-];
+import { LogOut } from "lucide-react";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
-    const pathname = usePathname();
-
     return (
         <div className="flex flex-col md:flex-row h-screen w-full bg-[#f8f9fa] text-slate-800 font-sans">
 
@@ -40,25 +28,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     <h2 className="text-2xl font-black tracking-tight text-gray-900">
                         Cremeria <span className="text-primary italic">Admin</span>
                     </h2>
+                    <p className="text-sm text-gray-400 font-medium mt-2">Panel de administración</p>
                 </div>
-
-                <nav className="flex flex-row md:flex-col items-center md:items-stretch overflow-x-auto no-scrollbar space-x-2 md:space-x-0 md:space-y-2 w-full pb-1 md:pb-0">
-                    {NAV_ITEMS.map((item) => (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            className={cn(
-                                "flex items-center gap-2 md:gap-4 px-3 md:px-4 py-2 md:py-3 rounded-xl transition-all font-medium text-sm md:text-base whitespace-nowrap",
-                                pathname === item.href
-                                    ? "bg-primary text-white shadow-md shadow-primary/30"
-                                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
-                            )}
-                        >
-                            <item.icon size={18} className="md:w-5 md:h-5 shrink-0" />
-                            <span className={cn(pathname !== item.href && "block", "md:inline")}>{item.label}</span>
-                        </Link>
-                    ))}
-                </nav>
 
                 {/* Desktop Logout */}
                 <div className="hidden md:block mt-4">
@@ -79,3 +50,4 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </div>
     );
 }
+
