@@ -2,6 +2,7 @@
 import "./globals.css";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { SideNav } from "@/components/layout/side-nav";
+import { PwaUpdater } from "@/components/pwa-updater";
 
 export const metadata: Metadata = {
     title: "Cremeria del Rancho",
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             </head>
             <body>
                 <AuthGuard>
+                    <PwaUpdater />
                     {/* Desktop sidebar — only visible on md+ */}
                     <SideNav />
 
