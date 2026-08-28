@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { signSession, setSessionCookie } from "@/lib/auth";
+
+// Serializa un usuario para responder, garantizando que NUNCA se expone el hash.
+function toSafeUser(user: any) {
+    const { password, resetToken, resetTokenExpiry, mpCustomerId, ...safe } = user;
+    return safe;
+}
 
 export async function POST(request: Request) {
     try {
@@ -48,7 +55,14 @@ export async function POST(request: Request) {
             }
         });
 
-        return NextResponse.json(newUser, { status: 201 });
+        // Firmar sesión y emitir cookie HttpOnly, igual que en login — sin esto
+        // el usuario "parece" logueado en la UI pero pierde la sesión en el
+        // siguiente refresh/navegación completa (no hay cookie que restaurar).
+        const token = await signSession({ id: newUser.id, role: newUser.role });
+        const response = NextResponse.json(toSafeUser(newUser), { status: 201 });
+        setSessionCookie(response, token);
+
+        return response;
     } catch (error) {
         console.error("Register error:", error);
         return NextResponse.json({ error: "Ocurrió un error al registrar. Intenta de nuevo." }, { status: 500 });
