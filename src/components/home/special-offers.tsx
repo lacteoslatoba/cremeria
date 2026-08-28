@@ -5,7 +5,7 @@ const OFFERS = [
         id: 1,
         title: "50% Dto.",
         subtitle: "En Cortes Selectos",
-        image: "https://images.unsplash.com/photo-1603048297172-c92544798d5e?auto=format&fit=crop&q=80&w=800",
+        image: "https://images.unsplash.com/photo-1448907503123-67254d59ca4f?auto=format&fit=crop&q=80&w=800",
         color: "from-red-600/80 to-black/80",
     },
     {
