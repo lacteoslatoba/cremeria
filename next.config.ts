@@ -40,15 +40,15 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              // Stripe Payment Element: js.stripe.com carga el SDK, sus campos
-              // de tarjeta viven en iframes de js.stripe.com (frame-src), y
-              // hace llamadas propias a api.stripe.com (connect-src).
+              // Stripe Payment Element: js.stripe.com carga el SDK, los campos de
+              // tarjeta viven en iframes propios (frame-src) y Stripe hace llamadas
+              // ajax a api.stripe.com / m.stripe.network (connect-src).
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' data: blob: https: http:",
-              "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com",
-              "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+              "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network",
+              "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://q.stripe.com",
               "worker-src 'self' blob:",
               "manifest-src 'self'",
             ].join("; "),
