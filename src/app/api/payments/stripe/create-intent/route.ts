@@ -1,0 +1,54 @@
+import { NextResponse } from "next/server";
+import { getStripe } from "@/lib/stripe";
+import { prisma } from "@/lib/prisma";
+import { createOrderWithStockCheck, OrderCreationError } from "@/lib/create-order";
+
+// Crea la orden (PENDING/PENDING, stock reservado — igual que un pago con
+// tarjeta "in_process" de MP) y una PaymentIntent de Stripe para ese monto.
+// El PaymentElement del checkout usa el clientSecret para cobrar sin salir
+// de la página; la orden solo se aprueba tras reverificar el estado real
+// contra la API de Stripe (ver /confirm y /webhook).
+export async function POST(request: Request) {
+    try {
+        const body = await request.json();
+        const items = body.items || [];
+
+        const order = await createOrderWithStockCheck({
+            customerName: body.customerName,
+            address: body.address,
+            total: body.total,
+            items,
+            userId: body.userId,
+            paymentMethod: "STRIPE",
+            paymentStatus: "PENDING",
+        });
+
+        const stripe = getStripe();
+        const amountInCents = Math.round(Number(body.total) * 100);
+
+        const intent = await stripe.paymentIntents.create({
+            amount: amountInCents,
+            currency: "mxn",
+            description: `Pedido Cremería del Rancho #${order.id.slice(-6).toUpperCase()}`,
+            metadata: { orderId: order.id },
+            receipt_email: body.payerEmail || undefined,
+            automatic_payment_methods: { enabled: true },
+        });
+
+        await prisma.order.update({
+            where: { id: order.id },
+            data: { stripePaymentIntentId: intent.id },
+        });
+
+        return NextResponse.json({
+            orderId: order.id,
+            clientSecret: intent.client_secret,
+        });
+    } catch (error: any) {
+        if (error instanceof OrderCreationError) {
+            return NextResponse.json({ error: error.message }, { status: error.status });
+        }
+        console.error("[STRIPE_CREATE_INTENT_ERROR]", error);
+        return NextResponse.json({ error: error?.message || "No se pudo iniciar el pago con Stripe" }, { status: 500 });
+    }
+}

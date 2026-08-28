@@ -50,8 +50,11 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' data: blob: https: http:",
-              "connect-src 'self' https://sdk.mercadopago.com https://api.mercadopago.com https://www.mercadopago.com https://www.mercadolibre.com https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org",
-              "frame-src 'self' https://sdk.mercadopago.com https://*.mercadopago.com https://www.mercadolibre.com",
+              // Stripe Payment Element: js.stripe.com carga el SDK, sus campos
+              // de tarjeta viven en iframes de js.stripe.com (frame-src), y
+              // hace llamadas propias a api.stripe.com (connect-src).
+              "connect-src 'self' https://sdk.mercadopago.com https://api.mercadopago.com https://www.mercadopago.com https://www.mercadolibre.com https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com",
+              "frame-src 'self' https://sdk.mercadopago.com https://*.mercadopago.com https://www.mercadolibre.com https://js.stripe.com https://hooks.stripe.com",
               "worker-src 'self' blob:",
               "manifest-src 'self'",
             ].join("; "),

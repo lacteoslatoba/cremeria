@@ -8,7 +8,7 @@ import { ChevronLeft, Banknote, Loader2, CreditCard, CheckCircle2, AlertCircle, 
 import { BottomNav } from "@/components/layout/bottom-nav";
 
 declare global {
-    interface Window { MercadoPago: any; MP_DEVICE_SESSION_ID?: string; }
+    interface Window { MercadoPago: any; MP_DEVICE_SESSION_ID?: string; Stripe: any; }
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ export default function CheckoutPage() {
     const { user } = useAuthStore();
 
     const [mounted, setMounted] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<"CARD" | "CASH">("CASH");
+    const [paymentMethod, setPaymentMethod] = useState<"CARD" | "CASH" | "STRIPE">("CASH");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -30,6 +30,16 @@ export default function CheckoutPage() {
     const [mpFinalStatus, setMpFinalStatus] = useState(""); // "approved" | "in_process"
     const [mpLoaded, setMpLoaded] = useState(false);
     const mpPublicKeyRef = useRef("");
+
+    // Stripe (Payment Element — tarjeta directo en la página, sin salir)
+    const [stripeSdkLoaded, setStripeSdkLoaded] = useState(false);
+    const [stripeReady, setStripeReady] = useState(false);
+    const [stripeSubmitting, setStripeSubmitting] = useState(false);
+    const stripePublicKeyRef = useRef("");
+    const stripeRef = useRef<any>(null); // instancia de window.Stripe(pk)
+    const stripeElementsRef = useRef<any>(null);
+    const stripeOrderIdRef = useRef("");
+    const stripeMountRef = useRef<HTMLDivElement>(null);
 
     // Saved cards
     const [savedCards, setSavedCards] = useState<any[]>([]);
@@ -66,6 +76,10 @@ export default function CheckoutPage() {
         // cc_rejected_high_risk even for legitimate cards.
         loadSecurityScript();
 
+        // Stripe.js — cargado de una vez para que esté listo si el cliente
+        // elige "Tarjeta (Stripe)".
+        loadStripeSDK();
+
         // Load saved cards for logged-in user
         if (user?.id && user.id !== "guest") {
             fetch(`/api/payments/save-card?userId=${user.id}`)
@@ -97,6 +111,114 @@ export default function CheckoutPage() {
         s.setAttribute("view", "checkout");
         document.body.appendChild(s);
     };
+
+    const loadStripeSDK = () => {
+        if (document.getElementById("stripe-sdk-v3")) { setStripeSdkLoaded(true); return; }
+        const s = document.createElement("script");
+        s.id = "stripe-sdk-v3";
+        s.src = "https://js.stripe.com/v3/";
+        s.onload = () => setStripeSdkLoaded(true);
+        document.body.appendChild(s);
+    };
+
+    // Crea la orden + PaymentIntent en el servidor, y monta el formulario de
+    // tarjeta de Stripe (Payment Element) directo en esta pantalla.
+    const setupStripeCheckout = async () => {
+        if (stripeElementsRef.current) return; // ya montado
+        setStripeSubmitting(true);
+        setError("");
+        try {
+            if (!stripePublicKeyRef.current) {
+                const cfg = await fetch("/api/payments/stripe/config").then(r => r.json());
+                if (!cfg.publicKey) throw new Error("Stripe no está configurado todavía.");
+                stripePublicKeyRef.current = cfg.publicKey;
+            }
+
+            const res = await fetch("/api/payments/stripe/create-intent", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: user?.id,
+                    customerName: user?.name || user?.email || "Cliente",
+                    address: "Ubicación GPS (Actual)",
+                    total,
+                    payerEmail: user?.email,
+                    items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.clientSecret) {
+                setError(data.error || "No se pudo iniciar el pago con Stripe.");
+                setStripeSubmitting(false);
+                return;
+            }
+            stripeOrderIdRef.current = data.orderId;
+
+            if (!stripeRef.current) stripeRef.current = window.Stripe(stripePublicKeyRef.current);
+            const elements = stripeRef.current.elements({ clientSecret: data.clientSecret });
+            elements.create("payment").mount(stripeMountRef.current);
+            stripeElementsRef.current = elements;
+            setStripeReady(true);
+        } catch (err: any) {
+            setError(err?.message || "Error al conectar con Stripe.");
+        } finally {
+            setStripeSubmitting(false);
+        }
+    };
+
+    const handleStripePay = async () => {
+        if (!stripeRef.current || !stripeElementsRef.current) return;
+        setStripeSubmitting(true);
+        setError("");
+        try {
+            const { error: confirmError, paymentIntent } = await stripeRef.current.confirmPayment({
+                elements: stripeElementsRef.current,
+                confirmParams: {
+                    return_url: `${window.location.origin}/checkout/stripe-return?orderId=${stripeOrderIdRef.current}`,
+                },
+                redirect: "if_required", // se queda en la página cuando no hace falta 3DS
+            });
+
+            if (confirmError) {
+                setError(confirmError.message || "Tu pago no pudo procesarse.");
+                setStripeSubmitting(false);
+                return;
+            }
+
+            // No confiamos solo en lo que dice el navegador: reverificamos
+            // contra la API de Stripe antes de dar el pedido por aprobado.
+            const res = await fetch("/api/payments/stripe/confirm", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId: stripeOrderIdRef.current }),
+            });
+            const order = await res.json();
+
+            if (order.paymentStatus === "APPROVED") {
+                clearCart();
+                router.push(`/tracking?orderId=${stripeOrderIdRef.current}`);
+            } else if (order.paymentStatus === "REJECTED") {
+                setError("Tu pago con Stripe no se completó. No se hizo ningún cargo.");
+                setStripeSubmitting(false);
+            } else {
+                // paymentIntent en proceso (raro con redirect:if_required, pero por si acaso)
+                setError("Tu pago sigue en proceso. Consulta tu pedido en unos momentos.");
+                setStripeSubmitting(false);
+            }
+        } catch {
+            setError("Error al confirmar el pago con Stripe.");
+            setStripeSubmitting(false);
+        }
+    };
+
+    // Al elegir "Tarjeta (Stripe)" (y una vez cargado Stripe.js), montamos
+    // su formulario de tarjeta automáticamente — sin un clic extra.
+    useEffect(() => {
+        if (paymentMethod === "STRIPE" && stripeSdkLoaded && !stripeElementsRef.current) {
+            setupStripeCheckout();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paymentMethod, stripeSdkLoaded]);
 
     /* ── Tokenise card data via MP then pay ── */
     const handleCardPay = async (e: React.FormEvent) => {
@@ -408,6 +530,18 @@ export default function CheckoutPage() {
                         </div>
                     </button>
 
+                    <button onClick={() => { setPaymentMethod("STRIPE"); setError(""); }}
+                        className={`flex items-center p-4 rounded-2xl border-2 transition-all text-left ${paymentMethod === "STRIPE" ? "bg-violet-500/10 border-violet-500" : "bg-white/5 border-white/10"}`}>
+                        <div className={`p-2.5 rounded-xl mr-4 ${paymentMethod === "STRIPE" ? "bg-violet-500 text-white" : "bg-gray-700 text-gray-300"}`}><CreditCard size={22} /></div>
+                        <div className="flex-1">
+                            <p className="font-bold">Tarjeta (Stripe)</p>
+                            <p className="text-sm text-gray-400">Opción alterna · Pago seguro sin salir de aquí</p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === "STRIPE" ? "border-violet-500" : "border-gray-500"}`}>
+                            {paymentMethod === "STRIPE" && <div className="w-2.5 h-2.5 bg-violet-500 rounded-full" />}
+                        </div>
+                    </button>
+
                 </div>
 
                 {/* ────── CARD FORM ────── */}
@@ -586,6 +720,43 @@ export default function CheckoutPage() {
                             className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-lg shadow-lg shadow-primary/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
                             {isSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Confirmar Pedido</>}
                         </button>
+                    </div>
+                )}
+
+                {/* ────── STRIPE ────── */}
+                {paymentMethod === "STRIPE" && (
+                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4 animate-in slide-in-from-bottom-2 duration-300">
+                        <div className="flex justify-between items-center">
+                            <span className="font-bold text-lg">Total a pagar:</span>
+                            <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
+                        </div>
+
+                        {!stripeReady && !error && (
+                            <div className="flex items-center justify-center py-8 gap-2 text-gray-400">
+                                <Loader2 size={20} className="animate-spin" /> Preparando formulario seguro…
+                            </div>
+                        )}
+
+                        {!stripeReady && error && (
+                            <button onClick={setupStripeCheckout} disabled={stripeSubmitting}
+                                className="w-full py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                                {stripeSubmitting ? <Loader2 className="animate-spin" size={20} /> : "Reintentar"}
+                            </button>
+                        )}
+
+                        {/* Stripe monta aquí su Payment Element (campos de tarjeta reales) */}
+                        <div ref={stripeMountRef} className={stripeReady ? "" : "hidden"} />
+
+                        {stripeReady && (
+                            <button onClick={handleStripePay} disabled={stripeSubmitting}
+                                className="w-full py-4 rounded-2xl bg-violet-500 text-white font-bold text-lg shadow-lg shadow-violet-500/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
+                                {stripeSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
+                            </button>
+                        )}
+
+                        <p className="text-center text-xs text-gray-500 pb-2">
+                            🔒 Tus datos se procesan de forma segura por Stripe. Nunca los guardamos.
+                        </p>
                     </div>
                 )}
 
