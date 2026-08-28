@@ -19,9 +19,10 @@ export function AddDriverButton() {
         setError("");
 
         try {
-            const res = await fetch("/api/auth/register", {
+            const res = await fetch("/api/users", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "include",
                 body: JSON.stringify({ name, username, phone, password, role: "DELIVERY" })
             });
 

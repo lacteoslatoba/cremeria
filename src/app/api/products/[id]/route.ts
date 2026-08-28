@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -20,6 +21,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const auth = await requireAuth(request, ["ADMIN"]);
+    if (!auth.user) return auth.response;
+
     try {
         const { id } = await params;
         const body = await request.json();
@@ -47,6 +51,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const auth = await requireAuth(request, ["ADMIN"]);
+    if (!auth.user) return auth.response;
+
     try {
         const { id } = await params;
 

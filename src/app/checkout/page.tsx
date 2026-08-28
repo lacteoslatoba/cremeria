@@ -22,7 +22,8 @@ export default function CheckoutPage() {
     const { user } = useAuthStore();
 
     const [mounted, setMounted] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<"CARD" | "CASH">("CASH");
+    const [paymentMethod, setPaymentMethod] = useState<"CARD" | "CASH" | "CLIP">("CASH");
+    const [clipLoading, setClipLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -258,6 +259,36 @@ export default function CheckoutPage() {
         catch { setError("Error al crear el pedido."); setIsSubmitting(false); }
     };
 
+    const handleClipPay = async () => {
+        setClipLoading(true);
+        setError("");
+        try {
+            const res = await fetch("/api/payments/clip/create-checkout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: user?.id,
+                    customerName: user?.name || user?.email || "Cliente",
+                    address: "Ubicación GPS (Actual)",
+                    total,
+                    payerEmail: user?.email,
+                    items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.redirectUrl) {
+                setError(data.error || "No se pudo iniciar el pago con Clip.");
+                setClipLoading(false);
+                return;
+            }
+            clearCart();
+            window.location.href = data.redirectUrl;
+        } catch {
+            setError("Error al conectar con Clip. Intenta de nuevo.");
+            setClipLoading(false);
+        }
+    };
+
     const createOrder = async (mpId: string | null, mpPaymentStatus?: string, paymentMethod?: string) => {
         const res = await fetch("/api/orders", {
             method: "POST",
@@ -405,6 +436,18 @@ export default function CheckoutPage() {
                         </div>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === "CARD" ? "border-[#009EE3]" : "border-gray-500"}`}>
                             {paymentMethod === "CARD" && <div className="w-2.5 h-2.5 bg-[#009EE3] rounded-full" />}
+                        </div>
+                    </button>
+
+                    <button onClick={() => { setPaymentMethod("CLIP"); setError(""); }}
+                        className={`flex items-center p-4 rounded-2xl border-2 transition-all text-left ${paymentMethod === "CLIP" ? "bg-emerald-500/10 border-emerald-500" : "bg-white/5 border-white/10"}`}>
+                        <div className={`p-2.5 rounded-xl mr-4 ${paymentMethod === "CLIP" ? "bg-emerald-500 text-white" : "bg-gray-700 text-gray-300"}`}><CreditCard size={22} /></div>
+                        <div className="flex-1">
+                            <p className="font-bold">Pagar con Clip</p>
+                            <p className="text-sm text-gray-400">Tarjeta vía Clip · Te llevamos a su página segura</p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === "CLIP" ? "border-emerald-500" : "border-gray-500"}`}>
+                            {paymentMethod === "CLIP" && <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full" />}
                         </div>
                     </button>
                 </div>
@@ -585,6 +628,24 @@ export default function CheckoutPage() {
                             className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-lg shadow-lg shadow-primary/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
                             {isSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Confirmar Pedido</>}
                         </button>
+                    </div>
+                )}
+
+                {/* ────── CLIP ────── */}
+                {paymentMethod === "CLIP" && (
+                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4 animate-in slide-in-from-bottom-2 duration-300">
+                        <div className="flex justify-between items-center">
+                            <span className="font-bold text-lg">Total a pagar:</span>
+                            <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
+                        </div>
+                        <p className="text-sm text-gray-400">Te llevamos a la página segura de Clip para completar tu pago con tarjeta.</p>
+                        <button onClick={handleClipPay} disabled={clipLoading}
+                            className="w-full py-4 rounded-2xl bg-emerald-500 text-white font-bold text-lg shadow-lg shadow-emerald-500/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
+                            {clipLoading ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar con Clip</>}
+                        </button>
+                        <p className="text-center text-xs text-gray-500 pb-2">
+                            🔒 Serás redirigido a Clip para ingresar tu tarjeta. Nunca vemos ni guardamos tus datos.
+                        </p>
                     </div>
                 )}
             </div>

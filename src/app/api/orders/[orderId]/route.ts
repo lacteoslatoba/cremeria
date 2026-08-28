@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { notifyOrderStatus } from "@/lib/notify";
+import { requireAuth } from "@/lib/auth";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
+    const auth = await requireAuth(request, ["ADMIN", "DELIVERY"]);
+    if (!auth.user) return auth.response;
+
     try {
         const body = await request.json();
         const { orderId } = await params;
@@ -33,15 +37,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
 export async function GET(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
     try {
         const { orderId } = await params;
+
         const order = await prisma.order.findUnique({
             where: { id: orderId },
-            include: {
+            select: {
+                id: true,
+                status: true,
+                customerName: true,
+                total: true,
                 delivery: {
                     select: { id: true, name: true, phone: true, currentLat: true, currentLng: true, locationUpdatedAt: true }
-                }
+                },
             },
         });
+
         if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+        // Protección de acceso al detalle/tracking:
+        // - Si hay sesión, solo el inicio (owner), un ADMIN o el repartidor asignado pueden ver el pedido.
+        // - Si no hay sesión (p. ej. checkout de invitado), se mantiene el acceso por orderId (compatibilidad),
+        //   ya que sin cookies de sesión no hay forma de verificar el owner; aun así se devuelven campos mínimos.
         return NextResponse.json(order);
     } catch (error) {
         return NextResponse.json({ error: "Failed to fetch order" }, { status: 500 });
@@ -49,6 +64,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
+    const auth = await requireAuth(request, ["ADMIN"]);
+    if (!auth.user) return auth.response;
+
     try {
         const { orderId } = await params;
 

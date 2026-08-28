@@ -1,9 +1,40 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { signSession, setSessionCookie } from "@/lib/auth";
+import { rateLimit, cleanupRateLimitBuckets } from "@/lib/rate-limit";
+
+// Serializa un usuario para responder, garantizando que NUNCA se expone el hash.
+function toSafeUser(user: {
+    password?: string | null;
+    resetToken?: string | null;
+    resetTokenExpiry?: Date | null;
+    mpCustomerId?: string | null;
+    [key: string]: unknown;
+}) {
+    const { password, resetToken, resetTokenExpiry, mpCustomerId, ...safe } = user;
+    return safe;
+}
+
+function clientIp(request: Request): string {
+    const fwd = request.headers.get("x-forwarded-for");
+    if (fwd) return fwd.split(",")[0].trim();
+    return request.headers.get("x-real-ip") || "unknown";
+}
 
 export async function POST(request: Request) {
     try {
+        // Limpieza ocasional + rate-limit por IP (anti fuerza bruta).
+        cleanupRateLimitBuckets();
+        const ip = clientIp(request);
+        const throttled = rateLimit(`login:${ip}`, 5, 15 * 60 * 1000); // 5 intentos / 15 min
+        if (!throttled.allowed) {
+            return NextResponse.json(
+                { error: `Demasiados intentos. Intenta en ${throttled.retryAfterSeconds}s.` },
+                { status: 429 }
+            );
+        }
+
         const { identifier, password } = await request.json();
 
         if (!identifier || !password) {
@@ -27,16 +58,7 @@ export async function POST(request: Request) {
         }
 
         if (!user.password) {
-            // Migration for old users without password. Let them login and set their password if they don't have one, or just error out.
-            // But let's verify if password allows them to migrate.
-            // Since we don't want to lock them out, maybe we set it dynamically on first login if it's empty?
-            // Actually, we can just hash and save their password and let them in this first time.
-            const hashedPassword = await bcrypt.hash(password, 10);
-            const updatedUser = await prisma.user.update({
-                where: { id: user.id },
-                data: { password: hashedPassword }
-            });
-            return NextResponse.json(updatedUser, { status: 200 });
+            return NextResponse.json({ error: "Usuario o contraseña incorrectos" }, { status: 401 });
         }
 
         const isValid = await bcrypt.compare(password, user.password);
@@ -45,7 +67,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Usuario o contraseña incorrectos" }, { status: 401 });
         }
 
-        return NextResponse.json(user, { status: 200 });
+        // Firmar sesión y emitir una cookie HttpOnly.
+        const token = await signSession({ id: user.id, role: user.role });
+        const response = NextResponse.json(toSafeUser(user), { status: 200 });
+        setSessionCookie(response, token);
+
+        return response;
     } catch (error) {
         console.error("Login error:", error);
         return NextResponse.json({ error: "Ocurrió un error al iniciar sesión" }, { status: 500 });

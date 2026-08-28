@@ -4,14 +4,16 @@ import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
     try {
-        const { name, username, phone, email, password, address, role } = await request.json();
+        const { name, username, phone, email, password, address } = await request.json();
 
         if (!username || !password) {
             return NextResponse.json({ error: "El usuario y contraseña son requeridos" }, { status: 400 });
         }
 
-        // Only CUSTOMER (public sign-up) or DELIVERY (created by admin) are allowed here.
-        const safeRole = role === "DELIVERY" ? "DELIVERY" : "CUSTOMER";
+        // Registro público: SIEMPRE asigna rol CUSTOMER. El alta de repartidores/admin
+        // la realiza un administrador autenticado desde /admin, nunca desde aquí,
+        // para evitar que cualquiera cree cuentas elevadas.
+        const safeRole = "CUSTOMER";
 
         const cleanUser = username.trim().toLowerCase();
         const cleanEmail = email ? email.trim().toLowerCase() : null;

@@ -1,8 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/auth";
+
+const SAFE_FIELDS = {
+    id: true,
+    name: true,
+    username: true,
+    email: true,
+    phone: true,
+    role: true,
+    createdAt: true,
+} as const;
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const auth = await requireAuth(request, ["ADMIN"]);
+    if (!auth.user) return auth.response;
+
     try {
         const { id } = await params;
         const body = await request.json();
@@ -15,14 +29,19 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             }
         }
 
+        // Solo roles conocidos; jamás se acepta un rol arbitrario del body.
+        const allowedRoles = ["CUSTOMER", "DELIVERY", "ADMIN"];
+        const safeRole = body.role !== undefined && allowedRoles.includes(body.role) ? body.role : undefined;
+
         const user = await prisma.user.update({
             where: { id },
             data: {
                 name: body.name,
-                email: body.email || null,
-                phone: body.phone || null,
-                role: body.role,
-            }
+                email: body.email ?? null,
+                phone: body.phone ?? null,
+                ...(safeRole ? { role: safeRole } : {}),
+            },
+            select: SAFE_FIELDS,
         });
 
         revalidatePath("/admin/customers");
@@ -35,6 +54,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const auth = await requireAuth(request, ["ADMIN"]);
+    if (!auth.user) return auth.response;
+
     try {
         const { id } = await params;
 
@@ -45,12 +67,13 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         });
 
         const deletedUser = await prisma.user.delete({
-            where: { id }
+            where: { id },
+            select: { id: true },
         });
 
         revalidatePath("/admin/customers");
 
-        return NextResponse.json(deletedUser);
+        return NextResponse.json({ ok: true, id: deletedUser.id });
     } catch (error) {
         console.error(error);
         return NextResponse.json({ error: "Failed to delete user." }, { status: 500 });
