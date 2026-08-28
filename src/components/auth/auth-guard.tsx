@@ -21,7 +21,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         // Si no hay usuario logueado, redigir al Login salvo que ya estemos en Login o rutas públicas.
         const isLogin = pathname === "/login";
         const isForgotPassword = pathname === "/forgot-password";
-        const isCheckout = pathname.startsWith("/checkout"); // incluye /checkout/clip-return
+        const isCheckout = pathname.startsWith("/checkout"); // incluye /checkout/stripe-return
         const isTracking = pathname.startsWith("/tracking");
         const isAdmin = pathname.startsWith("/admin");
         const isDriver = pathname.startsWith("/driver");

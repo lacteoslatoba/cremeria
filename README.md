@@ -1,22 +1,21 @@
 # Cremería del Rancho 🧀
 
-Tienda en línea de una cremería construida con **Next.js 16 (App Router)** + **React 19** + **TypeScript**, con **Prisma** (PostgreSQL / Supabase) como ORM e integración de pagos con **Mercado Pago**. Incluye PWA y notificaciones SMS con **Twilio**.
+Tienda en línea de una cremería construida con **Next.js 16 (App Router)** + **React 19** + **TypeScript**, con **Prisma** (PostgreSQL / Supabase) como ORM e integración de pagos con **Stripe**. Incluye PWA y notificaciones SMS con **Twilio**.
 
 ## Stack
 
 - **Framework:** Next.js 16 (`app/` router) + Turbopack
 - **Frontend:** React 19, Tailwind CSS, framer-motion, lucide-react, zustand (estado)
 - **Backend / ORM:** Next.js Route Handlers + Prisma (PostgreSQL)
-- **Pagos:** Mercado Pago (SDK JS del lado del cliente + API del servidor)
+- **Pagos:** Stripe (Payment Element embebido — el cliente no sale de la página)
 - **Otros:** Twilio (SMS), next-pwa (offline), playwright (test)
 
 ## Características
 
 - Catálogo de productos con búsqueda, categorías y ofertas especiales.
 - Carrito persistente en el navegador (localStorage vía zustand).
-- Checkout con efectivo (**CASH**) o tarjeta (**CARD**) vía Mercado Pago.
-- Tarjetas guardadas por cliente (Mercado Pago Customers API).
-- Webhook de Mercado Pago con verificación de firma **HMAC-SHA256** y confirmación del pago contra la API.
+- Checkout de tarjeta (**STRIPE**) con Payment Element embebido: el cliente nunca sale de la página.
+- Webhook de Stripe con verificación de firma y confirmación del pago contra la API.
 - Control de inventario: se descuenta stock al crear la orden y se restaura si el pago es rechazado; los productos sin stock se ocultan en la tienda.
 - Panel de administración: productos, pedidos, ventas y clientes.
 - Usuarios con roles (`CUSTOMER` / `ADMIN`) y recuperación de contraseña.
@@ -25,7 +24,7 @@ Tienda en línea de una cremería construida con **Next.js 16 (App Router)** + *
 
 - Node.js 18+
 - Una base de datos PostgreSQL (p. ej. Supabase)
-- Credenciales de Mercado Pago y Twilio
+- Credenciales de Stripe y Twilio
 
 ## Configuración
 
@@ -36,10 +35,11 @@ Crea un `.env.local` con las siguientes variables:
 DATABASE_URL="postgresql://..."
 DIRECT_URL="postgresql://..."
 
-# Mercado Pago
-MP_ACCESS_TOKEN="TEST-..."
-MP_PUBLIC_KEY="TEST-..."
-MP_WEBHOOK_SECRET="..."
+# Stripe
+STRIPE_SECRET_KEY="sk_live_..."
+STRIPE_PUBLISHABLE_KEY="pk_live_..."
+# Secreto del webhook (Dashboard → Developers → Webhooks → endpoint)
+STRIPE_WEBHOOK_SECRET="whsec_..."
 
 # Twilio (opcional)
 TWILIO_ACCOUNT_SID="..."

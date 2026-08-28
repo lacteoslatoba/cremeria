@@ -1,6 +1,6 @@
 {
   "name": "cremeria",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,7 +17,6 @@
     "jose": "^6.2.10",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.575.0",
-    "mercadopago": "^2.12.0",
     "next": "16.1.6",
     "postcss": "^8.5.6",
     "react": "19.2.3",

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 // Expone la clave PUBLICABLE (no la secreta) para que el checkout cargue
-// Stripe.js del lado del cliente — mismo patrón que /api/payments/config para MP.
+// Stripe.js del lado del cliente.
 export async function GET() {
     const publicKey = process.env.STRIPE_PUBLISHABLE_KEY || "";
     if (!publicKey) {

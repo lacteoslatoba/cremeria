@@ -16,10 +16,10 @@ export async function createOrderWithStockCheck(params: {
     total: number;
     items: OrderItemInput[];
     userId?: string;
-    paymentMethod: string; // CASH | CARD | CLIP
+    paymentMethod: string; // CASH | STRIPE (CARD/CLIP quedan solo por historial)
     paymentStatus: string; // PENDING | APPROVED | REJECTED
-    mpPaymentId?: string | null;
-    clipPaymentId?: string | null;
+    mpPaymentId?: string | null; // solo por compatibilidad con ordenes historicas de Mercado Pago
+    clipPaymentId?: string | null; // solo por compatibilidad con ordenes historicas de Clip
 }) {
     const { items } = params;
 
