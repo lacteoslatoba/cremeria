@@ -45,6 +45,7 @@ export async function POST(request: Request) {
         return NextResponse.json({
             orderId: order.id,
             redirectUrl: checkout.payment_request_url,
+            paymentRequestId: checkout.payment_request_id,
         });
     } catch (error: any) {
         if (error instanceof OrderCreationError) {

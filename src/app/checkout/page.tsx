@@ -259,6 +259,10 @@ export default function CheckoutPage() {
         catch { setError("Error al crear el pedido."); setIsSubmitting(false); }
     };
 
+    // Checkout Redireccionado de Clip: se manda al cliente a la página segura
+    // de Clip para ingresar su tarjeta, y regresa automáticamente a
+    // /checkout/clip-return cuando termina. (El "Checkout Embebido" de Clip
+    // no abre de forma confiable — ver commit; se decidió no usarlo.)
     const handleClipPay = async () => {
         setClipLoading(true);
         setError("");
@@ -444,7 +448,7 @@ export default function CheckoutPage() {
                         <div className={`p-2.5 rounded-xl mr-4 ${paymentMethod === "CLIP" ? "bg-emerald-500 text-white" : "bg-gray-700 text-gray-300"}`}><CreditCard size={22} /></div>
                         <div className="flex-1">
                             <p className="font-bold">Pagar con Clip</p>
-                            <p className="text-sm text-gray-400">Tarjeta vía Clip · Te llevamos a su página segura</p>
+                            <p className="text-sm text-gray-400">Tarjeta vía Clip · Pago seguro</p>
                         </div>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === "CLIP" ? "border-emerald-500" : "border-gray-500"}`}>
                             {paymentMethod === "CLIP" && <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full" />}
