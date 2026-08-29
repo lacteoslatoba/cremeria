@@ -11,10 +11,21 @@ function toSafeUser(user: any) {
 
 export async function POST(request: Request) {
     try {
-        const { name, username, phone, email, password, address, role } = await request.json();
+        const body = await request.json();
+        const { name, phone, password, role } = body;
+        // El registro público ya no pide usuario/correo/dirección por
+        // separado -- el teléfono es el identificador de inicio de sesión
+        // (login ya hace match contra username/email/phone, así que basta
+        // con guardar el teléfono ahí también como "username" interno).
+        // Se aceptan username/email/address si vienen (p. ej. un admin
+        // creando una cuenta con más detalle desde otro flujo) pero ya no
+        // son obligatorios para el registro público del cliente.
+        const username = body.username || phone;
+        const email = body.email;
+        const address = body.address;
 
-        if (!username || !password) {
-            return NextResponse.json({ error: "El usuario y contraseña son requeridos" }, { status: 400 });
+        if (!phone || !password) {
+            return NextResponse.json({ error: "El teléfono y contraseña son requeridos" }, { status: 400 });
         }
 
         // Registro público (sin sesión): SIEMPRE CUSTOMER. Solo un ADMIN ya
