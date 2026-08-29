@@ -37,6 +37,14 @@ export default function CheckoutPage() {
     const { items, clearCart } = useCartStore();
     const { user } = useAuthStore();
 
+    // Antes se mandaba un correo genérico compartido ("cliente@...") a la
+    // pasarela de tarjeta cuando la cuenta no tenía email real -- eso hace
+    // que su sistema vea "el mismo cliente" comprando muchas veces seguidas
+    // (aunque sean personas distintas), lo cual dispara más fácil el
+    // antifraude por riesgo. Si no hay email real, usamos algo único por
+    // cliente (su teléfono) en vez de un valor compartido.
+    const payerEmail = user?.email || (user?.phone ? `${user.phone}@cremeriadelrancho.com` : undefined);
+
     const [mounted, setMounted] = useState(false);
     const [error, setError] = useState("");
     const [method, setMethod] = useState<"CARD" | "CASH">("CARD");
@@ -149,7 +157,7 @@ export default function CheckoutPage() {
                     customerName: user?.name || user?.email || "Cliente",
                     address: "Ubicación GPS (Actual)",
                     total,
-                    payerEmail: user?.email,
+                    payerEmail,
                     items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
                 }),
             });
@@ -390,7 +398,8 @@ export default function CheckoutPage() {
                             customerName: user?.name || user?.email || "Cliente",
                             address: "Ubicación GPS (Actual)",
                             total,
-                            payerEmail: user?.email,
+                            payerEmail,
+                            payerPhone: user?.phone,
                             items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
                         }),
                     });

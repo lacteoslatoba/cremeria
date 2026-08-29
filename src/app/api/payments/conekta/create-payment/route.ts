@@ -32,7 +32,12 @@ export async function POST(request: Request) {
                 tokenId: body.token,
                 amount: Number(body.total),
                 customerName: body.customerName || "Cliente",
-                email: body.payerEmail || "cliente@cremeriadelrancho.com",
+                // Nunca un correo generico compartido: eso hace que Conekta
+                // vea "el mismo cliente" en cada compra de invitado sin
+                // cuenta, lo cual dispara mas facil su antifraude por
+                // riesgo/velocidad. Si no mandaron nada usable, se arma
+                // algo unico por pedido.
+                email: body.payerEmail || `pedido-${order.id}@cremeriadelrancho.com`,
                 phone: body.payerPhone,
                 orderId: order.id,
             });
