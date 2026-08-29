@@ -26,7 +26,10 @@ const withPWA = withPWAInit({
     clientsClaim: true,
     runtimeCaching: [
       {
-        urlPattern: ({ url }: { url: URL }) => url.hostname.endsWith(".stripe.com"),
+        // Aplica a Stripe (en pausa) y Conekta (proveedor activo) por igual --
+        // ninguna pasarela de pago debe pasar por la lógica de caché genérica.
+        urlPattern: ({ url }: { url: URL }) =>
+          url.hostname.endsWith(".stripe.com") || url.hostname.endsWith(".conekta.com") || url.hostname.endsWith(".conekta.io"),
         handler: "NetworkOnly",
       },
     ],
@@ -65,15 +68,20 @@ const nextConfig: NextConfig = {
           key: "Content-Security-Policy",
           value: [
             "default-src 'self'",
-            // Stripe Payment Element: js.stripe.com carga el SDK, los campos de
-            // tarjeta viven en iframes propios (frame-src) y Stripe hace llamadas
-            // ajax a api.stripe.com / m.stripe.network (connect-src).
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
+            // Stripe (en pausa, se deja permitido por si se reactiva) + Conekta
+            // (activo): pay.conekta.com carga el Checkout Component, el
+            // formulario de tarjeta vive en un iframe propio de Conekta
+            // (frame-src). La lista de conekta.com/io + terceros (3D Secure de
+            // Cardinal Commerce, Apple/Google Pay, recolección de huella del
+            // dispositivo, Google Tag Manager) sale directo del error real de
+            // CSP que tira su propio script al cargar -- se verificó viendo
+            // qué pedía, no se adivinó.
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.conekta.com https://*.conekta.io https://unpkg.com https://*.googletagmanager.com https://sdk-pay.coppelpay.com https://sdk-pay-qa.coppelpay.com https://songbird.cardinalcommerce.com https://includestest.ccdc02.com https://*.cardinalcommerce.com https://applepay.cdn-apple.com https://pay.google.com",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com data:",
             "img-src 'self' data: blob: https: http:",
-            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network",
-            "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://q.stripe.com",
+            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network https://*.conekta.com https://*.conekta.io https://*.googletagmanager.com https://*.google-analytics.com https://songbird.cardinalcommerce.com https://*.cardinalcommerce.com",
+            "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://q.stripe.com https://*.conekta.com https://*.conekta.io https://songbird.cardinalcommerce.com https://includestest.ccdc02.com https://*.cardinalcommerce.com https://pay.google.com",
             "worker-src 'self' blob:",
             "manifest-src 'self'",
           ].join("; "),
