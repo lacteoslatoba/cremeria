@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         } catch (conektaError: any) {
             // El cargo falló del lado de Conekta (tarjeta rechazada, etc.) --
             // devolvemos el stock reservado, la orden queda como rechazada.
-            console.error("[CONEKTA_CREATE_PAYMENT_ERROR]", conektaError?.message || conektaError);
+            console.error("[CONEKTA_CREATE_PAYMENT_ERROR]", conektaError?.message, "| status:", conektaError?.status, "| details:", JSON.stringify(conektaError?.details));
             await prisma.$transaction(async (tx) => {
                 await tx.order.update({ where: { id: order.id }, data: { paymentStatus: "REJECTED" } });
                 for (const item of items) {
