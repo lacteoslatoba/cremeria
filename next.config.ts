@@ -79,7 +79,10 @@ const nextConfig: NextConfig = {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com data:",
             "img-src 'self' data: blob: https: http:",
-            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network https://*.conekta.io https://notify.bugsnag.com https://sessions.bugsnag.com",
+            // dc.conekta.com recoge la huella del dispositivo para prevención de
+            // fraude -- sin esto Conekta puede rechazar pagos legítimos como
+            // riesgo alto (nos pasó exactamente esto antes con Mercado Pago).
+            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network https://*.conekta.io https://*.conekta.com https://notify.bugsnag.com https://sessions.bugsnag.com",
             "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://q.stripe.com",
             "worker-src 'self' blob:",
             "manifest-src 'self'",
