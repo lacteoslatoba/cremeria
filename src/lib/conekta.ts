@@ -1,14 +1,17 @@
 // Cliente de Conekta via su API REST directa (sin el SDK oficial -- así
-// controlamos exactamente qué se manda, igual que ya hacíamos con
-// Mercado Pago). Doc: https://developers.conekta.com/reference
+// controlamos exactamente qué se manda). Doc: https://developers.conekta.com/reference
 //
-// Usamos el "Checkout Component" (iframe propio de Conekta, como Stripe
-// Elements) en vez del tokenizer de campos crudos -- los datos de la
-// tarjeta nunca tocan el JS de nuestra página, solo el iframe de Conekta.
-// Flujo: 1) creamos una Order con checkout.type=Integration -> nos da un
-// checkoutRequestId. 2) el cliente monta el componente con ese id y paga
-// ahí mismo. 3) confirmamos el estado real vía webhook + reconcile (nunca
-// confiamos solo en el callback del navegador).
+// Se probó primero el "Checkout Component" (iframe propio de Conekta, como
+// Stripe Elements) pero tiene un bug real confirmado: todos sus recursos
+// cargan bien (JS, CSS, device collector, todo 200) pero el iframe nunca
+// recibe la señal para mostrarse -- se queda en 0px de alto sin importar
+// cuánto se espere. No es algo arreglable desde este lado.
+//
+// Se usa en su lugar el tokenizer directo (conekta.js + Conekta.Token.create)
+// -- el otro método oficial que documentan. Los campos de tarjeta viven en
+// nuestra propia página (no en un iframe de Conekta), pero el número/cvc
+// nunca se manda a nuestro servidor: se tokenizan en el navegador y solo el
+// token_id resultante llega al backend.
 
 const CONEKTA_API = "https://api.conekta.io";
 const API_VERSION = "2.1.0";
@@ -43,20 +46,20 @@ async function conektaFetch(path: string, options: RequestInit = {}) {
 export type ConektaOrderResult = {
     id: string;
     payment_status: string; // pending_payment | paid | declined | expired | ...
-    checkout?: { id: string };
 };
 
-// Crea la Order en Conekta con checkout.type="Integration" -- devuelve el
-// checkoutRequestId que el navegador usa para montar el formulario de
-// tarjeta embebido (iframe propio de Conekta).
-export async function createConektaCheckoutOrder(params: {
+// Crea la Order + el cargo en un solo paso, usando el token de tarjeta que
+// ya generó Conekta.js en el navegador (los datos crudos de la tarjeta
+// nunca tocan nuestro servidor).
+export async function createConektaCardOrder(params: {
+    tokenId: string;
     amount: number; // pesos, se convierte a centavos abajo
     customerName: string;
     email: string;
     phone?: string;
     orderId: string; // nuestro id de Order, para referencia
-}): Promise<{ conektaOrderId: string; checkoutRequestId: string }> {
-    const order: ConektaOrderResult = await conektaFetch("/orders", {
+}): Promise<ConektaOrderResult> {
+    return conektaFetch("/orders", {
         method: "POST",
         body: JSON.stringify({
             currency: "MXN",
@@ -73,17 +76,17 @@ export async function createConektaCheckoutOrder(params: {
                     quantity: 1,
                 },
             ],
-            checkout: {
-                type: "Integration",
-                allowed_payment_methods: ["card"],
-            },
+            charges: [
+                {
+                    amount: Math.round(params.amount * 100),
+                    payment_method: {
+                        type: "card",
+                        token_id: params.tokenId,
+                    },
+                },
+            ],
         }),
     });
-
-    if (!order.checkout?.id) {
-        throw new Error("Conekta no devolvió un checkout válido");
-    }
-    return { conektaOrderId: order.id, checkoutRequestId: order.checkout.id };
 }
 
 export async function getConektaOrder(orderId: string): Promise<ConektaOrderResult> {

@@ -8,7 +8,7 @@ import { ChevronLeft, Loader2, CreditCard, CheckCircle2, AlertCircle, Banknote }
 import { BottomNav } from "@/components/layout/bottom-nav";
 
 declare global {
-    interface Window { Stripe: any; ConektaCheckoutComponents: any; }
+    interface Window { Stripe: any; Conekta: any; }
 }
 
 // Proveedor de tarjeta activo. Stripe queda "en pausa" -- todo su código
@@ -16,16 +16,21 @@ declare global {
 // pero no se ejecuta ni un solo fetch/script mientras esta constante diga
 // "conekta". Se cambió porque Stripe se topaba con bloqueos en algunos
 // celulares que no se pueden resolver desde el servidor.
+//
+// Conekta usa su tokenizer directo (Conekta.Token.create), NO su "Checkout
+// Component" (iframe) -- ese tiene un bug real confirmado: todos sus
+// recursos cargan bien pero el iframe nunca recibe la señal para mostrarse.
+// Con el tokenizer, los campos de tarjeta viven en esta misma página (no
+// en un iframe), pero el número/cvc nunca se manda a nuestro servidor: se
+// tokenizan en el navegador y solo el token_id resultante llega al backend.
 const CARD_PROVIDER: "stripe" | "conekta" = "conekta";
 
 /* ─────────────────────────────────────────────────────────────
-   Dos métodos de pago: tarjeta (Conekta, Checkout Component embebido
-   -- iframe propio, los datos de la tarjeta nunca tocan nuestra
-   página) y efectivo contra entrega. Efectivo existe como respaldo:
-   no depende de ningún script de terceros, así que si el celular de
-   un cliente bloquea la pasarela de tarjeta por lo que sea, siempre
-   puede pagar en efectivo en vez de quedarse sin poder completar su
-   pedido.
+   Dos métodos de pago: tarjeta (Conekta) y efectivo contra entrega.
+   Efectivo existe como respaldo: no depende de ningún script de
+   terceros, así que si el celular de un cliente bloquea la pasarela
+   de tarjeta por lo que sea, siempre puede pagar en efectivo en vez
+   de quedarse sin poder completar su pedido.
    ───────────────────────────────────────────────────────────── */
 export default function CheckoutPage() {
     const router = useRouter();
@@ -54,7 +59,6 @@ export default function CheckoutPage() {
     const [conektaMounted, setConektaMounted] = useState(false); // el iframe ya se mandó a pintar
     const [conektaSubmitting, setConektaSubmitting] = useState(false);
     const conektaPublicKeyRef = useRef("");
-    const conektaOrderIdRef = useRef("");
     const conektaSetupStartedRef = useRef(false);
 
     const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -267,24 +271,27 @@ export default function CheckoutPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [stripeSdkLoaded, method]);
 
-    // ── Conekta ──────────────────────────────────────────────────────
+    // ── Conekta (tokenizer directo) ─────────────────────────────────────
     // Mismo patrón resiliente que se usó para Stripe: reintentos con
     // backoff antes de mostrarle cualquier error al cliente.
     const conektaSdkAttemptsRef = useRef(0);
     const CONEKTA_TIMEOUTS_MS = [4000, 6000, 8000];
+    const [cardNumber, setCardNumber] = useState("");
+    const [cardName, setCardName] = useState("");
+    const [cardExpiry, setCardExpiry] = useState(""); // MM/AA
+    const [cardCvc, setCardCvc] = useState("");
 
     const loadConektaSDK = () => {
-        if (window.ConektaCheckoutComponents) { setConektaSdkLoaded(true); return; }
+        if (window.Conekta) { setConektaSdkLoaded(true); return; }
 
         const attempt = conektaSdkAttemptsRef.current;
         conektaSdkAttemptsRef.current += 1;
 
-        let s = document.getElementById("conekta-checkout-sdk") as HTMLScriptElement | null;
+        let s = document.getElementById("conekta-tokenizer-sdk") as HTMLScriptElement | null;
         if (!s) {
             s = document.createElement("script");
-            s.id = "conekta-checkout-sdk";
-            s.src = "https://pay.conekta.com/v1.0/js/conekta-checkout.min.js";
-            s.crossOrigin = "anonymous";
+            s.id = "conekta-tokenizer-sdk";
+            s.src = "https://cdn.conekta.io/js/latest/conekta.js";
             s.async = true;
             document.body.appendChild(s);
         }
@@ -292,29 +299,29 @@ export default function CheckoutPage() {
         s.onerror = () => conektaRetryOrGiveUp(attempt, true);
 
         window.setTimeout(() => {
-            if (!window.ConektaCheckoutComponents && conektaSdkAttemptsRef.current === attempt + 1) {
+            if (!window.Conekta && conektaSdkAttemptsRef.current === attempt + 1) {
                 conektaRetryOrGiveUp(attempt, false);
             }
         }, CONEKTA_TIMEOUTS_MS[attempt] ?? 8000);
     };
 
     const conektaRetryOrGiveUp = (attempt: number, hardFailure: boolean) => {
-        if (window.ConektaCheckoutComponents) return;
+        if (window.Conekta) return;
         if (attempt < CONEKTA_TIMEOUTS_MS.length - 1) {
-            if (hardFailure) document.getElementById("conekta-checkout-sdk")?.remove();
+            if (hardFailure) document.getElementById("conekta-tokenizer-sdk")?.remove();
             loadConektaSDK();
         } else {
             setError("No se pudo conectar con el sistema de pago. Verifica tu conexión a internet e intenta de nuevo.");
         }
     };
 
-    // Crea la orden + Order de Conekta en el servidor, y monta el Checkout
-    // Component (iframe con el formulario de tarjeta real) directo en esta
-    // pantalla -- el cliente nunca sale de la página.
+    // En cuanto el SDK carga, solo hace falta la llave pública para poder
+    // mostrar el formulario -- a diferencia de Stripe/Component, no hace
+    // falta crear nada en el servidor todavía (eso pasa hasta que el
+    // cliente le da "Pagar", igual que con Efectivo).
     const setupConektaCheckout = async () => {
         if (conektaSetupStartedRef.current) return;
         conektaSetupStartedRef.current = true;
-        setConektaSubmitting(true);
         setError("");
         try {
             if (!conektaPublicKeyRef.current) {
@@ -322,87 +329,19 @@ export default function CheckoutPage() {
                 if (!cfg.publicKey) throw new Error("El pago con tarjeta no está disponible todavía.");
                 conektaPublicKeyRef.current = cfg.publicKey;
             }
-
-            const res = await fetch("/api/payments/conekta/create-checkout", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    userId: user?.id,
-                    customerName: user?.name || user?.email || "Cliente",
-                    address: "Ubicación GPS (Actual)",
-                    total,
-                    payerEmail: user?.email,
-                    items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok || !data.checkoutRequestId) {
-                setError(data.error || "No se pudo iniciar el pago.");
-                conektaSetupStartedRef.current = false;
-                setConektaSubmitting(false);
-                return;
-            }
-            conektaOrderIdRef.current = data.orderId;
-
-            window.ConektaCheckoutComponents.Integration({
-                config: {
-                    locale: "es",
-                    publicKey: conektaPublicKeyRef.current,
-                    targetIFrame: "#conekta-checkout-mount",
-                    checkoutRequestId: data.checkoutRequestId,
-                },
-                callbacks: {
-                    onFinalizePayment: () => handleConektaFinalize(),
-                    onErrorPayment: (err: any) => {
-                        console.error("[CONEKTA_ELEMENT_ERROR]", err);
-                        setError(err?.message_to_purchaser || err?.message || "Tu pago no pudo procesarse.");
-                        setConektaSubmitting(false);
-                    },
-                },
-            });
+            window.Conekta.setPublicKey(conektaPublicKeyRef.current);
+            window.Conekta.setLanguage("es");
             setConektaMounted(true);
         } catch (err: any) {
             setError(err?.message || "Error al conectar con el sistema de pago.");
             conektaSetupStartedRef.current = false;
-        } finally {
-            setConektaSubmitting(false);
-        }
-    };
-
-    // No confiamos solo en el callback del navegador (la propia Conekta lo
-    // advierte en su documentación): reverificamos contra su API antes de
-    // dar el pedido por aprobado.
-    const handleConektaFinalize = async () => {
-        setConektaSubmitting(true);
-        setError("");
-        try {
-            const res = await fetch("/api/payments/conekta/confirm", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId: conektaOrderIdRef.current }),
-            });
-            const order = await res.json();
-
-            if (order.paymentStatus === "APPROVED") {
-                clearCart();
-                router.push(`/tracking?orderId=${conektaOrderIdRef.current}`);
-            } else if (order.paymentStatus === "REJECTED") {
-                setError("Tu pago no se completó. No se hizo ningún cargo.");
-                setConektaSubmitting(false);
-            } else {
-                setError("Tu pago sigue en proceso. Consulta tu pedido en unos momentos.");
-                setConektaSubmitting(false);
-            }
-        } catch {
-            setError("Error al confirmar el pago.");
-            setConektaSubmitting(false);
         }
     };
 
     const retryConektaCheckout = () => {
         setError("");
-        if (!window.ConektaCheckoutComponents) {
-            document.getElementById("conekta-checkout-sdk")?.remove();
+        if (!window.Conekta) {
+            document.getElementById("conekta-tokenizer-sdk")?.remove();
             conektaSdkAttemptsRef.current = 0;
             loadConektaSDK();
         } else {
@@ -417,6 +356,72 @@ export default function CheckoutPage() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [conektaSdkLoaded, method]);
+
+    // Tokeniza la tarjeta EN EL NAVEGADOR (el número/cvc nunca se manda a
+    // nuestro servidor) y con ese token crea la orden + el cargo. No
+    // confiamos solo en el token: el servidor vuelve a consultar el estado
+    // real del pago contra la API de Conekta antes de aprobar el pedido.
+    const handleConektaPay = () => {
+        setError("");
+        const [expMonth, expYear] = cardExpiry.split("/").map(s => s.trim());
+        if (!cardNumber || !cardName || !expMonth || !expYear || !cardCvc) {
+            setError("Completa todos los datos de la tarjeta.");
+            return;
+        }
+        setConektaSubmitting(true);
+        window.Conekta.Token.create(
+            {
+                card: {
+                    number: cardNumber.replace(/\s/g, ""),
+                    name: cardName,
+                    exp_month: expMonth,
+                    exp_year: expYear.length === 2 ? `20${expYear}` : expYear,
+                    cvc: cardCvc,
+                },
+            },
+            async (token: any) => {
+                try {
+                    const res = await fetch("/api/payments/conekta/create-payment", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            token: token.id,
+                            userId: user?.id,
+                            customerName: user?.name || user?.email || "Cliente",
+                            address: "Ubicación GPS (Actual)",
+                            total,
+                            payerEmail: user?.email,
+                            items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
+                        }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        setError(data.error || "Tu pago no pudo procesarse.");
+                        setConektaSubmitting(false);
+                        return;
+                    }
+                    if (data.paymentStatus === "APPROVED") {
+                        clearCart();
+                        router.push(`/tracking?orderId=${data.orderId}`);
+                    } else if (data.paymentStatus === "REJECTED") {
+                        setError("Tu pago no se completó. No se hizo ningún cargo.");
+                        setConektaSubmitting(false);
+                    } else {
+                        setError("Tu pago sigue en proceso. Consulta tu pedido en unos momentos.");
+                        setConektaSubmitting(false);
+                    }
+                } catch {
+                    setError("Error al procesar el pago. Verifica tu conexión e intenta de nuevo.");
+                    setConektaSubmitting(false);
+                }
+            },
+            (err: any) => {
+                console.error("[CONEKTA_TOKEN_ERROR]", err);
+                setError(err?.message_to_purchaser || err?.message || "No se pudo validar tu tarjeta. Revisa los datos.");
+                setConektaSubmitting(false);
+            }
+        );
+    };
 
     // Efectivo: no depende de Stripe ni de ningún script externo -- crea el
     // pedido directo y ya, el repartidor cobra en persona al entregar.
@@ -554,10 +559,12 @@ export default function CheckoutPage() {
                     </div>
                 </div>
 
-                {/* Conekta -- proveedor de tarjeta activo. Su Checkout Component
-                    monta su propio iframe con el formulario Y el botón de pago
-                    (a diferencia de Stripe, no hace falta un botón "Pagar" propio
-                    aquí -- el que ve el cliente vive dentro del iframe de Conekta). */}
+                {/* Conekta -- proveedor de tarjeta activo. Los campos de tarjeta
+                    viven aquí mismo (no en un iframe de Conekta -- su Checkout
+                    Component tiene un bug real confirmado que lo deja en 0px de
+                    alto). El número/cvc nunca se manda a nuestro servidor: se
+                    tokenizan en el navegador con Conekta.Token.create y solo el
+                    token resultante viaja al backend. */}
                 <div className={method === "CARD" && CARD_PROVIDER === "conekta" ? "flex flex-col gap-5" : "hidden"}>
                     <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
                         <div className="flex justify-between items-center">
@@ -582,14 +589,38 @@ export default function CheckoutPage() {
                             </button>
                         )}
 
-                        {/* Conekta monta aquí su Checkout Component (iframe con el
-                            formulario de tarjeta real y su propio botón de pago) */}
-                        <div id="conekta-checkout-mount" className={conektaMounted ? "" : "hidden"} style={{ minHeight: 340 }} />
-
-                        {conektaSubmitting && conektaMounted && (
-                            <div className="flex items-center justify-center gap-2 text-gray-400 text-sm py-2">
-                                <Loader2 size={16} className="animate-spin" /> Confirmando tu pago…
+                        {conektaMounted && (
+                            <div className="flex flex-col gap-3">
+                                <input
+                                    type="text" inputMode="numeric" autoComplete="cc-number" placeholder="Número de tarjeta"
+                                    value={cardNumber} onChange={e => setCardNumber(e.target.value)} disabled={conektaSubmitting}
+                                    className="w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50"
+                                />
+                                <input
+                                    type="text" autoComplete="cc-name" placeholder="Nombre en la tarjeta"
+                                    value={cardName} onChange={e => setCardName(e.target.value)} disabled={conektaSubmitting}
+                                    className="w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50"
+                                />
+                                <div className="flex gap-3">
+                                    <input
+                                        type="text" inputMode="numeric" autoComplete="cc-exp" placeholder="MM/AA"
+                                        value={cardExpiry} onChange={e => setCardExpiry(e.target.value)} disabled={conektaSubmitting}
+                                        className="w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50 flex-1"
+                                    />
+                                    <input
+                                        type="text" inputMode="numeric" autoComplete="cc-csc" placeholder="CVC"
+                                        value={cardCvc} onChange={e => setCardCvc(e.target.value)} disabled={conektaSubmitting}
+                                        className="w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50 flex-1"
+                                    />
+                                </div>
                             </div>
+                        )}
+
+                        {conektaMounted && (
+                            <button onClick={handleConektaPay} disabled={conektaSubmitting}
+                                className="w-full py-4 rounded-2xl bg-violet-500 text-white font-bold text-lg shadow-lg shadow-violet-500/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
+                                {conektaSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
+                            </button>
                         )}
 
                         {method === "CARD" && !conektaMounted && error && (

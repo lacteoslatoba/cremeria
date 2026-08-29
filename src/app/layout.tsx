@@ -38,9 +38,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 {/* Deja "tibia" la conexión con Conekta desde que se abre la
                     app -- para cuando el cliente llega al checkout, el DNS
                     y el handshake TLS ya están hechos (evita la espera). */}
-                <link rel="preconnect" href="https://pay.conekta.com" />
+                <link rel="preconnect" href="https://cdn.conekta.io" />
                 <link rel="preconnect" href="https://api.conekta.io" />
-                <link rel="dns-prefetch" href="https://pay.conekta.com" />
+                <link rel="dns-prefetch" href="https://cdn.conekta.io" />
             </head>
             <body>
                 <AuthGuard>
