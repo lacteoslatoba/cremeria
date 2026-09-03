@@ -11,26 +11,23 @@ declare global {
     interface Window { Stripe: any; Conekta: any; }
 }
 
-// Proveedor de tarjeta activo. Stripe queda "en pausa" -- todo su código
-// sigue aquí intacto y funcional (por si hace falta volver a activarlo)
-// pero no se ejecuta ni un solo fetch/script mientras esta constante diga
-// "conekta". Se cambió porque Stripe se topaba con bloqueos en algunos
-// celulares que no se pueden resolver desde el servidor.
-//
-// Conekta usa su tokenizer directo (Conekta.Token.create), NO su "Checkout
-// Component" (iframe) -- ese tiene un bug real confirmado: todos sus
-// recursos cargan bien pero el iframe nunca recibe la señal para mostrarse.
-// Con el tokenizer, los campos de tarjeta viven en esta misma página (no
-// en un iframe), pero el número/cvc nunca se manda a nuestro servidor: se
-// tokenizan en el navegador y solo el token_id resultante llega al backend.
-const CARD_PROVIDER: "stripe" | "conekta" = "conekta";
+// Proveedor de tarjeta activo. Se volvió a Stripe: la causa real de que
+// pareciera "bloqueado" era un bug nuestro en el Service Worker (ya
+// arreglado y confirmado -- no era la red del cliente). Conekta se quedó
+// atorado con un bloqueo de riesgo del lado de SU cuenta
+// (conekta.errors.parameter_validation.charge.risk_validation_amount_reaching)
+// que ni su propio soporte ha resuelto -- su código queda intacto aquí,
+// listo para retomar en cuanto ese caso se resuelva.
+const CARD_PROVIDER: "stripe" | "conekta" = "stripe";
 
 /* ─────────────────────────────────────────────────────────────
-   Dos métodos de pago: tarjeta (Conekta) y efectivo contra entrega.
-   Efectivo existe como respaldo: no depende de ningún script de
-   terceros, así que si el celular de un cliente bloquea la pasarela
-   de tarjeta por lo que sea, siempre puede pagar en efectivo en vez
-   de quedarse sin poder completar su pedido.
+   Dos métodos de pago: tarjeta (Stripe, Payment Element embebido --
+   iframe propio, los datos de la tarjeta nunca tocan nuestra página)
+   y efectivo contra entrega. Efectivo existe como respaldo: no
+   depende de ningún script de terceros, así que si el celular de un
+   cliente bloquea la pasarela de tarjeta por lo que sea, siempre
+   puede pagar en efectivo en vez de quedarse sin poder completar su
+   pedido.
    ───────────────────────────────────────────────────────────── */
 export default function CheckoutPage() {
     const router = useRouter();
