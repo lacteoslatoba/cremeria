@@ -548,9 +548,21 @@ export default function CheckoutPage() {
                         cardholderName: { id: "mp-cardholder-name", placeholder: "Nombre en la tarjeta" },
                         identificationNumber: { id: "mp-identification-number", placeholder: "Documento" },
                         installments: { id: "mp-installments" },
+                        issuer: { id: "mp-issuer" },
                     },
                     callbacks: {
-                        onFormMounted: (e: any) => { if (e) console.warn("[MP mount]", e); },
+                        // Aquí es donde MP de verdad confirma si el formulario quedó
+                        // listo -- no apenas se llama cardForm() (eso es solo el
+                        // arranque, no garantiza que haya montado bien).
+                        onFormMounted: (e: any) => {
+                            if (e) {
+                                console.error("[MP mount]", e);
+                                setError("No se pudo cargar Mercado Pago. Prueba con Stripe o efectivo.");
+                                mpFormMountedRef.current = false;
+                                return;
+                            }
+                            setMpMounted(true);
+                        },
                         onFetching: () => { setMpSubmitting(true); return () => setMpSubmitting(false); },
                         onSubmit: async () => {
                             try {
@@ -562,7 +574,6 @@ export default function CheckoutPage() {
                         },
                     },
                 });
-                setMpMounted(true);
             } catch (e) {
                 console.error("[MP] mount fail", e);
                 setError("No se pudo cargar Mercado Pago. Prueba con Stripe o efectivo.");
@@ -847,12 +858,17 @@ export default function CheckoutPage() {
                                 <div id="mp-security-code" className="h-14 flex-1" />
                             </div>
                             <div id="mp-identification-number" className="h-14" />
-                            {mpMounted && (
-                                <select id="mp-installments" aria-label="Meses sin intereses"
-                                    className="w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white outline-none focus:border-violet-400">
-                                    <option value="1" className="bg-gray-900">Meses sin intereses</option>
-                                </select>
-                            )}
+                            {/* issuer e installments deben existir en el DOM desde antes de
+                                llamar cardForm() -- ocultos con CSS (no desmontados) mientras
+                                el formulario no está listo, igual que el resto de los campos. */}
+                            <select id="mp-issuer" aria-label="Banco emisor"
+                                className={mpMounted ? "w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white outline-none focus:border-violet-400" : "hidden"}>
+                                <option value="" className="bg-gray-900">Banco emisor</option>
+                            </select>
+                            <select id="mp-installments" aria-label="Meses sin intereses"
+                                className={mpMounted ? "w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white outline-none focus:border-violet-400" : "hidden"}>
+                                <option value="1" className="bg-gray-900">Meses sin intereses</option>
+                            </select>
                             <button type="submit" disabled={mpSubmitting || !mpMounted}
                                 className="w-full py-4 rounded-2xl bg-sky-500 text-white font-bold text-lg shadow-lg shadow-sky-500/30 disabled:opacity-40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
                                 {mpSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
