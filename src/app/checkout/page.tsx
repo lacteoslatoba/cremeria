@@ -494,11 +494,14 @@ export default function CheckoutPage() {
             document.body.appendChild(s);
         }
         // Huella de dispositivo del antifraude (genera MP_DEVICE_SESSION_ID).
+        // OJO: el dominio real es www.mercadopago.com, NO js.mercadopago.com
+        // (ese subdominio ni siquiera resuelve -- estaba mal puesto antes y
+        // tiraba errores en consola sin que nadie los notara).
         if (!document.getElementById("mp-security-js")) {
             const sec = document.createElement("script");
             sec.id = "mp-security-js";
             sec.async = true;
-            sec.src = "https://js.mercadopago.com/v2/security.js";
+            sec.src = "https://www.mercadopago.com/v2/security.js";
             document.body.appendChild(sec);
         }
         const start = Date.now();

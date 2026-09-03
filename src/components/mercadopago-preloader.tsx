@@ -26,10 +26,12 @@ export function MercadoPagoPreloader() {
         }
 
         // Huella de dispositivo (fingerprint) del antifraude de MP.
+        // OJO: el dominio real es www.mercadopago.com, NO js.mercadopago.com
+        // (ese subdominio ni siquiera resuelve).
         if (!document.getElementById("mp-security-js")) {
             const sec = document.createElement("script");
             sec.id = "mp-security-js";
-            sec.src = "https://js.mercadopago.com/v2/security.js";
+            sec.src = "https://www.mercadopago.com/v2/security.js";
             sec.async = true;
             document.body.appendChild(sec);
         }
