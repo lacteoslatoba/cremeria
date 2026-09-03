@@ -851,13 +851,20 @@ export default function CheckoutPage() {
                         )}
 
                         <form id="mp-card-form" className="flex flex-col gap-3">
-                            <div id="mp-cardholder-name" className="h-14" />
+                            {/* cardNumber/expirationDate/securityCode son campos "seguros": MP monta
+                                un iframe propio adentro del div (nunca ve el número real). En cambio
+                                cardholderName e identificationNumber NO son datos sensibles y MP los
+                                lee directo de un <input> real -- si son un <div> falla con
+                                "wrong HTML Element type: expected INPUT. Received DIV". */}
+                            <input id="mp-cardholder-name" type="text" placeholder="Nombre en la tarjeta"
+                                className="h-14 px-4 rounded-xl bg-white/10 border border-white/10 text-white outline-none focus:border-violet-400 placeholder:text-gray-500" />
                             <div id="mp-card-number" className="h-14" />
                             <div className="flex gap-3">
                                 <div id="mp-expiration-date" className="h-14 flex-1" />
                                 <div id="mp-security-code" className="h-14 flex-1" />
                             </div>
-                            <div id="mp-identification-number" className="h-14" />
+                            <input id="mp-identification-number" type="text" placeholder="Documento (RFC/CURP/ID)"
+                                className="h-14 px-4 rounded-xl bg-white/10 border border-white/10 text-white outline-none focus:border-violet-400 placeholder:text-gray-500" />
                             {/* issuer e installments deben existir en el DOM desde antes de
                                 llamar cardForm() -- ocultos con CSS (no desmontados) mientras
                                 el formulario no está listo, igual que el resto de los campos. */}
