@@ -4,12 +4,10 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 import { SideNav } from "@/components/layout/side-nav";
 import { PwaUpdater } from "@/components/pwa-updater";
 import { StripePreloader } from "@/components/stripe-preloader";
-// Conekta y Mercado Pago quedan en pausa (ver CARD_PROVIDER en
-// checkout/page.tsx) -- el backend de MP ya está listo (lib, endpoints,
-// CSP) pero la pantalla de checkout todavía no lo usa, así que no tiene
-// caso precargar su SDK en cada visita. Imports comentados, no borrados,
-// para retomarlos fácil.
-// import { MercadoPagoPreloader } from "@/components/mercadopago-preloader";
+import { MercadoPagoPreloader } from "@/components/mercadopago-preloader";
+// Conekta queda en pausa (bloqueo de riesgo de su cuenta sin resolver,
+// ver checkout/page.tsx) -- import comentado, no borrado, para
+// retomarlo fácil en cuanto se resuelva ese caso.
 // import { ConektaPreloader } from "@/components/conekta-preloader";
 
 export const metadata: Metadata = {
@@ -45,13 +43,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <link rel="preconnect" href="https://api.stripe.com" />
                 <link rel="preconnect" href="https://m.stripe.network" />
                 <link rel="dns-prefetch" href="https://js.stripe.com" />
+                <link rel="preconnect" href="https://sdk.mercadopago.com" />
+                <link rel="preconnect" href="https://api.mercadopago.com" />
                 <link rel="dns-prefetch" href="https://sdk.mercadopago.com" />
             </head>
             <body>
                 <AuthGuard>
                     <PwaUpdater />
                     <StripePreloader />
-                    {/* <MercadoPagoPreloader /> -- backend listo, checkout aún no lo usa */}
+                    <MercadoPagoPreloader />
                     {/* <ConektaPreloader /> -- en pausa junto con Conekta */}
                     {/* Desktop sidebar — only visible on md+ */}
                     <SideNav />
