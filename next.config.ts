@@ -26,10 +26,12 @@ const withPWA = withPWAInit({
     clientsClaim: true,
     runtimeCaching: [
       {
-        // Aplica a Stripe (en pausa) y Conekta (proveedor activo) por igual --
-        // ninguna pasarela de pago debe pasar por la lógica de caché genérica.
+        // Aplica a Stripe, Mercado Pago y Conekta por igual -- ninguna pasarela
+        // de pago debe pasar por la lógica de caché genérica del Service Worker.
         urlPattern: ({ url }: { url: URL }) =>
-          url.hostname.endsWith(".stripe.com") || url.hostname.endsWith(".conekta.io"),
+          url.hostname.endsWith(".stripe.com") ||
+          url.hostname.endsWith(".conekta.io") ||
+          url.hostname.endsWith(".mercadopago.com"),
         handler: "NetworkOnly",
       },
     ],
@@ -75,15 +77,15 @@ const nextConfig: NextConfig = {
             // tokeniza la tarjeta en el navegador y llama directo a la API
             // de Conekta (connect-src) -- los campos de tarjeta viven en
             // nuestra propia página, no en un iframe.
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.conekta.io https://d3fxnri0mz3rya.cloudfront.net https://unpkg.com",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.conekta.io https://d3fxnri0mz3rya.cloudfront.net https://unpkg.com https://sdk.mercadopago.com https://js.mercadopago.com",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com data:",
             "img-src 'self' data: blob: https: http:",
             // dc.conekta.com recoge la huella del dispositivo para prevención de
             // fraude -- sin esto Conekta puede rechazar pagos legítimos como
             // riesgo alto (nos pasó exactamente esto antes con Mercado Pago).
-            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network https://*.conekta.io https://*.conekta.com https://notify.bugsnag.com https://sessions.bugsnag.com",
-            "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://q.stripe.com",
+            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network https://*.conekta.io https://*.conekta.com https://*.mercadopago.com https://*.mlstatic.com https://notify.bugsnag.com https://sessions.bugsnag.com",
+            "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://q.stripe.com https://*.mercadopago.com https://*.mlstatic.com",
             "worker-src 'self' blob:",
             "manifest-src 'self'",
           ].join("; "),
