@@ -74,12 +74,18 @@ const nextConfig: NextConfig = {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com data:",
             "img-src 'self' data: blob: https: http:",
-            // fonts.googleapis.com: el Payment Element de Stripe hace un fetch()
-            // propio a la tipografia que le pasamos en appearance.fonts (Plus
-            // Jakarta Sans, para que combine con el resto de la app) -- sin
-            // esto tira un error de CSP en consola (el iframe monta igual,
-            // pero con la tipografia default de Stripe en vez de la nuestra).
-            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network https://fonts.googleapis.com https://notify.bugsnag.com https://sessions.bugsnag.com",
+            // fonts.googleapis.com/fonts.gstatic.com: el Payment Element de
+            // Stripe hace fetch() propio de la tipografia que le pasamos en
+            // appearance.fonts (Plus Jakarta Sans, para que combine con el
+            // resto de la app): primero la hoja de estilos (googleapis.com)
+            // y luego el archivo .woff2 real (gstatic.com) -- faltaba este
+            // segundo, así que el iframe montaba con la tipografia default.
+            // js.stripe.com también va aquí (no solo en script-src): Stripe.js
+            // hace su propio fetch() interno a ese mismo dominio al iniciar
+            // (config/telemetría) -- sin esto Stripe.js truena en silencio y
+            // window.Stripe nunca se define, tumbando el formulario de tarjeta
+            // por completo ("No se pudo conectar con el sistema de pago").
+            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://js.stripe.com https://m.stripe.network https://fonts.googleapis.com https://fonts.gstatic.com https://notify.bugsnag.com https://sessions.bugsnag.com",
             "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://q.stripe.com",
             "worker-src 'self' blob:",
             "manifest-src 'self'",
