@@ -19,11 +19,22 @@ type Delivery = {
 function TrackingContent() {
     const searchParams = useSearchParams();
     const orderId = searchParams.get("orderId");
+    const paid = searchParams.get("paid"); // "1" = pago con tarjeta aprobado, "cash" = pedido a pagar en efectivo
 
     const [status, setStatus] = useState<string | null>(null);
     const [delivery, setDelivery] = useState<Delivery | null>(null);
     const [deliveryCode, setDeliveryCode] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    // Aviso de confirmación que se ve justo al llegar aquí recién pagado --
+    // se retira solo después de unos segundos, no hace falta que el cliente
+    // lo cierre a mano.
+    const [showPaidBanner, setShowPaidBanner] = useState(!!paid);
+
+    useEffect(() => {
+        if (!paid) return;
+        const t = setTimeout(() => setShowPaidBanner(false), 5000);
+        return () => clearTimeout(t);
+    }, [paid]);
 
     useEffect(() => {
         if (!orderId) {
@@ -61,16 +72,36 @@ function TrackingContent() {
 
     const hasLiveLocation = !!(delivery?.currentLat && delivery?.currentLng);
 
+    // Aviso de "pago realizado con éxito" (o "pedido confirmado" si es
+    // efectivo) -- flota arriba de todo, se ve en cualquiera de las 3
+    // pantallas de abajo (cargando, error, o el seguimiento normal).
+    const paidBanner = showPaidBanner && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-[420px] px-5 py-4 rounded-2xl bg-green-500 text-white shadow-[0_10px_30px_rgba(34,197,94,0.4)] flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+            <CheckCircle2 size={24} className="shrink-0" />
+            <p className="font-bold text-sm leading-snug">
+                {paid === "cash" ? "¡Pedido confirmado! Pagas en efectivo al recibir." : "¡Tu pago fue realizado con éxito!"}
+            </p>
+        </div>
+    );
+
     if (loading) {
-        return <div className="absolute inset-0 flex justify-center items-center bg-[#121212] z-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
+        return (
+            <>
+                {paidBanner}
+                <div className="absolute inset-0 flex justify-center items-center bg-[#121212] z-20"><Loader2 className="animate-spin text-primary" size={40} /></div>
+            </>
+        );
     }
 
     if (!orderId || !status) {
         return (
-            <div className="absolute inset-0 flex flex-col gap-3 justify-center items-center bg-[#121212] z-20 text-white">
-                <Info size={40} className="text-gray-400" />
-                <p>Orden no encontrada o no seleccionada.</p>
-            </div>
+            <>
+                {paidBanner}
+                <div className="absolute inset-0 flex flex-col gap-3 justify-center items-center bg-[#121212] z-20 text-white">
+                    <Info size={40} className="text-gray-400" />
+                    <p>Orden no encontrada o no seleccionada.</p>
+                </div>
+            </>
         );
     }
 
@@ -83,6 +114,8 @@ function TrackingContent() {
 
     return (
         <>
+            {paidBanner}
+
             {/* Map Area */}
             <div className="absolute inset-0 top-0 h-[55%] w-full bg-[#121212] flex items-center justify-center">
                 {step2Active && !step3Active && hasLiveLocation ? (

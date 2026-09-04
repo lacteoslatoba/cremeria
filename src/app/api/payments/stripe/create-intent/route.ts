@@ -47,7 +47,13 @@ export async function POST(request: Request) {
             description: `Pedido Cremería del Rancho #${order.id.slice(-6).toUpperCase()}`,
             metadata: { orderId: order.id },
             receipt_email: body.payerEmail || undefined,
-            automatic_payment_methods: { enabled: true },
+            // Antes "automatic_payment_methods: { enabled: true }" -- eso
+            // agregaba automaticamente cualquier metodo activo en el
+            // Dashboard de Stripe, incluido "Link" (la caja de "Opcional:
+            // guardar mis datos..." con correo/celular/nombre que aparecia
+            // arriba del boton de Pagar). Fijar el tipo a solo tarjeta la
+            // quita de raiz sin tocar nada del lado de Stripe.
+            payment_method_types: ["card"],
         });
 
         await prisma.order.update({

@@ -245,7 +245,7 @@ export default function CheckoutPage() {
 
             if (order.paymentStatus === "APPROVED") {
                 clearCart();
-                router.push(`/tracking?orderId=${stripeOrderIdRef.current}`);
+                router.push(`/tracking?orderId=${stripeOrderIdRef.current}&paid=1`);
             } else if (order.paymentStatus === "REJECTED") {
                 setError("Tu pago no se completó. No se hizo ningún cargo.");
                 setStripeSubmitting(false);
@@ -418,7 +418,7 @@ export default function CheckoutPage() {
                     }
                     if (data.paymentStatus === "APPROVED") {
                         clearCart();
-                        router.push(`/tracking?orderId=${data.orderId}`);
+                        router.push(`/tracking?orderId=${data.orderId}&paid=1`);
                     } else if (data.paymentStatus === "REJECTED") {
                         setError("Tu pago no se completó. No se hizo ningún cargo.");
                         setConektaSubmitting(false);
@@ -464,7 +464,7 @@ export default function CheckoutPage() {
                 return;
             }
             clearCart();
-            router.push(`/tracking?orderId=${data.id}`);
+            router.push(`/tracking?orderId=${data.id}&paid=cash`);
         } catch {
             setError("Error al crear el pedido. Verifica tu conexión e intenta de nuevo.");
             setCashSubmitting(false);
@@ -618,7 +618,7 @@ export default function CheckoutPage() {
                 }),
             });
             const data = await res.json();
-            if (data.paymentStatus === "APPROVED") { clearCart(); router.push(`/tracking?orderId=${data.orderId}`); return; }
+            if (data.paymentStatus === "APPROVED") { clearCart(); router.push(`/tracking?orderId=${data.orderId}&paid=1`); return; }
             if (data.paymentStatus === "REJECTED") { setError(data.error || "Tu pago no se completó. No se hizo ningún cargo."); setMpSubmitting(false); return; }
             setMpSubmitting(false);
             setError("Tu pago quedó en proceso. Te confirmamos el pedido en unos momentos.");

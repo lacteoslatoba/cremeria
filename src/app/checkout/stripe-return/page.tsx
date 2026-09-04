@@ -31,7 +31,7 @@ function StripeReturnContent() {
                 if (cancelled) return;
 
                 if (!res.ok) { setError(data.error || "No se pudo verificar tu pago."); return; }
-                if (data.paymentStatus === "APPROVED") { router.push(`/tracking?orderId=${orderId}`); return; }
+                if (data.paymentStatus === "APPROVED") { router.push(`/tracking?orderId=${orderId}&paid=1`); return; }
                 if (data.paymentStatus === "REJECTED") { setError("Tu pago con Stripe no se completó. No se hizo ningún cargo."); return; }
 
                 attempts++;
