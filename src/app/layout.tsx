@@ -4,9 +4,7 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 import { SideNav } from "@/components/layout/side-nav";
 import { PwaUpdater } from "@/components/pwa-updater";
 import { StripePreloader } from "@/components/stripe-preloader";
-// Mercado Pago ya quedó integrado y probado (ver checkout/page.tsx), pero por
-// ahora solo se expone Stripe al cliente -- import comentado, no borrado.
-// import { MercadoPagoPreloader } from "@/components/mercadopago-preloader";
+import { MercadoPagoPreloader } from "@/components/mercadopago-preloader";
 // Conekta queda en pausa (bloqueo de riesgo de su cuenta sin resolver,
 // ver checkout/page.tsx) -- import comentado, no borrado, para
 // retomarlo fácil en cuanto se resuelva ese caso.
@@ -53,7 +51,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <AuthGuard>
                     <PwaUpdater />
                     <StripePreloader />
-                    {/* <MercadoPagoPreloader /> -- en pausa, ver checkout/page.tsx */}
+                    <MercadoPagoPreloader />
                     {/* <ConektaPreloader /> -- en pausa junto con Conekta */}
                     {/* Desktop sidebar — only visible on md+ */}
                     <SideNav />

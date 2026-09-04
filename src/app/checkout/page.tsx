@@ -129,7 +129,17 @@ export default function CheckoutPage() {
             }
             loadStripeSDK();
         } else {
-            setError("No se pudo conectar con el sistema de pago. Verifica tu conexión a internet e intenta de nuevo.");
+            // Se agotaron los reintentos: js.stripe.com de verdad no carga en
+            // esta conexión (confirmado en un caso real: algunos operadores
+            // móviles -- ej. Telcel -- bloquean ese dominio puntual aunque el
+            // resto de internet funcione bien, incluido api.stripe.com). En
+            // vez de dejar al cliente varado, se cambia solo a Mercado Pago
+            // (su SDK vive en otros dominios, no bloqueados) sin que tenga
+            // que hacer nada. Si Mercado Pago también fallara, esa pantalla
+            // ya tiene su propio aviso + reintento, y de ahí puede pasar a
+            // Efectivo con el enlace de "¿Sigue sin cargar?".
+            setError("");
+            setCardGateway("mercadopago");
         }
     };
 
@@ -859,6 +869,15 @@ export default function CheckoutPage() {
                             >
                                 Reintentar Mercado Pago
                             </button>
+                        )}
+
+                        {/* Si Stripe Y Mercado Pago fallan (ambos bloqueados/caídos en
+                            esa conexión), Efectivo sigue siendo la última salida para
+                            no dejar al cliente sin poder completar su pedido. */}
+                        {method === "CARD" && !mpMounted && error && (
+                            <p className="text-center text-xs text-gray-500">
+                                ¿Sigue sin cargar? Cambia a <button onClick={() => { setMethod("CASH"); setError(""); }} className="text-green-400 font-bold underline">Efectivo</button> para completar tu pedido de todos modos.
+                            </p>
                         )}
 
                         <form id="mp-card-form" className="flex flex-col gap-3">
