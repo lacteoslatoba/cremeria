@@ -150,13 +150,22 @@ export default function CheckoutPage() {
         setStripeSubmitting(true);
         setError("");
         try {
+            // La llave pública no cambia -- se guarda en localStorage para no
+            // volver a pedirla en la próxima visita (ahorra una ida y vuelta
+            // completa al servidor). No es sensible, por eso se llama "pública".
             if (!stripePublicKeyRef.current) {
-                const cfg = await fetch("/api/payments/stripe/config").then(r => r.json());
-                if (!cfg.publicKey) throw new Error("El pago con tarjeta no está disponible todavía.");
-                stripePublicKeyRef.current = cfg.publicKey;
+                const cached = typeof window !== "undefined" ? window.localStorage.getItem("stripe_pk") : null;
+                if (cached) stripePublicKeyRef.current = cached;
             }
 
-            const res = await fetch("/api/payments/stripe/create-intent", {
+            // config y create-intent no dependen uno del otro -- antes se
+            // esperaban en serie (dos idas y vueltas seguidas al servidor);
+            // ahora van en paralelo, que es justo la mitad de esa espera.
+            const configPromise = stripePublicKeyRef.current
+                ? Promise.resolve({ publicKey: stripePublicKeyRef.current })
+                : fetch("/api/payments/stripe/config").then(r => r.json());
+
+            const intentPromise = fetch("/api/payments/stripe/create-intent", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -168,6 +177,12 @@ export default function CheckoutPage() {
                     items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
                 }),
             });
+
+            const [cfg, res] = await Promise.all([configPromise, intentPromise]);
+            if (!cfg.publicKey) throw new Error("El pago con tarjeta no está disponible todavía.");
+            stripePublicKeyRef.current = cfg.publicKey;
+            try { window.localStorage.setItem("stripe_pk", cfg.publicKey); } catch { /* modo privado, etc. -- no pasa nada */ }
+
             const data = await res.json();
             if (!res.ok || !data.clientSecret) {
                 setError(data.error || "No se pudo iniciar el pago.");
