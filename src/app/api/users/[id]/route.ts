@@ -21,9 +21,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         const { id } = await params;
         const body = await request.json();
 
+        // Normalizado igual que en registro/login (trim + minúsculas) --
+        // si no, "Juan@x.com" y "juan@x.com" se tratan como distintos y se
+        // cuela un duplicado que el registro sí habría rechazado.
+        const cleanEmail = body.email ? String(body.email).trim().toLowerCase() : null;
+
         // Check if another user already has this email
-        if (body.email) {
-            const existingWithEmail = await prisma.user.findUnique({ where: { email: body.email } });
+        if (cleanEmail) {
+            const existingWithEmail = await prisma.user.findUnique({ where: { email: cleanEmail } });
             if (existingWithEmail && existingWithEmail.id !== id) {
                 return NextResponse.json({ error: "Este correo ya está en uso" }, { status: 400 });
             }
@@ -37,7 +42,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             where: { id },
             data: {
                 name: body.name,
-                email: body.email ?? null,
+                email: cleanEmail,
                 phone: body.phone ?? null,
                 ...(safeRole ? { role: safeRole } : {}),
             },

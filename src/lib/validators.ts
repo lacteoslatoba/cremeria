@@ -9,6 +9,7 @@ export const ALLOWED_ROLES = ["CUSTOMER", "DELIVERY", "ADMIN"] as const;
 export const PRODUCT_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 export const PAYMENT_METHODS = ["CASH", "STRIPE"] as const;
 export const PAYMENT_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
+export const ORDER_STATUSES = ["PENDING", "PREPARING", "OUT_FOR_DELIVERY", "COMPLETED", "CANCELLED"] as const;
 
 const text = (v: unknown): string | undefined =>
     typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;

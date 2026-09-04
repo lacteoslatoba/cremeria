@@ -1,9 +1,28 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
     try {
+        cleanupRateLimitBuckets();
         const { identifier } = await req.json();
+
+        if (!identifier || typeof identifier !== "string") {
+            return NextResponse.json({ error: "Identificador requerido" }, { status: 400 });
+        }
+
+        // Límite por IP y por identificador -- sin esto cualquiera podía
+        // pedir códigos sin parar y "bombardear" de SMS el teléfono de otra
+        // persona (cada SMS de Twilio cuesta dinero real, además de acosar
+        // a quien lo recibe).
+        const ip = clientIp(req);
+        const cleanId = identifier.trim().toLowerCase();
+        const throttledIp = rateLimit(`forgot-pw-req-ip:${ip}`, 8, 15 * 60 * 1000);
+        const throttledId = rateLimit(`forgot-pw-req-id:${cleanId}`, 3, 15 * 60 * 1000);
+        if (!throttledIp.allowed || !throttledId.allowed) {
+            const retry = Math.max(throttledIp.retryAfterSeconds || 0, throttledId.retryAfterSeconds || 0);
+            return NextResponse.json({ error: `Demasiados intentos. Intenta en ${retry}s.` }, { status: 429 });
+        }
 
         // Find user by email, phone, or username
         const user = await prisma.user.findFirst({
@@ -71,7 +90,12 @@ export async function POST(req: Request) {
         return NextResponse.json({
             success: true,
             message: "Código generado con éxito.",
-            _dev_code: smsSent ? undefined : resetToken // Only send back if SMS was not sent / Twilio not config
+            // Solo en desarrollo: nunca se regresa el código real en la
+            // respuesta en producción, ni siquiera si el envío del SMS
+            // falla -- de lo contrario cualquiera podría restablecer la
+            // contraseña de cualquier cuenta sin tener el teléfono, con
+            // solo forzar que Twilio falle (o esperar a que falle solo).
+            _dev_code: process.env.NODE_ENV === "production" ? undefined : (smsSent ? undefined : resetToken)
         });
 
     } catch (error) {

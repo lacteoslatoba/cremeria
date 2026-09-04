@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { notifyOrderStatus } from "@/lib/notify";
 import { requireAuth, readSession } from "@/lib/auth";
+import { ORDER_STATUSES } from "@/lib/validators";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
     const auth = await requireAuth(request, ["ADMIN", "DELIVERY"]);
@@ -11,6 +12,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
     try {
         const body = await request.json();
         const { orderId } = await params;
+
+        // Solo estados conocidos -- evita que un string arbitrario (typo o
+        // valor inesperado del cliente) quede guardado como status de la orden.
+        if (body.status !== undefined && !ORDER_STATUSES.includes(body.status)) {
+            return NextResponse.json({ error: "Estado de pedido inválido" }, { status: 400 });
+        }
 
         // ── Verificación de entrega con código ──
         // El repartidor (DELIVERY) debe capturar el código que el cliente le da

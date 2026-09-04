@@ -27,18 +27,21 @@ type PrefetchPayload = {
 type PendingPrefetch = {
     promise: Promise<{ ok: boolean; data: any }>;
     total: number;
-    userId?: string;
     orderIdPromise: Promise<string | null>;
 };
 
 let pending: PendingPrefetch | null = null;
 
-function cancelOrder(orderId: string, userId?: string) {
-    if (!orderId || !userId) return;
+function cancelOrder(orderId: string) {
+    // El dueño ya no se manda en el body -- el servidor lo saca de la sesión
+    // (cookie) para que nadie pueda cancelar el pedido pendiente de otra
+    // persona mandando un userId ajeno. Solo aplica a usuarios con sesión
+    // (el carrito solo precarga para logueados, nunca invitados).
+    if (!orderId) return;
     fetch("/api/payments/stripe/cancel-pending", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, userId }),
+        body: JSON.stringify({ orderId }),
     }).catch(() => { /* si falla, la orden vieja se queda PENDING -- no rompe nada, solo desperdicia el apartado */ });
 }
 
@@ -48,7 +51,7 @@ export function prefetchStripeIntent(payload: PrefetchPayload) {
     // para no ir dejando stock apartado a cada cambio de carrito.
     if (pending) {
         const prev = pending;
-        prev.orderIdPromise.then((orderId) => { if (orderId) cancelOrder(orderId, prev.userId); });
+        prev.orderIdPromise.then((orderId) => { if (orderId) cancelOrder(orderId); });
     }
 
     const promise = fetch("/api/payments/stripe/create-intent", {
@@ -59,7 +62,7 @@ export function prefetchStripeIntent(payload: PrefetchPayload) {
 
     const orderIdPromise = promise.then((r) => (r.ok && r.data?.orderId) ? r.data.orderId : null);
 
-    pending = { promise, total: payload.total, userId: payload.userId, orderIdPromise };
+    pending = { promise, total: payload.total, orderIdPromise };
     return promise;
 }
 
@@ -73,7 +76,7 @@ export function consumePrefetchedStripeIntent(currentTotal: number) {
     pending = null;
 
     if (Math.abs(found.total - currentTotal) > 0.01) {
-        found.orderIdPromise.then((orderId) => { if (orderId) cancelOrder(orderId, found.userId); });
+        found.orderIdPromise.then((orderId) => { if (orderId) cancelOrder(orderId); });
         return null;
     }
     return found.promise;
