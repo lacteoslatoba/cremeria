@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, Loader2, ClipboardList, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, Loader2, ClipboardList, CheckCircle2, Trash2 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { BottomNav } from "@/components/layout/bottom-nav";
 
@@ -40,10 +40,26 @@ function StatusBadge({ status }: { status: string }) {
     );
 }
 
-function OrderCard({ order, highlight }: { order: MyOrder; highlight?: boolean }) {
+function OrderCard({ order, highlight, onDeleted }: { order: MyOrder; highlight?: boolean; onDeleted?: (id: string) => void }) {
     const folio = order.id.slice(-6).toUpperCase();
+    // Pedidos en curso no se pueden "eliminar" -- perdería el rastro de una
+    // entrega activa. Solo aplica al historial (ya completado/cancelado).
+    const [confirming, setConfirming] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    const handleDelete = async () => {
+        setDeleting(true);
+        try {
+            const res = await fetch(`/api/orders/${order.id}/hide`, { method: "POST" });
+            if (res.ok) onDeleted?.(order.id);
+            else setDeleting(false);
+        } catch {
+            setDeleting(false);
+        }
+    };
+
     return (
-        <div className={`rounded-2xl border p-4 flex flex-col gap-3 mb-3 ${highlight
+        <div className={`rounded-2xl border p-4 flex flex-col gap-3 mb-3 transition-opacity ${deleting ? "opacity-40" : ""} ${highlight
             ? "bg-primary/5 border-primary/40 shadow-[0_4px_20px_rgba(238,43,52,0.15)]"
             : "bg-white border-gray-100 shadow-sm"}`}>
             <div className="flex justify-between items-start">
@@ -73,9 +89,31 @@ function OrderCard({ order, highlight }: { order: MyOrder; highlight?: boolean }
                 ))}
             </div>
 
-            <Link href={`/tracking?orderId=${order.id}`} className="mt-1 text-sm font-semibold text-primary hover:underline">
-                Ver seguimiento →
-            </Link>
+            <div className="flex items-center justify-between mt-1">
+                <Link href={`/tracking?orderId=${order.id}`} className="text-sm font-semibold text-primary hover:underline">
+                    Ver seguimiento →
+                </Link>
+
+                {onDeleted && !confirming && (
+                    <button
+                        onClick={() => setConfirming(true)}
+                        disabled={deleting}
+                        aria-label="Eliminar pedido"
+                        className="p-2 -m-2 text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                )}
+                {onDeleted && confirming && (
+                    <div className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-500">¿Eliminar?</span>
+                        <button onClick={handleDelete} disabled={deleting} className="font-bold text-red-500">
+                            {deleting ? <Loader2 className="animate-spin" size={14} /> : "Sí"}
+                        </button>
+                        <button onClick={() => setConfirming(false)} disabled={deleting} className="text-gray-400">No</button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -160,7 +198,13 @@ function MyOrdersContent() {
                             {history.length === 0 ? (
                                 <p className="text-sm text-gray-400 italic">Todavía no hay historial.</p>
                             ) : (
-                                history.map(o => <OrderCard key={o.id} order={o} />)
+                                history.map(o => (
+                                    <OrderCard
+                                        key={o.id}
+                                        order={o}
+                                        onDeleted={(id) => setOrders(prev => prev.filter(x => x.id !== id))}
+                                    />
+                                ))
                             )}
                         </section>
                     </>

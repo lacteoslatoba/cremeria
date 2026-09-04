@@ -12,7 +12,10 @@ export async function GET(request: Request) {
     }
 
     const orders = await prisma.order.findMany({
-        where: { userId: session.id },
+        // hiddenFromUser: el cliente los "eliminó" de su lista -- siguen
+        // existiendo de verdad (el admin los ve completos), solo no se
+        // le vuelven a mostrar a él.
+        where: { userId: session.id, hiddenFromUser: false },
         orderBy: { createdAt: "desc" },
         include: {
             items: { include: { product: { select: { id: true, name: true, image: true } } } },

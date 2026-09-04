@@ -76,6 +76,10 @@ model Order {
   items         OrderItem[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  // El cliente puede "eliminar" un pedido de su propia lista (Mis pedidos)
+  // sin que se borre de verdad -- el admin lo sigue viendo entero para
+  // reportes/contabilidad. No aplica a nada del lado del admin/repartidor.
+  hiddenFromUser Boolean    @default(false)
 }
 
 model OrderItem {
