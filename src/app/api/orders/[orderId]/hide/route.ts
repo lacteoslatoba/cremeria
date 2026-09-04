@@ -7,18 +7,22 @@ import { readSession } from "@/lib/auth";
 // aparezca en su historial. El admin lo sigue viendo completo. Exige que
 // el pedido sea del usuario que hace la petición -- nadie puede ocultar
 // (ni mucho menos alterar) el pedido de otra persona.
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+//
+// Vive bajo [orderId] (no [id]) para coincidir con el otro segmento
+// dinámico que ya existía en esta misma ruta -- Next.js no permite dos
+// nombres de slug distintos en el mismo nivel de la URL.
+export async function POST(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
     const session = await readSession(request);
     if (!session?.id) {
         return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const { id } = await params;
-    const order = await prisma.order.findUnique({ where: { id }, select: { userId: true } });
+    const { orderId } = await params;
+    const order = await prisma.order.findUnique({ where: { id: orderId }, select: { userId: true } });
     if (!order || order.userId !== session.id) {
         return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 });
     }
 
-    await prisma.order.update({ where: { id }, data: { hiddenFromUser: true } });
+    await prisma.order.update({ where: { id: orderId }, data: { hiddenFromUser: true } });
     return NextResponse.json({ ok: true });
 }
