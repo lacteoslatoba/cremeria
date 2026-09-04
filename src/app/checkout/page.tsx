@@ -273,7 +273,17 @@ export default function CheckoutPage() {
             // cliente -- se ocultan esos campos y se mandan directo en
             // confirmPayment() (ver handleStripePay), sin que el cliente
             // tenga que volver a escribirlos.
+            //
+            // paymentMethodTypes: ["card"] -- Al agregar la Customer Session
+            // (para el check de "Guardar esta tarjeta") volvió a aparecer todo
+            // el bloque de Stripe Link (correo/celular/nombre + "acepto crear
+            // una cuenta..."), aunque el PaymentIntent ya estaba fijado a solo
+            // "card" del lado del servidor. Fijarlo también aquí, del lado del
+            // Payment Element, es lo que de verdad lo quita -- la Customer
+            // Session ofrece Link como su propio mecanismo de guardado sin
+            // importar el payment_method_types del intent.
             const paymentElement = elements.create("payment", {
+                paymentMethodTypes: ["card"],
                 fields: {
                     billingDetails: { name: "never", email: "never", phone: "never" },
                 },
