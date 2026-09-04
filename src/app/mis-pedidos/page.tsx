@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, Loader2, ClipboardList, CheckCircle2, Trash2 } from "lucide-react";
+import { ChevronLeft, Loader2, ClipboardList, CheckCircle2, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { BottomNav } from "@/components/layout/bottom-nav";
 
@@ -16,6 +16,10 @@ type MyOrder = {
 };
 
 const ACTIVE = ["PENDING", "PREPARING", "OUT_FOR_DELIVERY"];
+// El historial ya no se muestra completo de una -- con muchos pedidos se
+// vuelve una lista interminable. Se ven los más recientes y el resto queda
+// oculto tras "Ver historial completo".
+const HISTORY_PREVIEW_COUNT = 5;
 
 const STATUS_LABEL: Record<string, string> = {
     PENDING: "Pendiente",
@@ -125,6 +129,7 @@ function MyOrdersContent() {
     const { user } = useAuthStore();
     const [orders, setOrders] = useState<MyOrder[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showFullHistory, setShowFullHistory] = useState(false);
     // Aviso de confirmación que se ve justo al llegar aquí recién pagado --
     // se retira solo después de unos segundos.
     const [showPaidBanner, setShowPaidBanner] = useState(!!paid);
@@ -147,7 +152,11 @@ function MyOrdersContent() {
     }, []);
 
     const active = orders.filter(o => ACTIVE.includes(o.status));
+    // La API ya regresa los pedidos más nuevos primero, así que el "preview"
+    // es simplemente cortar los primeros N.
     const history = orders.filter(o => !ACTIVE.includes(o.status));
+    const hiddenHistoryCount = Math.max(0, history.length - HISTORY_PREVIEW_COUNT);
+    const visibleHistory = showFullHistory ? history : history.slice(0, HISTORY_PREVIEW_COUNT);
 
     return (
         <main className="min-h-[100dvh] bg-background pb-24">
@@ -198,13 +207,33 @@ function MyOrdersContent() {
                             {history.length === 0 ? (
                                 <p className="text-sm text-gray-400 italic">Todavía no hay historial.</p>
                             ) : (
-                                history.map(o => (
-                                    <OrderCard
-                                        key={o.id}
-                                        order={o}
-                                        onDeleted={(id) => setOrders(prev => prev.filter(x => x.id !== id))}
-                                    />
-                                ))
+                                <>
+                                    {visibleHistory.map(o => (
+                                        <OrderCard
+                                            key={o.id}
+                                            order={o}
+                                            onDeleted={(id) => setOrders(prev => prev.filter(x => x.id !== id))}
+                                        />
+                                    ))}
+                                    {hiddenHistoryCount > 0 && !showFullHistory && (
+                                        <button
+                                            onClick={() => setShowFullHistory(true)}
+                                            className="w-full flex items-center justify-center gap-1.5 py-3 text-sm font-semibold text-primary hover:underline"
+                                        >
+                                            Ver historial completo (+{hiddenHistoryCount})
+                                            <ChevronDown size={16} />
+                                        </button>
+                                    )}
+                                    {showFullHistory && history.length > HISTORY_PREVIEW_COUNT && (
+                                        <button
+                                            onClick={() => setShowFullHistory(false)}
+                                            className="w-full flex items-center justify-center gap-1.5 py-3 text-sm font-semibold text-gray-400 hover:underline"
+                                        >
+                                            Ver menos
+                                            <ChevronUp size={16} />
+                                        </button>
+                                    )}
+                                </>
                             )}
                         </section>
                     </>
