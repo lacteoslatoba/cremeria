@@ -21,6 +21,39 @@ export default function CartPage() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const total = subtotal;
+
+    // Se adelanta la creación de la orden + PaymentIntent de Stripe en
+    // cuanto el cliente está viendo su carrito con productos -- no hasta que
+    // toca "Continuar". Así, para cuando de verdad llega a pagar, el
+    // formulario de tarjeta puede estar listo al instante (como en apps de
+    // primer nivel). Con debounce de 700ms: si sigue cambiando cantidades,
+    // no se dispara un pedido nuevo por cada clic, solo cuando el carrito
+    // se queda quieto un momento. stripe-prefetch.ts cancela solo el pedido
+    // adelantado anterior si este lo reemplaza, para no dejar stock
+    // apartado de más por cambios de carrito que nadie llega a pagar.
+    useEffect(() => {
+        if (!mounted) return;
+        if (items.length === 0) return;
+        if (user?.role === "GUEST" || !user) return;
+
+        const payerEmail = user.email || (user.phone ? `${user.phone}@cremeriadelrancho.com` : undefined);
+        const t = setTimeout(() => {
+            prefetchStripeIntent({
+                userId: user.id,
+                customerName: user.name || user.email || "Cliente",
+                address: "Ubicación GPS (Actual)",
+                total,
+                payerEmail,
+                items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
+            }).catch(() => { /* si falla, el checkout simplemente pide una orden nueva */ });
+        }, 700);
+
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mounted, user?.id, user?.role, total, JSON.stringify(items.map(i => `${i.productId}:${i.quantity}`))]);
+
     const handleCheckout = () => {
         if (items.length === 0) return;
 
@@ -29,27 +62,8 @@ export default function CartPage() {
             return;
         }
 
-        // Se adelanta la creación de la orden + PaymentIntent de Stripe
-        // justo aquí, en el clic -- para cuando la pantalla de checkout
-        // monte, la orden ya está lista (o a punto) en vez de recién
-        // empezar a pedirse ahí. Mismo momento/riesgo de apartar stock que
-        // antes (ya se creaba al llegar a checkout de todos modos), solo
-        // que ahora no se pierde el tiempo de la transición de pantalla.
-        const payerEmail = user?.email || (user?.phone ? `${user.phone}@cremeriadelrancho.com` : undefined);
-        prefetchStripeIntent({
-            userId: user?.id,
-            customerName: user?.name || user?.email || "Cliente",
-            address: "Ubicación GPS (Actual)",
-            total,
-            payerEmail,
-            items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
-        }).catch(() => { /* si falla, el checkout simplemente pide una orden nueva */ });
-
         router.push("/checkout");
     };
-
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const total = subtotal;
 
     if (!mounted) return null; // Avoid SSR hydration mismatch flashes
 

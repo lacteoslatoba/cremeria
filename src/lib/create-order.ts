@@ -95,3 +95,33 @@ export async function createOrderWithStockCheck(params: {
         return newOrder;
     });
 }
+
+// Cancela una orden PENDING y devuelve el stock que había apartado -- se usa
+// cuando se adelantó la creación de un intento de pago (ver prefetch en
+// cart/page.tsx) pero el cliente cambió el carrito antes de llegar a pagar:
+// el pedido viejo ya no sirve y no debe quedarse con stock apartado para
+// siempre. `ownerUserId`, si se pasa, exige que coincida con el dueño real
+// de la orden -- así nadie puede cancelar (y liberar stock de) el pedido
+// pendiente de otra persona mandando un id ajeno.
+export async function cancelPendingOrderAndRestoreStock(orderId: string, ownerUserId?: string) {
+    const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { paymentStatus: true, userId: true },
+    });
+    if (!order || order.paymentStatus !== "PENDING") return false;
+    if (ownerUserId && order.userId !== ownerUserId) return false;
+
+    await prisma.$transaction(async (tx) => {
+        await tx.order.update({ where: { id: orderId }, data: { paymentStatus: "REJECTED" } });
+        const items = await tx.orderItem.findMany({ where: { orderId } });
+        await Promise.all(
+            items.map((item) =>
+                tx.product.update({
+                    where: { id: item.productId },
+                    data: { stock: { increment: item.quantity } },
+                })
+            )
+        );
+    });
+    return true;
+}
