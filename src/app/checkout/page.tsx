@@ -663,10 +663,14 @@ export default function CheckoutPage() {
                     </button>
                 </div>
 
-                {/* Sub-selector de pasarela de TARJETA (solo en la pestaña de
-                    tarjeta). Ambos formularios (Stripe y Mercado Pago) quedarían
-                    listos si se cargan, pero solo el elegido se muestra. */}
-                {method === "CARD" && (
+                {/* Sub-selector de pasarela de TARJETA -- EN PAUSA. Mercado Pago
+                    ya quedó integrado y probado (Card Form monta bien en
+                    producción), pero por ahora solo se expone Stripe al
+                    cliente. cardGateway nace en "stripe" y nada más lo puede
+                    cambiar a "mercadopago" mientras este selector esté oculto,
+                    así que el flujo de MP queda dormido sin tocar su código
+                    (mismo patrón que Conekta). Para reactivarlo, descomentar. */}
+                {false && method === "CARD" && (
                     <div className="flex gap-2 p-1 rounded-2xl bg-white/5 border border-white/10">
                         <button
                             onClick={() => { setCardGateway("stripe"); setError(""); }}
