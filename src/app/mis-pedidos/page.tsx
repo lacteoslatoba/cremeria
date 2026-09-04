@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ChevronLeft, Loader2, ClipboardList } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronLeft, Loader2, ClipboardList, CheckCircle2 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { BottomNav } from "@/components/layout/bottom-nav";
 
@@ -82,9 +82,20 @@ function OrderCard({ order, highlight }: { order: MyOrder; highlight?: boolean }
 
 function MyOrdersContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const paid = searchParams.get("paid"); // "1" = pago con tarjeta aprobado, "cash" = pedido a pagar en efectivo
     const { user } = useAuthStore();
     const [orders, setOrders] = useState<MyOrder[]>([]);
     const [loading, setLoading] = useState(true);
+    // Aviso de confirmación que se ve justo al llegar aquí recién pagado --
+    // se retira solo después de unos segundos.
+    const [showPaidBanner, setShowPaidBanner] = useState(!!paid);
+
+    useEffect(() => {
+        if (!paid) return;
+        const t = setTimeout(() => setShowPaidBanner(false), 5000);
+        return () => clearTimeout(t);
+    }, [paid]);
 
     useEffect(() => {
         fetch("/api/orders/mine")
@@ -111,6 +122,15 @@ function MyOrdersContent() {
                     <p className="text-xs text-gray-500">{user?.name || ""}</p>
                 </div>
             </header>
+
+            {showPaidBanner && (
+                <div className="mx-4 mt-4 px-5 py-4 rounded-2xl bg-green-500 text-white shadow-[0_10px_30px_rgba(34,197,94,0.4)] flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+                    <CheckCircle2 size={24} className="shrink-0" />
+                    <p className="font-bold text-sm leading-snug">
+                        {paid === "cash" ? "¡Pedido confirmado! Pagas en efectivo al recibir." : "¡Tu pago fue realizado con éxito!"}
+                    </p>
+                </div>
+            )}
 
             <div className="p-4 flex flex-col gap-6">
                 {loading ? (
@@ -152,5 +172,9 @@ function MyOrdersContent() {
 }
 
 export default function MyOrdersPage() {
-    return <MyOrdersContent />;
+    return (
+        <Suspense fallback={<div className="min-h-[100dvh] bg-background flex justify-center items-center"><Loader2 className="animate-spin text-primary" size={32} /></div>}>
+            <MyOrdersContent />
+        </Suspense>
+    );
 }
