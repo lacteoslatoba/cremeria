@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
+import { parseJsonBody, handleRoute } from "@/lib/http";
+import { parseProduct } from "@/lib/validators";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -24,30 +26,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const auth = await requireAuth(request, ["ADMIN"]);
     if (!auth.user) return auth.response;
 
-    try {
+    return handleRoute(async () => {
         const { id } = await params;
-        const body = await request.json();
+        // Mismo validador que POST -- el formulario de admin manda el objeto
+        // completo tanto para crear como para editar (ver product-form-modal.tsx),
+        // así que no hace falta una versión "parcial" distinta.
+        const body = await parseJsonBody<Record<string, unknown>>(request);
+        const data = parseProduct(body);
 
-        const product = await prisma.product.update({
-            where: { id },
-            data: {
-                name: body.name,
-                category: body.category,
-                description: body.description,
-                price: body.price,
-                stock: body.stock,
-                image: body.image,
-                status: body.status,
-            }
-        });
+        const product = await prisma.product.update({ where: { id }, data });
 
         revalidatePath("/");
         revalidatePath("/admin");
 
         return NextResponse.json(product);
-    } catch (error) {
-        return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
-    }
+    }, "PRODUCTS_PUT");
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {

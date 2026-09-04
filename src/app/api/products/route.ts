@@ -2,6 +2,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
+import { parseJsonBody, handleRoute } from "@/lib/http";
+import { parseProduct } from "@/lib/validators";
 
 export async function GET(request: Request) {
     try {
@@ -31,25 +33,19 @@ export async function POST(request: Request) {
     const auth = await requireAuth(request, ["ADMIN"]);
     if (!auth.user) return auth.response;
 
-    try {
-        const body = await request.json();
-        const product = await prisma.product.create({
-            data: {
-                name: body.name,
-                category: body.category,
-                description: body.description,
-                price: body.price,
-                stock: body.stock,
-                image: body.image,
-                status: body.status || "ACTIVE",
-            },
-        });
+    return handleRoute(async () => {
+        // Antes se tomaba body.price/body.stock a ciegas -- un typo (texto en
+        // vez de número, negativo, etc.) se guardaba tal cual en la base de
+        // datos. parseProduct valida tipos y rangos reales antes de tocar
+        // Prisma, y tira un 400 claro en vez de un 500 genérico o datos
+        // corruptos silenciosos.
+        const body = await parseJsonBody<Record<string, unknown>>(request);
+        const data = parseProduct(body);
+        const product = await prisma.product.create({ data });
 
         revalidatePath("/");
         revalidatePath("/admin");
 
         return NextResponse.json(product, { status: 201 });
-    } catch (error) {
-        return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
-    }
+    }, "PRODUCTS_POST");
 }
