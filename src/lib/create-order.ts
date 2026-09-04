@@ -124,7 +124,11 @@ export async function cancelPendingOrderAndRestoreStock(orderId: string, ownerUs
     if (ownerUserId && order.userId !== ownerUserId) return false;
 
     await prisma.$transaction(async (tx) => {
-        await tx.order.update({ where: { id: orderId }, data: { paymentStatus: "REJECTED" } });
+        // status (entrega) también se cierra a CANCELLED -- si solo se toca
+        // paymentStatus, la orden se queda con status "PENDING" para
+        // siempre y "Mis pedidos" la sigue mostrando como "en curso" (esa
+        // sección filtra por status, no por paymentStatus).
+        await tx.order.update({ where: { id: orderId }, data: { paymentStatus: "REJECTED", status: "CANCELLED" } });
         const items = await tx.orderItem.findMany({ where: { orderId } });
         await Promise.all(
             items.map((item) =>

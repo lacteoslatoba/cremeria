@@ -85,7 +85,11 @@ export async function reconcileStripeOrder(orderId: string) {
     return prisma.$transaction(async (tx) => {
         const updated = await tx.order.update({
             where: { id: orderId },
-            data: { paymentStatus: newStatus },
+            // status (entrega) también se cierra a CANCELLED cuando el pago
+            // se rechaza -- si no, la orden se queda con status "PENDING"
+            // para siempre y sigue apareciendo como "en curso" en Mis
+            // pedidos, aunque el pago ya haya fallado de verdad.
+            data: { paymentStatus: newStatus, ...(newStatus === "REJECTED" ? { status: "CANCELLED" } : {}) },
         });
 
         if (newStatus === "REJECTED") {
