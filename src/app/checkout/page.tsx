@@ -192,15 +192,82 @@ export default function CheckoutPage() {
             stripeOrderIdRef.current = data.orderId;
 
             if (!stripeRef.current) stripeRef.current = window.Stripe(stripePublicKeyRef.current);
+
+            // El Payment Element traía el look genérico de Stripe (recuadros
+            // blancos, tipografía default) que no pegaba nada con el resto de
+            // la app. Se lee la paleta real de globals.css en el momento (así
+            // sigue el tema claro/oscuro del sistema solo, sin duplicar los
+            // valores a mano) y se le pasa a Stripe como "appearance", más la
+            // misma tipografía (Plus Jakarta Sans) que ya usa toda la app.
+            const rootStyle = getComputedStyle(document.documentElement);
+            const cssVar = (name: string, fallback: string) => rootStyle.getPropertyValue(name).trim() || fallback;
+            const primary = cssVar("--primary", "#ee2b34");
+            const bgCard = cssVar("--bg-card", "#ffffff");
+            const foreground = cssVar("--foreground", "#212529");
+            const border = cssVar("--border", "#e0e0e0");
+
+            const appearance = {
+                theme: "flat" as const,
+                variables: {
+                    colorPrimary: primary,
+                    colorBackground: bgCard,
+                    colorText: foreground,
+                    colorTextSecondary: foreground,
+                    colorDanger: "#ef4444",
+                    fontFamily: '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif',
+                    fontSizeBase: "15px",
+                    borderRadius: "14px",
+                    spacingUnit: "4px",
+                },
+                rules: {
+                    ".Input": {
+                        border: `1px solid ${border}`,
+                        boxShadow: "none",
+                        padding: "14px",
+                        backgroundColor: bgCard,
+                    },
+                    ".Input:focus": {
+                        border: `1px solid ${primary}`,
+                        boxShadow: `0 0 0 1px ${primary}`,
+                    },
+                    ".Label": {
+                        fontWeight: "600",
+                        fontSize: "13px",
+                        marginBottom: "6px",
+                    },
+                    ".Tab": {
+                        border: `1px solid ${border}`,
+                        borderRadius: "14px",
+                        padding: "12px 14px",
+                    },
+                    ".Tab:hover": {
+                        border: `1px solid ${primary}`,
+                    },
+                    ".Tab--selected": {
+                        border: `1px solid ${primary}`,
+                        boxShadow: `0 0 0 1px ${primary}`,
+                    },
+                    ".CheckboxInput": {
+                        borderRadius: "6px",
+                        border: `1px solid ${border}`,
+                    },
+                    ".CheckboxInput--checked": {
+                        backgroundColor: primary,
+                        border: `1px solid ${primary}`,
+                    },
+                },
+            };
+
             // customerSessionClientSecret solo llega si el cliente tiene sesión
             // iniciada (invitados no pueden guardar tarjeta) -- con esto el
             // Payment Element muestra el check "Guardar esta tarjeta" y, si ya
             // tenía una guardada de antes, la vuelve a mostrar lista para usar.
-            const elements = stripeRef.current.elements(
-                data.customerSessionClientSecret
-                    ? { clientSecret: data.clientSecret, customerSessionClientSecret: data.customerSessionClientSecret }
-                    : { clientSecret: data.clientSecret }
-            );
+            const elements = stripeRef.current.elements({
+                clientSecret: data.clientSecret,
+                appearance,
+                fonts: [{ cssSrc: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" }],
+                ...(data.customerSessionClientSecret ? { customerSessionClientSecret: data.customerSessionClientSecret } : {}),
+            });
             const paymentElement = elements.create("payment");
             stripeElementsRef.current = elements;
 
@@ -931,8 +998,12 @@ export default function CheckoutPage() {
                                 className={mpMounted ? "w-full h-12 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground outline-none focus:border-violet-400" : "hidden"}>
                                 <option value="">Banco emisor</option>
                             </select>
-                            <select id="mp-installments" aria-label="Meses sin intereses"
-                                className={mpMounted ? "w-full h-12 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground outline-none focus:border-violet-400" : "hidden"}>
+                            {/* Oculto a propósito: son compras de despensa del día, no
+                                tiene sentido ofrecer "mensualidades" tipo crédito. MP
+                                necesita el elemento en el DOM para montar el formulario,
+                                pero nunca se le muestra al cliente -- queda fijo en un
+                                solo pago. */}
+                            <select id="mp-installments" aria-label="Meses sin intereses" className="hidden">
                                 <option value="1">Meses sin intereses</option>
                             </select>
                             <button type="submit" disabled={mpSubmitting || !mpMounted}
