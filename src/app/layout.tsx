@@ -5,12 +5,6 @@ import { SideNav } from "@/components/layout/side-nav";
 import { PwaUpdater } from "@/components/pwa-updater";
 import { InstallPrompt } from "@/components/install-prompt";
 import { StripePreloader } from "@/components/stripe-preloader";
-// Mercado Pago se quitó del todo (código y backend eliminados) a pedido
-// explícito -- ya no queda ni el preloader.
-// Conekta queda en pausa (bloqueo de riesgo de su cuenta sin resolver,
-// ver checkout/page.tsx) -- import comentado, no borrado, para
-// retomarlo fácil en cuanto se resuelva ese caso.
-// import { ConektaPreloader } from "@/components/conekta-preloader";
 
 export const metadata: Metadata = {
     title: "Cremeria del Rancho",
@@ -50,7 +44,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <AuthGuard>
                     <PwaUpdater />
                     <StripePreloader />
-                    {/* <ConektaPreloader /> -- en pausa junto con Conekta */}
                     {/* Desktop sidebar — only visible on md+ */}
                     <SideNav />
 

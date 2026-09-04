@@ -56,9 +56,8 @@ model Order {
   mpPaymentId   String?     // Mercado Pago payment ID
   clipPaymentId String?     // Clip payment_request_id (checkout redireccionado)
   stripePaymentIntentId String? // Stripe PaymentIntent id
-  conektaOrderId String?    // Conekta order id (POST /orders)
   paymentStatus String      @default("PENDING") // PENDING, APPROVED, REJECTED
-  paymentMethod String      @default("CASH")    // CASH, STRIPE, CONEKTA (CARD/CLIP/MERCADOPAGO quedan solo por historial)
+  paymentMethod String      @default("CASH")    // CASH, STRIPE (CONEKTA/CARD/CLIP/MERCADOPAGO quedan solo por historial)
   userId        String?
   user          User?       @relation(fields: [userId], references: [id])
   customerName  String?

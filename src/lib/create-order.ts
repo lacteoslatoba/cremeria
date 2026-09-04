@@ -31,7 +31,7 @@ export async function createOrderWithStockCheck(params: {
     total?: number;
     items: OrderItemInput[];
     userId?: string;
-    paymentMethod: string; // CASH | CONEKTA (STRIPE en pausa; CARD/CLIP/MERCADOPAGO quedan solo por historial)
+    paymentMethod: string; // CASH | STRIPE (CONEKTA/CLIP/MERCADOPAGO solo quedan por historial de ordenes viejas)
     paymentStatus: string; // PENDING | APPROVED | REJECTED
     mpPaymentId?: string | null; // solo por compatibilidad con ordenes historicas de Mercado Pago
     clipPaymentId?: string | null; // solo por compatibilidad con ordenes historicas de Clip
