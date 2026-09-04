@@ -850,9 +850,9 @@ export default function CheckoutPage() {
                     existe (le puede tocar mientras el cliente ya cambió a
                     Efectivo, ya que la carga del SDK sigue en segundo plano). */}
                 <div className={method === "CARD" && cardGateway === "stripe" ? "flex flex-col gap-5" : "hidden"}>
-                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
-                        <div className="flex justify-between items-center">
-                            <span className="font-bold text-lg">Total a pagar:</span>
+                    <div className="rounded-2xl bg-foreground/5 border border-foreground/10 p-5 flex flex-col gap-5">
+                        <div className="flex justify-between items-center pb-4 border-b border-foreground/10">
+                            <span className="font-semibold text-sm text-foreground/60 uppercase tracking-wide">Total a pagar</span>
                             <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
                         </div>
 
@@ -863,17 +863,17 @@ export default function CheckoutPage() {
                             "Pagar", no antes. */}
                         {!stripeReady && !error && (
                             <div className="flex flex-col gap-3 animate-pulse" aria-hidden>
-                                <div className="h-12 rounded-xl bg-white/10 border border-white/10" />
+                                <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15" />
                                 <div className="flex gap-3">
-                                    <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
-                                    <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
+                                    <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15 flex-1" />
+                                    <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15 flex-1" />
                                 </div>
                             </div>
                         )}
 
                         {!stripeReady && error && (
                             <button onClick={retryStripeCheckout} disabled={stripeSubmitting}
-                                className="w-full py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                                className="w-full py-4 rounded-2xl bg-foreground/5 border border-foreground/20 text-foreground font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
                                 {stripeSubmitting ? <Loader2 className="animate-spin" size={20} /> : "Reintentar"}
                             </button>
                         )}
@@ -910,25 +910,25 @@ export default function CheckoutPage() {
                     tokenizan en el navegador con Conekta.Token.create y solo el
                     token resultante viaja al backend. */}
                 <div className={method === "CARD" && cardGateway === "conekta" ? "flex flex-col gap-5" : "hidden"}>
-                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
-                        <div className="flex justify-between items-center">
-                            <span className="font-bold text-lg">Total a pagar:</span>
+                    <div className="rounded-2xl bg-foreground/5 border border-foreground/10 p-5 flex flex-col gap-5">
+                        <div className="flex justify-between items-center pb-4 border-b border-foreground/10">
+                            <span className="font-semibold text-sm text-foreground/60 uppercase tracking-wide">Total a pagar</span>
                             <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
                         </div>
 
                         {!conektaMounted && !error && (
                             <div className="flex flex-col gap-3 animate-pulse" aria-hidden>
-                                <div className="h-12 rounded-xl bg-white/10 border border-white/10" />
+                                <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15" />
                                 <div className="flex gap-3">
-                                    <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
-                                    <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
+                                    <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15 flex-1" />
+                                    <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15 flex-1" />
                                 </div>
                             </div>
                         )}
 
                         {!conektaMounted && error && (
                             <button onClick={retryConektaCheckout} disabled={conektaSubmitting}
-                                className="w-full py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                                className="w-full py-4 rounded-2xl bg-foreground/5 border border-foreground/20 text-foreground font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
                                 {conektaSubmitting ? <Loader2 className="animate-spin" size={20} /> : "Reintentar"}
                             </button>
                         )}
@@ -938,23 +938,23 @@ export default function CheckoutPage() {
                                 <input
                                     type="text" inputMode="numeric" autoComplete="cc-number" placeholder="Número de tarjeta"
                                     value={cardNumber} onChange={e => setCardNumber(e.target.value)} disabled={conektaSubmitting}
-                                    className="w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50"
+                                    className="w-full h-12 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50"
                                 />
                                 <input
                                     type="text" autoComplete="cc-name" placeholder="Nombre en la tarjeta"
                                     value={cardName} onChange={e => setCardName(e.target.value)} disabled={conektaSubmitting}
-                                    className="w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50"
+                                    className="w-full h-12 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50"
                                 />
                                 <div className="flex gap-3">
                                     <input
                                         type="text" inputMode="numeric" autoComplete="cc-exp" placeholder="MM/AA"
                                         value={cardExpiry} onChange={e => setCardExpiry(e.target.value)} disabled={conektaSubmitting}
-                                        className="w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50 flex-1"
+                                        className="w-full h-12 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50 flex-1"
                                     />
                                     <input
                                         type="text" inputMode="numeric" autoComplete="cc-csc" placeholder="CVC"
                                         value={cardCvc} onChange={e => setCardCvc(e.target.value)} disabled={conektaSubmitting}
-                                        className="w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50 flex-1"
+                                        className="w-full h-12 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground placeholder:text-gray-500 outline-none focus:border-violet-400 disabled:opacity-50 flex-1"
                                     />
                                 </div>
                             </div>
@@ -984,28 +984,28 @@ export default function CheckoutPage() {
                     vacíos #mp-* -- nunca tocamos los datos de la tarjeta: MP los
                     captura y nos regresa un token que manda al backend. */}
                 <div className={method === "CARD" && cardGateway === "mercadopago" ? "flex flex-col gap-5" : "hidden"}>
-                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
-                        <div className="flex justify-between items-center">
-                            <span className="font-bold text-lg">Total a pagar:</span>
+                    <div className="rounded-2xl bg-foreground/5 border border-foreground/10 p-5 flex flex-col gap-5">
+                        <div className="flex justify-between items-center pb-4 border-b border-foreground/10">
+                            <span className="font-semibold text-sm text-foreground/60 uppercase tracking-wide">Total a pagar</span>
                             <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
                         </div>
 
                         {/* Esqueleto estático mientras MP monta sus iframes... */}
                         {!mpMounted && !error && (
                             <div className="flex flex-col gap-3 animate-pulse" aria-hidden>
-                                <div className="h-12 rounded-xl bg-white/10 border border-white/10" />
+                                <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15" />
                                 <div className="flex gap-3">
-                                    <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
-                                    <div className="h-12 rounded-xl bg-white/10 border border-white/10 flex-1" />
+                                    <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15 flex-1" />
+                                    <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15 flex-1" />
                                 </div>
-                                <div className="h-12 rounded-xl bg-white/10 border border-white/10" />
+                                <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15" />
                             </div>
                         )}
 
                         {!mpMounted && error && (
                             <button
                                 onClick={() => { setError(""); if (cardGateway === "mercadopago") ensureMPSDK(); }}
-                                className="w-full py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                                className="w-full py-4 rounded-2xl bg-foreground/5 border border-foreground/20 text-foreground font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                             >
                                 Reintentar Mercado Pago
                             </button>
@@ -1027,14 +1027,14 @@ export default function CheckoutPage() {
                                 lee directo de un <input> real -- si son un <div> falla con
                                 "wrong HTML Element type: expected INPUT. Received DIV". */}
                             <input id="mp-cardholder-name" type="text" placeholder="Nombre en la tarjeta"
-                                className="h-14 px-4 rounded-xl bg-white/10 border border-white/10 text-white outline-none focus:border-violet-400 placeholder:text-gray-500" />
+                                className="h-14 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground outline-none focus:border-violet-400 placeholder:text-gray-500" />
                             <div id="mp-card-number" className="h-14" />
                             <div className="flex gap-3">
                                 <div id="mp-expiration-date" className="h-14 flex-1" />
                                 <div id="mp-security-code" className="h-14 flex-1" />
                             </div>
                             <input id="mp-identification-number" type="text" placeholder="Documento (RFC/CURP/ID)"
-                                className="h-14 px-4 rounded-xl bg-white/10 border border-white/10 text-white outline-none focus:border-violet-400 placeholder:text-gray-500" />
+                                className="h-14 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground outline-none focus:border-violet-400 placeholder:text-gray-500" />
                             {/* issuer e installments deben existir en el DOM desde antes de
                                 llamar cardForm() -- ocultos con CSS (no desmontados) mientras
                                 el formulario no está listo, igual que el resto de los campos. */}
@@ -1069,9 +1069,9 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className={method === "CASH" ? "flex flex-col gap-5" : "hidden"}>
-                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
-                        <div className="flex justify-between items-center">
-                            <span className="font-bold text-lg">Total a pagar:</span>
+                    <div className="rounded-2xl bg-foreground/5 border border-foreground/10 p-5 flex flex-col gap-5">
+                        <div className="flex justify-between items-center pb-4 border-b border-foreground/10">
+                            <span className="font-semibold text-sm text-foreground/60 uppercase tracking-wide">Total a pagar</span>
                             <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
                         </div>
 
