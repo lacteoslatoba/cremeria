@@ -8,6 +8,7 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { SafeImage } from "@/components/ui/safe-image";
+import { prefetchStripeIntent } from "@/lib/stripe-prefetch";
 
 export default function CartPage() {
     const router = useRouter();
@@ -27,6 +28,22 @@ export default function CartPage() {
             router.push("/login");
             return;
         }
+
+        // Se adelanta la creación de la orden + PaymentIntent de Stripe
+        // justo aquí, en el clic -- para cuando la pantalla de checkout
+        // monte, la orden ya está lista (o a punto) en vez de recién
+        // empezar a pedirse ahí. Mismo momento/riesgo de apartar stock que
+        // antes (ya se creaba al llegar a checkout de todos modos), solo
+        // que ahora no se pierde el tiempo de la transición de pantalla.
+        const payerEmail = user?.email || (user?.phone ? `${user.phone}@cremeriadelrancho.com` : undefined);
+        prefetchStripeIntent({
+            userId: user?.id,
+            customerName: user?.name || user?.email || "Cliente",
+            address: "Ubicación GPS (Actual)",
+            total,
+            payerEmail,
+            items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
+        }).catch(() => { /* si falla, el checkout simplemente pide una orden nueva */ });
 
         router.push("/checkout");
     };

@@ -6,6 +6,7 @@ import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { ChevronLeft, Loader2, CreditCard, CheckCircle2, AlertCircle, Banknote } from "lucide-react";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { consumePrefetchedStripeIntent } from "@/lib/stripe-prefetch";
 
 declare global {
     interface Window { Stripe: any; Conekta: any; }
@@ -165,7 +166,11 @@ export default function CheckoutPage() {
                 ? Promise.resolve({ publicKey: stripePublicKeyRef.current })
                 : fetch("/api/payments/stripe/config").then(r => r.json());
 
-            const intentPromise = fetch("/api/payments/stripe/create-intent", {
+            // Si el carrito ya adelantó esta misma orden al tocar "Continuar"
+            // (ver prefetchStripeIntent en cart/page.tsx), se usa esa promesa
+            // en vez de pedir una nueva -- para cuando el cliente llega aquí,
+            // la orden ya está lista o a punto, no recién empezando a pedirse.
+            const intentPromise = consumePrefetchedStripeIntent(total) || fetch("/api/payments/stripe/create-intent", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -176,15 +181,15 @@ export default function CheckoutPage() {
                     payerEmail,
                     items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
                 }),
-            });
+            }).then(async (res) => ({ ok: res.ok, data: await res.json() }));
 
-            const [cfg, res] = await Promise.all([configPromise, intentPromise]);
+            const [cfg, intentResult] = await Promise.all([configPromise, intentPromise]);
             if (!cfg.publicKey) throw new Error("El pago con tarjeta no está disponible todavía.");
             stripePublicKeyRef.current = cfg.publicKey;
             try { window.localStorage.setItem("stripe_pk", cfg.publicKey); } catch { /* modo privado, etc. -- no pasa nada */ }
 
-            const data = await res.json();
-            if (!res.ok || !data.clientSecret) {
+            const { ok, data } = intentResult;
+            if (!ok || !data.clientSecret) {
                 setError(data.error || "No se pudo iniciar el pago.");
                 setStripeSubmitting(false);
                 return;
