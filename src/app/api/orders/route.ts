@@ -1,8 +1,9 @@
 ﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createOrderWithStockCheck, OrderCreationError } from "@/lib/create-order";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, readSession } from "@/lib/auth";
 import { notifyDeliveryCode } from "@/lib/notify";
+import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
 
 // Solo ADMIN puede listar todos los pedidos: incluye datos de clientes
 // (nombre, dirección) y el código de verificación de entrega de cada uno.
@@ -29,6 +30,26 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
+        // Crea una orden real + reserva stock -- este endpoint también
+        // admite invitados (sin cookie de sesión), así que el límite va por
+        // IP en vez de por usuario.
+        cleanupRateLimitBuckets();
+        const throttled = rateLimit(`orders-post:${clientIp(request)}`, 20, 10 * 60 * 1000); // 20 / 10 min
+        if (!throttled.allowed) {
+            return NextResponse.json(
+                { error: `Demasiados intentos. Intenta en ${throttled.retryAfterSeconds}s.` },
+                { status: 429 }
+            );
+        }
+
+        // El dueño de la orden sale de la sesión verificada (cookie firmada),
+        // NUNCA de body.userId -- Efectivo sí admite invitados (userId queda
+        // undefined para ellos, igual que siempre), pero un cliente con
+        // sesión ya no puede mandar el id de otra persona para atribuirle
+        // el pedido (y su SMS de código de entrega).
+        const session = await readSession(request);
+        const userId = session?.id;
+
         const body = await request.json();
         const items = body.items || [];
 
@@ -52,7 +73,7 @@ export async function POST(request: Request) {
             address: body.address,
             total: body.total,
             items,
-            userId: body.userId,
+            userId,
             paymentMethod,
             paymentStatus,
             mpPaymentId,
@@ -61,9 +82,9 @@ export async function POST(request: Request) {
         // Igual que en el flujo de tarjeta: si el pedido queda aprobado
         // (efectivo siempre lo está de inmediato), avisamos por SMS el
         // código de verificación de entrega.
-        if (paymentStatus === "APPROVED" && body.userId) {
+        if (paymentStatus === "APPROVED" && userId) {
             try {
-                const u = await prisma.user.findUnique({ where: { id: body.userId }, select: { phone: true } });
+                const u = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
                 if (u?.phone) notifyDeliveryCode(order, u.phone).catch(() => { });
             } catch {
                 // no bloquear el flujo si falla la consulta del teléfono

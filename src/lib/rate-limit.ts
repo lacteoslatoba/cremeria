@@ -34,3 +34,12 @@ export function cleanupRateLimitBuckets(): void {
         if (entry.resetAt <= now) buckets.delete(key);
     }
 }
+
+// IP real del cliente (Vercel la manda en x-forwarded-for). Vivía duplicada
+// dentro de login/route.ts -- centralizada aquí para reusarla en cualquier
+// ruta que necesite rate-limit por IP (pagos, registro, etc.).
+export function clientIp(request: Request): string {
+    const fwd = request.headers.get("x-forwarded-for");
+    if (fwd) return fwd.split(",")[0].trim();
+    return request.headers.get("x-real-ip") || "unknown";
+}

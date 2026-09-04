@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { signSession, setSessionCookie } from "@/lib/auth";
-import { rateLimit, cleanupRateLimitBuckets } from "@/lib/rate-limit";
+import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
 
 // Serializa un usuario para responder, garantizando que NUNCA se expone el hash.
 function toSafeUser(user: {
@@ -14,12 +14,6 @@ function toSafeUser(user: {
 }) {
     const { password, resetToken, resetTokenExpiry, mpCustomerId, ...safe } = user;
     return safe;
-}
-
-function clientIp(request: Request): string {
-    const fwd = request.headers.get("x-forwarded-for");
-    if (fwd) return fwd.split(",")[0].trim();
-    return request.headers.get("x-real-ip") || "unknown";
 }
 
 export async function POST(request: Request) {
