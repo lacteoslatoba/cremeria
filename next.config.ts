@@ -84,7 +84,12 @@ const nextConfig: NextConfig = {
             // dc.conekta.com recoge la huella del dispositivo para prevención de
             // fraude -- sin esto Conekta puede rechazar pagos legítimos como
             // riesgo alto.
-            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network https://*.conekta.io https://*.conekta.com https://notify.bugsnag.com https://sessions.bugsnag.com",
+            // fonts.googleapis.com: el Payment Element de Stripe hace un fetch()
+            // propio a la tipografia que le pasamos en appearance.fonts (Plus
+            // Jakarta Sans, para que combine con el resto de la app) -- sin
+            // esto tira un error de CSP en consola (el iframe monta igual,
+            // pero con la tipografia default de Stripe en vez de la nuestra).
+            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network https://*.conekta.io https://*.conekta.com https://fonts.googleapis.com https://notify.bugsnag.com https://sessions.bugsnag.com",
             "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://q.stripe.com",
             "worker-src 'self' blob:",
             "manifest-src 'self'",
