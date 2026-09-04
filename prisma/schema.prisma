@@ -21,6 +21,7 @@ model User {
   password  String?
   address   String?
   mpCustomerId String?
+  stripeCustomerId String?
   resetToken String?
   resetTokenExpiry DateTime?
   role      String   @default("CUSTOMER") // CUSTOMER, ADMIN or DELIVERY

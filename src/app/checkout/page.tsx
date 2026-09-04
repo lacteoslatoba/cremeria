@@ -192,7 +192,15 @@ export default function CheckoutPage() {
             stripeOrderIdRef.current = data.orderId;
 
             if (!stripeRef.current) stripeRef.current = window.Stripe(stripePublicKeyRef.current);
-            const elements = stripeRef.current.elements({ clientSecret: data.clientSecret });
+            // customerSessionClientSecret solo llega si el cliente tiene sesión
+            // iniciada (invitados no pueden guardar tarjeta) -- con esto el
+            // Payment Element muestra el check "Guardar esta tarjeta" y, si ya
+            // tenía una guardada de antes, la vuelve a mostrar lista para usar.
+            const elements = stripeRef.current.elements(
+                data.customerSessionClientSecret
+                    ? { clientSecret: data.clientSecret, customerSessionClientSecret: data.customerSessionClientSecret }
+                    : { clientSecret: data.clientSecret }
+            );
             const paymentElement = elements.create("payment");
             stripeElementsRef.current = elements;
 

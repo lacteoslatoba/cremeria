@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, getOrCreateStripeCustomer, createStripeCustomerSession } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { createOrderWithStockCheck, OrderCreationError } from "@/lib/create-order";
 import { notifyDeliveryCode } from "@/lib/notify";
@@ -41,20 +41,31 @@ export async function POST(request: Request) {
         const stripe = getStripe();
         const amountInCents = Math.round(Number(body.total) * 100);
 
-        const intent = await stripe.paymentIntents.create({
-            amount: amountInCents,
-            currency: "mxn",
-            description: `Pedido Cremería del Rancho #${order.id.slice(-6).toUpperCase()}`,
-            metadata: { orderId: order.id },
-            receipt_email: body.payerEmail || undefined,
-            // Antes "automatic_payment_methods: { enabled: true }" -- eso
-            // agregaba automaticamente cualquier metodo activo en el
-            // Dashboard de Stripe, incluido "Link" (la caja de "Opcional:
-            // guardar mis datos..." con correo/celular/nombre que aparecia
-            // arriba del boton de Pagar). Fijar el tipo a solo tarjeta la
-            // quita de raiz sin tocar nada del lado de Stripe.
-            payment_method_types: ["card"],
-        });
+        // Invitados no pueden guardar tarjeta (no hay a quién ligarla) --
+        // solo se crea/usa el Customer de Stripe si hay sesión iniciada.
+        // Con el Customer, el propio Payment Element muestra el check
+        // "Guardar esta tarjeta" y, con la Customer Session, también
+        // vuelve a mostrar las que ya tenga guardadas de compras pasadas.
+        const stripeCustomerId = body.userId ? await getOrCreateStripeCustomer(body.userId) : null;
+
+        const [intent, customerSessionClientSecret] = await Promise.all([
+            stripe.paymentIntents.create({
+                amount: amountInCents,
+                currency: "mxn",
+                description: `Pedido Cremería del Rancho #${order.id.slice(-6).toUpperCase()}`,
+                metadata: { orderId: order.id },
+                receipt_email: body.payerEmail || undefined,
+                customer: stripeCustomerId || undefined,
+                // Antes "automatic_payment_methods: { enabled: true }" -- eso
+                // agregaba automaticamente cualquier metodo activo en el
+                // Dashboard de Stripe, incluido "Link" (la caja de "Opcional:
+                // guardar mis datos..." con correo/celular/nombre que aparecia
+                // arriba del boton de Pagar). Fijar el tipo a solo tarjeta la
+                // quita de raiz sin tocar nada del lado de Stripe.
+                payment_method_types: ["card"],
+            }),
+            stripeCustomerId ? createStripeCustomerSession(stripeCustomerId) : Promise.resolve(null),
+        ]);
 
         await prisma.order.update({
             where: { id: order.id },
@@ -64,6 +75,7 @@ export async function POST(request: Request) {
         return NextResponse.json({
             orderId: order.id,
             clientSecret: intent.client_secret,
+            customerSessionClientSecret,
         });
     } catch (error: any) {
         if (error instanceof OrderCreationError) {

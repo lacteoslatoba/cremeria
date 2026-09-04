@@ -14,6 +14,48 @@ export function getStripe(): Stripe {
     return _stripe;
 }
 
+// Devuelve el Customer de Stripe de un usuario logueado, creándolo la
+// primera vez que hace falta. Necesario para poder guardar su tarjeta y
+// que el Payment Element se la vuelva a mostrar en su próxima compra
+// (sin Customer, Stripe no tiene dónde guardar nada).
+export async function getOrCreateStripeCustomer(userId: string): Promise<string> {
+    const { prisma } = await import("@/lib/prisma");
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { stripeCustomerId: true, name: true, email: true, phone: true } });
+    if (!user) throw new Error("Usuario no encontrado");
+    if (user.stripeCustomerId) return user.stripeCustomerId;
+
+    const customer = await getStripe().customers.create({
+        name: user.name || undefined,
+        email: user.email || undefined,
+        phone: user.phone || undefined,
+        metadata: { userId },
+    });
+    await prisma.user.update({ where: { id: userId }, data: { stripeCustomerId: customer.id } });
+    return customer.id;
+}
+
+// Crea una Customer Session para el Payment Element -- sin esto, aunque el
+// Customer tenga tarjetas guardadas, Stripe no se las vuelve a mostrar en
+// el checkout (es requisito aparte del PaymentIntent). Habilita guardar
+// (el cliente ve el check "Guardar esta tarjeta") y volver a mostrar las
+// que ya tenga guardadas.
+export async function createStripeCustomerSession(customerId: string): Promise<string> {
+    const session = await getStripe().customerSessions.create({
+        customer: customerId,
+        components: {
+            payment_element: {
+                enabled: true,
+                features: {
+                    payment_method_save: "enabled",
+                    payment_method_save_usage: "off_session",
+                    payment_method_redisplay: "enabled",
+                },
+            },
+        },
+    });
+    return session.client_secret;
+}
+
 function mapStripeStatus(status: Stripe.PaymentIntent.Status): "APPROVED" | "REJECTED" | "PENDING" {
     if (status === "succeeded") return "APPROVED";
     if (status === "canceled") return "REJECTED";
