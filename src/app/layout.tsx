@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { SideNav } from "@/components/layout/side-nav";
 import { PwaUpdater } from "@/components/pwa-updater";
+import { InstallPrompt } from "@/components/install-prompt";
 import { StripePreloader } from "@/components/stripe-preloader";
 import { MercadoPagoPreloader } from "@/components/mercadopago-preloader";
 // Conekta queda en pausa (bloqueo de riesgo de su cuenta sin resolver,
@@ -60,6 +61,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                     <div className="app-wrapper">
                         {children}
                     </div>
+
+                    <InstallPrompt />
                 </AuthGuard>
             </body>
         </html>
