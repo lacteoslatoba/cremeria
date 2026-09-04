@@ -898,13 +898,19 @@ export default function CheckoutPage() {
                             {/* issuer e installments deben existir en el DOM desde antes de
                                 llamar cardForm() -- ocultos con CSS (no desmontados) mientras
                                 el formulario no está listo, igual que el resto de los campos. */}
+                            {/* Antes usaban "text-white" a secas -- en modo claro (el
+                                fondo real de esta página sigue el tema del sistema, ver
+                                globals.css) eso quedaba en texto blanco sobre fondo casi
+                                blanco, invisible aunque el campo sí funcionara. Con
+                                text-foreground/bg-foreground se adaptan solos al tema
+                                claro u oscuro, igual que el resto de la página. */}
                             <select id="mp-issuer" aria-label="Banco emisor"
-                                className={mpMounted ? "w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white outline-none focus:border-violet-400" : "hidden"}>
-                                <option value="" className="bg-gray-900">Banco emisor</option>
+                                className={mpMounted ? "w-full h-12 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground outline-none focus:border-violet-400" : "hidden"}>
+                                <option value="">Banco emisor</option>
                             </select>
                             <select id="mp-installments" aria-label="Meses sin intereses"
-                                className={mpMounted ? "w-full h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white outline-none focus:border-violet-400" : "hidden"}>
-                                <option value="1" className="bg-gray-900">Meses sin intereses</option>
+                                className={mpMounted ? "w-full h-12 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground outline-none focus:border-violet-400" : "hidden"}>
+                                <option value="1">Meses sin intereses</option>
                             </select>
                             <button type="submit" disabled={mpSubmitting || !mpMounted}
                                 className="w-full py-4 rounded-2xl bg-sky-500 text-white font-bold text-lg shadow-lg shadow-sky-500/30 disabled:opacity-40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
