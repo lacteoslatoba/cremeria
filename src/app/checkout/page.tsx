@@ -268,7 +268,16 @@ export default function CheckoutPage() {
                 fonts: [{ cssSrc: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" }],
                 ...(data.customerSessionClientSecret ? { customerSessionClientSecret: data.customerSessionClientSecret } : {}),
             });
-            const paymentElement = elements.create("payment");
+            // El Payment Element pedía de nuevo correo, celular y nombre
+            // completo (billing details) aunque ya los tenemos guardados del
+            // cliente -- se ocultan esos campos y se mandan directo en
+            // confirmPayment() (ver handleStripePay), sin que el cliente
+            // tenga que volver a escribirlos.
+            const paymentElement = elements.create("payment", {
+                fields: {
+                    billingDetails: { name: "never", email: "never", phone: "never" },
+                },
+            });
             stripeElementsRef.current = elements;
 
             // Escuchar el ciclo de vida del Payment Element para no dejar al
@@ -314,6 +323,16 @@ export default function CheckoutPage() {
                 elements: stripeElementsRef.current,
                 confirmParams: {
                     return_url: `${window.location.origin}/checkout/stripe-return?orderId=${stripeOrderIdRef.current}`,
+                    // Ya que se ocultaron esos campos del formulario (arriba en
+                    // setupStripeCheckout), se mandan aquí con lo que ya
+                    // tenemos del cliente en vez de dejarlos vacíos.
+                    payment_method_data: {
+                        billing_details: {
+                            name: user?.name || undefined,
+                            email: payerEmail || user?.email || undefined,
+                            phone: user?.phone || undefined,
+                        },
+                    },
                 },
                 redirect: "if_required", // se queda en la página cuando no hace falta 3DS
             });
