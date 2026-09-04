@@ -645,23 +645,30 @@ export default function CheckoutPage() {
                 {/* spacer when error is shown */}
                 {error && <div className="h-14" />}
 
-                {/* Selector de método -- efectivo es el respaldo: si el celular
-                    del cliente bloquea Stripe por lo que sea, siempre puede
-                    cambiar aquí y pagar sin depender de ningún script externo. */}
-                <div className="flex gap-2 p-1 rounded-2xl bg-white/5 border border-white/10">
-                    <button
-                        onClick={() => { setMethod("CARD"); setError(""); }}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${method === "CARD" ? "bg-violet-500 text-white shadow-lg shadow-violet-500/30" : "text-gray-400"}`}
-                    >
-                        <CreditCard size={16} /> Tarjeta
-                    </button>
-                    <button
-                        onClick={() => { setMethod("CASH"); setError(""); }}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${method === "CASH" ? "bg-green-600 text-white shadow-lg shadow-green-600/30" : "text-gray-400"}`}
-                    >
-                        <Banknote size={16} /> Efectivo
-                    </button>
-                </div>
+                {/* Efectivo ya no se ofrece de entrada -- queda como respaldo
+                    silencioso de emergencia: solo aparece si Stripe no carga
+                    (ver los enlaces "¿Sigue sin cargar? -> Efectivo" más abajo,
+                    que llaman setMethod("CASH")). Por eso este selector solo
+                    se muestra una vez que method ya es "CASH" (para poder
+                    regresar a Tarjeta), nunca antes. */}
+                {method === "CASH" && (
+                    <div className="flex gap-2 p-1 rounded-2xl bg-white/5 border border-white/10">
+                        {/* Dentro de este bloque method siempre es "CASH" (es la
+                            condición que lo muestra) -- Efectivo queda resaltado
+                            como estado activo y "Tarjeta" es el botón para volver. */}
+                        <button
+                            onClick={() => { setMethod("CARD"); setError(""); }}
+                            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all text-gray-400"
+                        >
+                            <CreditCard size={16} /> Tarjeta
+                        </button>
+                        <button
+                            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all bg-green-600 text-white shadow-lg shadow-green-600/30"
+                        >
+                            <Banknote size={16} /> Efectivo
+                        </button>
+                    </div>
+                )}
 
                 {/* Sub-selector de pasarela de TARJETA -- EN PAUSA. Mercado Pago
                     ya quedó integrado y probado (Card Form monta bien en
