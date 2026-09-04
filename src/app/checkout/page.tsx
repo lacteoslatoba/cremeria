@@ -12,12 +12,12 @@ declare global {
     interface Window { Stripe: any; Conekta: any; }
 }
 
-// Dos pasarelas de TARJETA en pantalla (el cliente elige con el sub-selector de
-// la pestaña de Tarjeta): por defecto Stripe (Payment Element) y Mercado Pago
-// (Card Form). Conekta queda en el código pero EN PAUSA -- su cuenta tiene un
-// bloqueo de riesgo sin resolver (risk_validation_amount_reaching) -- y no se
-// ofrece como opción hasta retomar ese caso.
-export type CardGateway = "stripe" | "conekta" | "mercadopago";
+// Stripe (Payment Element) es la pasarela de tarjeta activa. Conekta queda
+// en el código pero EN PAUSA -- su cuenta tiene un bloqueo de riesgo sin
+// resolver (risk_validation_amount_reaching) -- y no se ofrece como opción
+// hasta retomar ese caso. Mercado Pago se quitó del todo (código y backend
+// eliminados) a pedido explícito -- no queda ni como respaldo.
+export type CardGateway = "stripe" | "conekta";
 
 /* ─────────────────────────────────────────────────────────────
    Métodos de pago: TARJETA (con pasarela a elegir: Stripe con su
@@ -137,14 +137,10 @@ export default function CheckoutPage() {
             // Se agotaron los reintentos: js.stripe.com de verdad no carga en
             // esta conexión (confirmado en un caso real: algunos operadores
             // móviles -- ej. Telcel -- bloquean ese dominio puntual aunque el
-            // resto de internet funcione bien, incluido api.stripe.com). En
-            // vez de dejar al cliente varado, se cambia solo a Mercado Pago
-            // (su SDK vive en otros dominios, no bloqueados) sin que tenga
-            // que hacer nada. Si Mercado Pago también fallara, esa pantalla
-            // ya tiene su propio aviso + reintento, y de ahí puede pasar a
-            // Efectivo con el enlace de "¿Sigue sin cargar?".
-            setError("");
-            setCardGateway("mercadopago");
+            // resto de internet funcione bien, incluido api.stripe.com). El
+            // enlace "¿Sigue sin cargar? -> Efectivo" que aparece con este
+            // error es el respaldo para no dejar al cliente varado.
+            setError("No se pudo conectar con el sistema de pago. Verifica tu conexión a internet e intenta de nuevo.");
         }
     };
 
@@ -204,11 +200,9 @@ export default function CheckoutPage() {
             // (onload dispara) pero el contenido que en verdad llegó viene
             // vacío/incompleto por la red -- window.Stripe se queda sin
             // definir aunque stripeSdkLoaded ya diga que sí. Sin esta
-            // guarda, la siguiente línea tronaría con un TypeError críptico
-            // y el cliente se quedaba varado sin caer al respaldo de MP.
+            // guarda, la siguiente línea tronaría con un TypeError críptico.
             if (!window.Stripe) {
-                setError("");
-                setCardGateway("mercadopago");
+                setError("No se pudo conectar con el sistema de pago. Verifica tu conexión a internet e intenta de nuevo.");
                 setStripeSubmitting(false);
                 return;
             }
@@ -611,162 +605,12 @@ export default function CheckoutPage() {
         }
     };
 
-    // Mercado Pago ─ 2ª pasarela de tarjeta (opcional). El Card Form monta
-    // iframes seguros en divs vacíos #mp-*; el token va a mc-create-payment.
-    const [mpReady, setMpReady] = useState(false);
-    const [mpMounted, setMpMounted] = useState(false);
-    const [mpSubmitting, setMpSubmitting] = useState(false);
-    const mpPublicKeyRef = useRef("");
-    const mpRef = useRef<any>(null);
-    const mpCardFormRef = useRef<any>(null);
-    const mpFormMountedRef = useRef(false);
-
-    // Trae la llave pública (nunca el access_token), garantiza el SDK v2 (reusa
-    // el tag que deja MercadoPagoPreloader si ya está, para no cargarlo doble) y
-    // dispara el script de seguridad de MP (fingerprint → cookie MP_DEVICE_SESSION_ID
-    // que alimenta el antifraude vía cabecera X-Meli-Session-Id en el backend).
-    const ensureMPSDK = async () => {
-        if (typeof window === "undefined") return;
-        try {
-            if (!mpPublicKeyRef.current) {
-                const r = await fetch("/api/payments/mercadopago/config");
-                const d = await r.json();
-                if (r.ok && d.publicKey) mpPublicKeyRef.current = d.publicKey;
-            }
-        } catch (e) { console.warn("[MP] config", e); }
-        const win: any = window;
-        // SDK v2 -- mismo id ("mp-sdk") que usa el preloader para no duplicar.
-        if (!win.MercadoPago && !document.getElementById("mp-sdk")) {
-            const s = document.createElement("script");
-            s.id = "mp-sdk";
-            s.src = "https://sdk.mercadopago.com/js/v2";
-            s.async = true;
-            document.body.appendChild(s);
-        }
-        // Huella de dispositivo del antifraude (genera MP_DEVICE_SESSION_ID).
-        // OJO: el dominio real es www.mercadopago.com, NO js.mercadopago.com
-        // (ese subdominio ni siquiera resuelve -- estaba mal puesto antes y
-        // tiraba errores en consola sin que nadie los notara).
-        if (!document.getElementById("mp-security-js")) {
-            const sec = document.createElement("script");
-            sec.id = "mp-security-js";
-            sec.async = true;
-            sec.src = "https://www.mercadopago.com/v2/security.js";
-            document.body.appendChild(sec);
-        }
-        const start = Date.now();
-        while (!(win as any).MercadoPago && Date.now() - start < 15000) {
-            await new Promise(r => setTimeout(r, 100));
-        }
-        initMercadoPago();
-    };
-
-    const initMercadoPago = () => {
-        const win: any = window;
-        if (win.MercadoPago && mpPublicKeyRef.current && !mpRef.current) {
-            mpRef.current = new win.MercadoPago(mpPublicKeyRef.current, { locale: "es-MX" });
-            setMpReady(true);
-        }
-    };
-
     // Carga el SDK de la pasarela elegida (sólo la que se va a usar).
     useEffect(() => {
         if (method !== "CARD") return;
         if (cardGateway === "stripe") loadStripeSDK();
-        if (cardGateway === "mercadopago") ensureMPSDK();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [method, cardGateway]);
-
-    // Monta el Card Form cuando MP está listo y fue elegido.
-    useEffect(() => {
-        if (method !== "CARD") return;
-        if (cardGateway !== "mercadopago") return;
-        if (!mpReady || mpFormMountedRef.current) return;
-        mpFormMountedRef.current = true;
-        const tmo = window.setTimeout(() => {
-            try {
-                const mp: any = mpRef.current;
-                if (!mp || typeof mp.cardForm !== "function") throw new Error("MP no listo");
-                mpCardFormRef.current = mp.cardForm({
-                    amount: total.toFixed(2),
-                    iframe: true,
-                    form: {
-                        id: "mp-card-form",
-                        cardNumber: { id: "mp-card-number", placeholder: "Número de tarjeta" },
-                        expirationDate: { id: "mp-expiration-date", placeholder: "MM/AA" },
-                        securityCode: { id: "mp-security-code", placeholder: "CVC" },
-                        cardholderName: { id: "mp-cardholder-name", placeholder: "Nombre en la tarjeta" },
-                        identificationNumber: { id: "mp-identification-number", placeholder: "Documento" },
-                        installments: { id: "mp-installments" },
-                        issuer: { id: "mp-issuer" },
-                    },
-                    callbacks: {
-                        // Aquí es donde MP de verdad confirma si el formulario quedó
-                        // listo -- no apenas se llama cardForm() (eso es solo el
-                        // arranque, no garantiza que haya montado bien).
-                        onFormMounted: (e: any) => {
-                            if (e) {
-                                console.error("[MP mount]", e);
-                                setError("No se pudo cargar Mercado Pago. Prueba con Stripe o efectivo.");
-                                mpFormMountedRef.current = false;
-                                return;
-                            }
-                            setMpMounted(true);
-                        },
-                        onFetching: () => { setMpSubmitting(true); return () => setMpSubmitting(false); },
-                        onSubmit: async () => {
-                            try {
-                                const fd = mpCardFormRef.current && mpCardFormRef.current.getCardFormData
-                                    ? mpCardFormRef.current.getCardFormData()
-                                    : {};
-                                await handleMpPay(fd);
-                            } catch (e) { console.error("[MP submit]", e); setMpSubmitting(false); }
-                        },
-                    },
-                });
-            } catch (e) {
-                console.error("[MP] mount fail", e);
-                setError("No se pudo cargar Mercado Pago. Prueba con Stripe o efectivo.");
-                mpFormMountedRef.current = false;
-            }
-        }, 250);
-        return () => window.clearTimeout(tmo);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [method, cardGateway, mpReady]);
-
-    const handleMpPay = async (fd: any) => {
-        if (mpSubmitting) return;
-        setMpSubmitting(true);
-        setError("");
-        try {
-            const token = fd && fd.token;
-            if (!token) { setError("No se pudo leer tu tarjeta. Reintenta."); setMpSubmitting(false); return; }
-            const m = document.cookie.match(/(?:^|;\s*)MP_DEVICE_SESSION_ID=([^;]+)/);
-            const res = await fetch("/api/payments/mercadopago/create-payment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    token,
-                    paymentMethodId: fd?.paymentMethodId,
-                    installments: fd?.installments || 1,
-                    deviceId: m ? m[1] : "",
-                    total, userId: user?.id,
-                    customerName: user?.name || user?.email || "Cliente",
-                    address: "Ubicación GPS (Actual)",
-                    payerEmail,
-                    items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
-                }),
-            });
-            const data = await res.json();
-            if (data.paymentStatus === "APPROVED") { clearCart(); router.push(`/mis-pedidos?paid=1`); return; }
-            if (data.paymentStatus === "REJECTED") { setError(data.error || "Tu pago no se completó. No se hizo ningún cargo."); setMpSubmitting(false); return; }
-            setMpSubmitting(false);
-            setError("Tu pago quedó en proceso. Te confirmamos el pedido en unos momentos.");
-        } catch {
-            setError("Error al procesar el pago. Verifica tu conexión e intenta de nuevo.");
-            setMpSubmitting(false);
-        }
-    };
 
     if (!mounted) return null;
 
@@ -816,30 +660,6 @@ export default function CheckoutPage() {
                             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all bg-green-600 text-white shadow-lg shadow-green-600/30"
                         >
                             <Banknote size={16} /> Efectivo
-                        </button>
-                    </div>
-                )}
-
-                {/* Sub-selector de pasarela de TARJETA -- EN PAUSA. Mercado Pago
-                    ya quedó integrado y probado (Card Form monta bien en
-                    producción), pero por ahora solo se expone Stripe al
-                    cliente. cardGateway nace en "stripe" y nada más lo puede
-                    cambiar a "mercadopago" mientras este selector esté oculto,
-                    así que el flujo de MP queda dormido sin tocar su código
-                    (mismo patrón que Conekta). Para reactivarlo, descomentar. */}
-                {false && method === "CARD" && (
-                    <div className="flex gap-2 p-1 rounded-2xl bg-white/5 border border-white/10">
-                        <button
-                            onClick={() => { setCardGateway("stripe"); setError(""); }}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${cardGateway === "stripe" ? "bg-violet-500 text-white shadow-md shadow-violet-500/30" : "text-gray-400 active:scale-95"}`}
-                        >
-                            <span className="w-2 h-2 rounded-full bg-violet-400" aria-hidden /> Stripe
-                        </button>
-                        <button
-                            onClick={() => { setCardGateway("mercadopago"); setError(""); }}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${cardGateway === "mercadopago" ? "bg-sky-500 text-white shadow-md shadow-sky-500/30" : "text-gray-400 active:scale-95"}`}
-                        >
-                            <span className="w-2 h-2 rounded-full bg-sky-400" aria-hidden /> Mercado Pago
                         </button>
                     </div>
                 )}
@@ -975,95 +795,6 @@ export default function CheckoutPage() {
 
                         <p className="text-center text-xs text-gray-500 pb-2">
                             🔒 Tus datos se procesan de forma segura por Conekta. Nunca los guardamos.
-                        </p>
-                    </div>
-                </div>
-
-                {/* Mercado Pago -- 2ª pasarela de tarjeta. El Card Form de MP
-                    pinta sus campos seguros (iframes) dentro de los contenedores
-                    vacíos #mp-* -- nunca tocamos los datos de la tarjeta: MP los
-                    captura y nos regresa un token que manda al backend. */}
-                <div className={method === "CARD" && cardGateway === "mercadopago" ? "flex flex-col gap-5" : "hidden"}>
-                    <div className="rounded-2xl bg-foreground/5 border border-foreground/10 p-5 flex flex-col gap-5">
-                        <div className="flex justify-between items-center pb-4 border-b border-foreground/10">
-                            <span className="font-semibold text-sm text-foreground/60 uppercase tracking-wide">Total a pagar</span>
-                            <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
-                        </div>
-
-                        {/* Esqueleto estático mientras MP monta sus iframes... */}
-                        {!mpMounted && !error && (
-                            <div className="flex flex-col gap-3 animate-pulse" aria-hidden>
-                                <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15" />
-                                <div className="flex gap-3">
-                                    <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15 flex-1" />
-                                    <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15 flex-1" />
-                                </div>
-                                <div className="h-12 rounded-xl bg-foreground/5 border border-foreground/15" />
-                            </div>
-                        )}
-
-                        {!mpMounted && error && (
-                            <button
-                                onClick={() => { setError(""); if (cardGateway === "mercadopago") ensureMPSDK(); }}
-                                className="w-full py-4 rounded-2xl bg-foreground/5 border border-foreground/20 text-foreground font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                            >
-                                Reintentar Mercado Pago
-                            </button>
-                        )}
-
-                        {/* Si Stripe Y Mercado Pago fallan (ambos bloqueados/caídos en
-                            esa conexión), Efectivo sigue siendo la última salida para
-                            no dejar al cliente sin poder completar su pedido. */}
-                        {method === "CARD" && !mpMounted && error && (
-                            <p className="text-center text-xs text-gray-500">
-                                ¿Sigue sin cargar? Cambia a <button onClick={() => { setMethod("CASH"); setError(""); }} className="text-green-400 font-bold underline">Efectivo</button> para completar tu pedido de todos modos.
-                            </p>
-                        )}
-
-                        <form id="mp-card-form" className="flex flex-col gap-3">
-                            {/* cardNumber/expirationDate/securityCode son campos "seguros": MP monta
-                                un iframe propio adentro del div (nunca ve el número real). En cambio
-                                cardholderName e identificationNumber NO son datos sensibles y MP los
-                                lee directo de un <input> real -- si son un <div> falla con
-                                "wrong HTML Element type: expected INPUT. Received DIV". */}
-                            <input id="mp-cardholder-name" type="text" placeholder="Nombre en la tarjeta"
-                                className="h-14 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground outline-none focus:border-violet-400 placeholder:text-gray-500" />
-                            <div id="mp-card-number" className="h-14" />
-                            <div className="flex gap-3">
-                                <div id="mp-expiration-date" className="h-14 flex-1" />
-                                <div id="mp-security-code" className="h-14 flex-1" />
-                            </div>
-                            <input id="mp-identification-number" type="text" placeholder="Documento (RFC/CURP/ID)"
-                                className="h-14 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground outline-none focus:border-violet-400 placeholder:text-gray-500" />
-                            {/* issuer e installments deben existir en el DOM desde antes de
-                                llamar cardForm() -- ocultos con CSS (no desmontados) mientras
-                                el formulario no está listo, igual que el resto de los campos. */}
-                            {/* Antes usaban "text-white" a secas -- en modo claro (el
-                                fondo real de esta página sigue el tema del sistema, ver
-                                globals.css) eso quedaba en texto blanco sobre fondo casi
-                                blanco, invisible aunque el campo sí funcionara. Con
-                                text-foreground/bg-foreground se adaptan solos al tema
-                                claro u oscuro, igual que el resto de la página. */}
-                            <select id="mp-issuer" aria-label="Banco emisor"
-                                className={mpMounted ? "w-full h-12 px-4 rounded-xl bg-foreground/5 border border-foreground/15 text-foreground outline-none focus:border-violet-400" : "hidden"}>
-                                <option value="">Banco emisor</option>
-                            </select>
-                            {/* Oculto a propósito: son compras de despensa del día, no
-                                tiene sentido ofrecer "mensualidades" tipo crédito. MP
-                                necesita el elemento en el DOM para montar el formulario,
-                                pero nunca se le muestra al cliente -- queda fijo en un
-                                solo pago. */}
-                            <select id="mp-installments" aria-label="Meses sin intereses" className="hidden">
-                                <option value="1">Meses sin intereses</option>
-                            </select>
-                            <button type="submit" disabled={mpSubmitting || !mpMounted}
-                                className="w-full py-4 rounded-2xl bg-sky-500 text-white font-bold text-lg shadow-lg shadow-sky-500/30 disabled:opacity-40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
-                                {mpSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
-                            </button>
-                        </form>
-
-                        <p className="text-center text-xs text-gray-500 pb-2">
-                            🔒 Tus datos se procesan de forma segura por Mercado Pago. Nunca los guardamos.
                         </p>
                     </div>
                 </div>

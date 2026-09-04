@@ -26,14 +26,12 @@ const withPWA = withPWAInit({
     clientsClaim: true,
     runtimeCaching: [
       {
-        // Aplica a Stripe, Mercado Pago y Conekta por igual -- ninguna pasarela
-        // de pago debe pasar por la lógica de caché genérica del Service Worker.
+        // Aplica a Stripe y Conekta por igual -- ninguna pasarela de pago
+        // debe pasar por la lógica de caché genérica del Service Worker.
+        // (Mercado Pago se quitó del todo -- código y backend eliminados.)
         urlPattern: ({ url }: { url: URL }) =>
           url.hostname.endsWith(".stripe.com") ||
-          url.hostname.endsWith(".conekta.io") ||
-          url.hostname.endsWith(".mercadopago.com") ||
-          url.hostname.endsWith(".mercadolibre.com") ||
-          url.hostname.endsWith(".mlstatic.com"),
+          url.hostname.endsWith(".conekta.io"),
         handler: "NetworkOnly",
       },
     ],
@@ -79,19 +77,15 @@ const nextConfig: NextConfig = {
             // tokeniza la tarjeta en el navegador y llama directo a la API
             // de Conekta (connect-src) -- los campos de tarjeta viven en
             // nuestra propia página, no en un iframe.
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.conekta.io https://d3fxnri0mz3rya.cloudfront.net https://unpkg.com https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.conekta.io https://d3fxnri0mz3rya.cloudfront.net https://unpkg.com",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com data:",
             "img-src 'self' data: blob: https: http:",
             // dc.conekta.com recoge la huella del dispositivo para prevención de
             // fraude -- sin esto Conekta puede rechazar pagos legítimos como
-            // riesgo alto (nos pasó exactamente esto antes con Mercado Pago).
-            // MP usa mercadolibre.com (no solo mercadopago.com) para su
-            // verificacion antifraude interna (fingerprint de dispositivo,
-            // analytics) -- sin esto varias llamadas se bloquean y el Card
-            // Form no termina de montar. Se descubrio viendo la consola real.
-            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network https://*.conekta.io https://*.conekta.com https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com https://notify.bugsnag.com https://sessions.bugsnag.com",
-            "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://q.stripe.com https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com",
+            // riesgo alto.
+            "connect-src 'self' https://*.cartocdn.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.stripe.com https://m.stripe.network https://*.conekta.io https://*.conekta.com https://notify.bugsnag.com https://sessions.bugsnag.com",
+            "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://q.stripe.com",
             "worker-src 'self' blob:",
             "manifest-src 'self'",
           ].join("; "),

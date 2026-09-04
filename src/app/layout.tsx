@@ -5,7 +5,8 @@ import { SideNav } from "@/components/layout/side-nav";
 import { PwaUpdater } from "@/components/pwa-updater";
 import { InstallPrompt } from "@/components/install-prompt";
 import { StripePreloader } from "@/components/stripe-preloader";
-import { MercadoPagoPreloader } from "@/components/mercadopago-preloader";
+// Mercado Pago se quitó del todo (código y backend eliminados) a pedido
+// explícito -- ya no queda ni el preloader.
 // Conekta queda en pausa (bloqueo de riesgo de su cuenta sin resolver,
 // ver checkout/page.tsx) -- import comentado, no borrado, para
 // retomarlo fácil en cuanto se resuelva ese caso.
@@ -44,15 +45,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <link rel="preconnect" href="https://api.stripe.com" />
                 <link rel="preconnect" href="https://m.stripe.network" />
                 <link rel="dns-prefetch" href="https://js.stripe.com" />
-                <link rel="preconnect" href="https://sdk.mercadopago.com" />
-                <link rel="preconnect" href="https://api.mercadopago.com" />
-                <link rel="dns-prefetch" href="https://sdk.mercadopago.com" />
             </head>
             <body>
                 <AuthGuard>
                     <PwaUpdater />
                     <StripePreloader />
-                    <MercadoPagoPreloader />
                     {/* <ConektaPreloader /> -- en pausa junto con Conekta */}
                     {/* Desktop sidebar — only visible on md+ */}
                     <SideNav />
