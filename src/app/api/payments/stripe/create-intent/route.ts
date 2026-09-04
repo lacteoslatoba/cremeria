@@ -42,11 +42,15 @@ export async function POST(request: Request) {
         const amountInCents = Math.round(Number(body.total) * 100);
 
         // Invitados no pueden guardar tarjeta (no hay a quién ligarla) --
-        // solo se crea/usa el Customer de Stripe si hay sesión iniciada.
-        // Con el Customer, el propio Payment Element muestra el check
-        // "Guardar esta tarjeta" y, con la Customer Session, también
-        // vuelve a mostrar las que ya tenga guardadas de compras pasadas.
-        const stripeCustomerId = body.userId ? await getOrCreateStripeCustomer(body.userId) : null;
+        // solo se crea/usa el Customer de Stripe si hay sesión real iniciada.
+        // "guest" es el id fijo que usa el botón de Invitado (no existe en
+        // la base de datos) -- se descarta aquí también por si acaso, para
+        // no ni intentar la consulta. Con el Customer, el propio Payment
+        // Element muestra el check "Guardar esta tarjeta" y, con la
+        // Customer Session, vuelve a mostrar las que ya tenga guardadas.
+        const stripeCustomerId = (body.userId && body.userId !== "guest")
+            ? await getOrCreateStripeCustomer(body.userId)
+            : null;
 
         const [intent, customerSessionClientSecret] = await Promise.all([
             stripe.paymentIntents.create({

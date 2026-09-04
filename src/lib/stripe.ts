@@ -18,10 +18,16 @@ export function getStripe(): Stripe {
 // primera vez que hace falta. Necesario para poder guardar su tarjeta y
 // que el Payment Element se la vuelva a mostrar en su próxima compra
 // (sin Customer, Stripe no tiene dónde guardar nada).
-export async function getOrCreateStripeCustomer(userId: string): Promise<string> {
+//
+// Devuelve null (no truena) si userId no corresponde a un usuario real --
+// pasa exactamente eso cuando alguien entra a /checkout directo por URL
+// como "Invitado" (ese rol usa el id fijo "guest", que no existe en la
+// base de datos). El checkout ya funcionaba para ese caso sin Customer
+// de Stripe; que no pueda guardar tarjeta ahí no debe tumbar el pago.
+export async function getOrCreateStripeCustomer(userId: string): Promise<string | null> {
     const { prisma } = await import("@/lib/prisma");
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { stripeCustomerId: true, name: true, email: true, phone: true } });
-    if (!user) throw new Error("Usuario no encontrado");
+    if (!user) return null;
     if (user.stripeCustomerId) return user.stripeCustomerId;
 
     const customer = await getStripe().customers.create({
