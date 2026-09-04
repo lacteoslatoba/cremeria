@@ -83,7 +83,11 @@ export default function CheckoutPage() {
     // veces antes de mostrarle cualquier error. Solo si de plano no jala
     // después de reintentar le pedimos recargar la página.
     const stripeSdkAttemptsRef = useRef(0);
-    const SDK_TIMEOUTS_MS = [12000, 8000, 10000]; // margen amplio; el SDK necesita tiempo para terminar, no reinicios
+    // Antes 12s/8s/10s (30s en total) -- confirmado en un caso real que
+    // cuando este script de verdad no puede cargar en la red del cliente,
+    // falla al instante (no lento): no tiene caso hacerlo esperar medio
+    // minuto antes de caer al respaldo de Mercado Pago.
+    const SDK_TIMEOUTS_MS = [4000, 3000, 3000]; // 10s en total
 
     const loadStripeSDK = () => {
         if (window.Stripe) { setStripeSdkLoaded(true); return; }
@@ -196,6 +200,18 @@ export default function CheckoutPage() {
             }
             stripeOrderIdRef.current = data.orderId;
 
+            // Caso real confirmado: a veces el <script> "termina de cargar"
+            // (onload dispara) pero el contenido que en verdad llegó viene
+            // vacío/incompleto por la red -- window.Stripe se queda sin
+            // definir aunque stripeSdkLoaded ya diga que sí. Sin esta
+            // guarda, la siguiente línea tronaría con un TypeError críptico
+            // y el cliente se quedaba varado sin caer al respaldo de MP.
+            if (!window.Stripe) {
+                setError("");
+                setCardGateway("mercadopago");
+                setStripeSubmitting(false);
+                return;
+            }
             if (!stripeRef.current) stripeRef.current = window.Stripe(stripePublicKeyRef.current);
 
             // El Payment Element traía el look genérico de Stripe (recuadros

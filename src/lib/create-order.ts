@@ -29,12 +29,18 @@ export async function createOrderWithStockCheck(params: {
     const { items } = params;
 
     // ── Validar stock disponible antes de crear la orden ──
-    for (const item of items) {
-        const product = await prisma.product.findUnique({
-            where: { id: item.productId },
-            select: { id: true, stock: true, status: true },
-        });
+    // Antes era un findUnique por producto EN SERIE (un viaje a la base de
+    // datos tras otro) -- con un solo findMany se trae todo en una sola
+    // ida y vuelta, y se valida en memoria. Con 4-5 productos en el
+    // carrito esto solía ser el tramo más lento de todo el checkout.
+    const products = await prisma.product.findMany({
+        where: { id: { in: items.map((i) => i.productId) } },
+        select: { id: true, stock: true, status: true },
+    });
+    const productById = new Map(products.map((p) => [p.id, p]));
 
+    for (const item of items) {
+        const product = productById.get(item.productId);
         if (!product) {
             throw new OrderCreationError(`El producto ${item.productId} ya no existe`, 400);
         }
@@ -72,13 +78,18 @@ export async function createOrderWithStockCheck(params: {
         });
 
         // Reserve/deduct stock unless the payment already failed outright.
+        // En paralelo -- son productos distintos, no hay fila compartida
+        // entre ellos que se puedan pisar, así que no hace falta esperarlos
+        // uno por uno.
         if (params.paymentStatus !== "REJECTED") {
-            for (const item of items) {
-                await tx.product.update({
-                    where: { id: item.productId },
-                    data: { stock: { decrement: item.quantity } },
-                });
-            }
+            await Promise.all(
+                items.map((item) =>
+                    tx.product.update({
+                        where: { id: item.productId },
+                        data: { stock: { decrement: item.quantity } },
+                    })
+                )
+            );
         }
 
         return newOrder;

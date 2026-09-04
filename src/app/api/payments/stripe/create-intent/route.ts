@@ -14,43 +14,39 @@ export async function POST(request: Request) {
         const body = await request.json();
         const items = body.items || [];
 
-        const order = await createOrderWithStockCheck({
-            customerName: body.customerName,
-            address: body.address,
-            total: body.total,
-            items,
-            userId: body.userId,
-            paymentMethod: "STRIPE",
-            paymentStatus: "PENDING",
-        });
+        // La orden (valida stock, etc.) y el Customer de Stripe no dependen
+        // uno del otro -- antes se esperaban en serie. El Customer solo
+        // necesita el userId, no la orden ya creada, así que corren en
+        // paralelo. Invitados no pueden guardar tarjeta (no hay a quién
+        // ligarla) -- "guest" es el id fijo que usa el botón de Invitado
+        // (no existe en la base de datos), se descarta antes de intentar
+        // siquiera la consulta.
+        const [order, stripeCustomerId] = await Promise.all([
+            createOrderWithStockCheck({
+                customerName: body.customerName,
+                address: body.address,
+                total: body.total,
+                items,
+                userId: body.userId,
+                paymentMethod: "STRIPE",
+                paymentStatus: "PENDING",
+            }),
+            (body.userId && body.userId !== "guest") ? getOrCreateStripeCustomer(body.userId) : Promise.resolve(null),
+        ]);
 
         // Envía por SMS el código de verificación de entrega al cliente cuando
-        // levanta su compra. Fire-and-forget: un fallo de SMS no bloquea el pago.
+        // levanta su compra. Fire-and-forget de verdad -- antes el lookup del
+        // teléfono sí se esperaba (await) antes de seguir, aunque el envío en
+        // sí ya no bloqueara nada. Sin ese await, esta ida a la base de datos
+        // ya no suma a la espera del clientSecret.
         if (body.userId) {
-            try {
-                const u = await prisma.user.findUnique({
-                    where: { id: body.userId },
-                    select: { phone: true },
-                });
-                if (u?.phone) notifyDeliveryCode(order, u.phone).catch(() => { });
-            } catch {
-                // no bloquear el flujo si falla la consulta del teléfono
-            }
+            prisma.user.findUnique({ where: { id: body.userId }, select: { phone: true } })
+                .then((u) => { if (u?.phone) notifyDeliveryCode(order, u.phone).catch(() => { }); })
+                .catch(() => { /* no bloquear el flujo si falla la consulta del teléfono */ });
         }
 
         const stripe = getStripe();
         const amountInCents = Math.round(Number(body.total) * 100);
-
-        // Invitados no pueden guardar tarjeta (no hay a quién ligarla) --
-        // solo se crea/usa el Customer de Stripe si hay sesión real iniciada.
-        // "guest" es el id fijo que usa el botón de Invitado (no existe en
-        // la base de datos) -- se descarta aquí también por si acaso, para
-        // no ni intentar la consulta. Con el Customer, el propio Payment
-        // Element muestra el check "Guardar esta tarjeta" y, con la
-        // Customer Session, vuelve a mostrar las que ya tenga guardadas.
-        const stripeCustomerId = (body.userId && body.userId !== "guest")
-            ? await getOrCreateStripeCustomer(body.userId)
-            : null;
 
         const [intent, customerSessionClientSecret] = await Promise.all([
             stripe.paymentIntents.create({
