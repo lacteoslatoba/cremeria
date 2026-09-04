@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { readSession } from "@/lib/auth";
+import { expireStalePendingOrders } from "@/lib/order-expiry";
 
 // Devuelve SOLO los pedidos del usuario autenticado (historial personal).
 // Incluye los items, el estado, el código de entrega (cuando corresponde) y la
@@ -10,6 +11,12 @@ export async function GET(request: Request) {
     if (!session?.id) {
         return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+
+    // Limpieza oportunista: antes de listar, se expira cualquier PENDING
+    // viejo (2h+) de ESTE usuario -- así "Pedido actual" no se le llena de
+    // compras abandonadas que nunca va a pagar. Acotado a su propio userId,
+    // así que es rápido y no toca al resto de la tabla.
+    await expireStalePendingOrders({ userId: session.id }).catch(() => { });
 
     const orders = await prisma.order.findMany({
         // hiddenFromUser: el cliente los "eliminó" de su lista -- siguen

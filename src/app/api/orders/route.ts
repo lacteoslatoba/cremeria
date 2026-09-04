@@ -4,12 +4,19 @@ import { createOrderWithStockCheck, OrderCreationError } from "@/lib/create-orde
 import { requireAuth, readSession } from "@/lib/auth";
 import { notifyDeliveryCode } from "@/lib/notify";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
+import { expireStalePendingOrders } from "@/lib/order-expiry";
 
 // Solo ADMIN puede listar todos los pedidos: incluye datos de clientes
 // (nombre, dirección) y el código de verificación de entrega de cada uno.
 export async function GET(request: Request) {
     const auth = await requireAuth(request, ["ADMIN"]);
     if (!auth.user) return auth.response;
+
+    // Limpieza oportunista: el admin revisa este panel seguido, así que es
+    // un buen punto para barrer PENDING abandonados de CUALQUIER usuario
+    // (incluidos invitados, que no tienen sesión propia para disparar la
+    // limpieza de /api/orders/mine). Acotado a un lote por llamada.
+    await expireStalePendingOrders().catch(() => { });
 
     try {
         const orders = await prisma.order.findMany({
