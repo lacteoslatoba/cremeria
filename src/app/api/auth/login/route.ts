@@ -4,15 +4,17 @@ import bcrypt from "bcryptjs";
 import { signSession, setSessionCookie } from "@/lib/auth";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
 
-// Serializa un usuario para responder, garantizando que NUNCA se expone el hash.
+// Serializa un usuario para responder, garantizando que NUNCA se expone el hash
+// ni los ids internos de la pasarela de pagos (no son secretos, pero tampoco
+// hace falta que el cliente los vea).
 function toSafeUser(user: {
     password?: string | null;
     resetToken?: string | null;
     resetTokenExpiry?: Date | null;
-    mpCustomerId?: string | null;
+    stripeCustomerId?: string | null;
     [key: string]: unknown;
 }) {
-    const { password, resetToken, resetTokenExpiry, mpCustomerId, ...safe } = user;
+    const { password, resetToken, resetTokenExpiry, stripeCustomerId, ...safe } = user;
     return safe;
 }
 

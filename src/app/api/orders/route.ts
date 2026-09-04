@@ -53,36 +53,24 @@ export async function POST(request: Request) {
         const body = await request.json();
         const items = body.items || [];
 
-        // paymentMethod: CASH | CARD
-        // mpPaymentId: MP payment ID (only for card payments)
-        // mpPaymentStatus: approved | in_process | rejected (from MP)
-        const paymentMethod = body.paymentMethod || "CASH";
-        const mpPaymentId = body.mpPaymentId || null;
-        const mpPaymentStatus = body.mpPaymentStatus || null;
-
-        // Determine paymentStatus to store
-        let paymentStatus = "APPROVED"; // cash is always "approved" immediately
-        if (paymentMethod === "CARD") {
-            if (mpPaymentStatus === "approved") paymentStatus = "APPROVED";
-            else if (mpPaymentStatus === "rejected" || mpPaymentStatus === "cancelled") paymentStatus = "REJECTED";
-            else paymentStatus = "PENDING"; // in_process, pending → waiting for webhook
-        }
-
+        // Esta ruta ya solo maneja Efectivo -- Stripe tiene su propia ruta
+        // dedicada (/api/payments/stripe/create-intent). Antes aceptaba un
+        // paymentMethod "CARD" genérico con estado que venía de Mercado Pago
+        // (mpPaymentStatus), de cuando esta misma ruta manejaba varias
+        // pasarelas -- ya no aplica, se quita esa rama muerta.
         const order = await createOrderWithStockCheck({
             customerName: body.customerName,
             address: body.address,
             total: body.total,
             items,
             userId,
-            paymentMethod,
-            paymentStatus,
-            mpPaymentId,
+            paymentMethod: "CASH",
+            paymentStatus: "APPROVED", // efectivo siempre queda aprobado de inmediato
         });
 
-        // Igual que en el flujo de tarjeta: si el pedido queda aprobado
-        // (efectivo siempre lo está de inmediato), avisamos por SMS el
-        // código de verificación de entrega.
-        if (paymentStatus === "APPROVED" && userId) {
+        // Igual que en el flujo de tarjeta: avisamos por SMS el código de
+        // verificación de entrega (efectivo siempre queda aprobado de inmediato).
+        if (userId) {
             try {
                 const u = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
                 if (u?.phone) notifyDeliveryCode(order, u.phone).catch(() => { });

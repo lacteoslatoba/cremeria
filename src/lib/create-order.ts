@@ -33,8 +33,6 @@ export async function createOrderWithStockCheck(params: {
     userId?: string;
     paymentMethod: string; // CASH | STRIPE (CONEKTA/CLIP/MERCADOPAGO solo quedan por historial de ordenes viejas)
     paymentStatus: string; // PENDING | APPROVED | REJECTED
-    mpPaymentId?: string | null; // solo por compatibilidad con ordenes historicas de Mercado Pago
-    clipPaymentId?: string | null; // solo por compatibilidad con ordenes historicas de Clip
 }) {
     const { items } = params;
 
@@ -72,8 +70,6 @@ export async function createOrderWithStockCheck(params: {
                 status: "PENDING",
                 paymentMethod: params.paymentMethod,
                 paymentStatus: params.paymentStatus,
-                mpPaymentId: params.mpPaymentId || null,
-                clipPaymentId: params.clipPaymentId || null,
                 deliveryCode: generateDeliveryCode(),
                 deliveryCodeStatus: "GENERATED",
                 ...(params.userId ? { user: { connect: { id: params.userId } } } : {}),
