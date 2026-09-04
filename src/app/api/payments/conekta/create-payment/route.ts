@@ -30,7 +30,10 @@ export async function POST(request: Request) {
         try {
             conektaOrder = await createConektaCardOrder({
                 tokenId: body.token,
-                amount: Number(body.total),
+                // order.total viene de la base de datos (ver create-order.ts),
+                // nunca de body.total -- lo que mande el navegador se ignora
+                // para el monto real que se cobra.
+                amount: order.total,
                 customerName: body.customerName || "Cliente",
                 // Nunca un correo generico compartido: eso hace que Conekta
                 // vea "el mismo cliente" en cada compra de invitado sin

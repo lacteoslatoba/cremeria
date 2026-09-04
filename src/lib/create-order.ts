@@ -8,7 +8,10 @@ export class OrderCreationError extends Error {
     }
 }
 
-type OrderItemInput = { productId: string; quantity: number; price: number; name?: string };
+// "price" del cliente ya NO se usa para cobrar ni para guardar en la orden --
+// solo queda por compatibilidad de tipo con quien todavía lo mande; el precio
+// real siempre sale de la base de datos (ver nota de seguridad abajo).
+type OrderItemInput = { productId: string; quantity: number; price?: number; name?: string };
 
 // Código numérico aleatorio de 6 dígitos para verificar la entrega.
 export function generateDeliveryCode(): string {
@@ -18,7 +21,14 @@ export function generateDeliveryCode(): string {
 export async function createOrderWithStockCheck(params: {
     customerName?: string;
     address: string;
-    total: number;
+    // "total" del cliente queda solo como referencia/compatibilidad -- NUNCA
+    // se usa para cobrar. El monto real que se guarda en la orden (y que
+    // cada pasarela debe leer para saber cuánto cobrar) es totalServer,
+    // calculado abajo con los precios reales de la base de datos. Antes esto
+    // venía directo del navegador: cualquiera con las herramientas de
+    // desarrollador podía cambiar el precio antes de que llegara al
+    // servidor y pagar lo que quisiera.
+    total?: number;
     items: OrderItemInput[];
     userId?: string;
     paymentMethod: string; // CASH | CONEKTA (STRIPE en pausa; CARD/CLIP/MERCADOPAGO quedan solo por historial)
@@ -28,17 +38,17 @@ export async function createOrderWithStockCheck(params: {
 }) {
     const { items } = params;
 
-    // ── Validar stock disponible antes de crear la orden ──
-    // Antes era un findUnique por producto EN SERIE (un viaje a la base de
-    // datos tras otro) -- con un solo findMany se trae todo en una sola
-    // ida y vuelta, y se valida en memoria. Con 4-5 productos en el
-    // carrito esto solía ser el tramo más lento de todo el checkout.
+    // ── Validar stock disponible Y traer el precio real antes de crear la
+    // orden ── Antes era un findUnique por producto EN SERIE (un viaje a la
+    // base de datos tras otro) -- con un solo findMany se trae todo en una
+    // sola ida y vuelta, y se valida en memoria.
     const products = await prisma.product.findMany({
         where: { id: { in: items.map((i) => i.productId) } },
-        select: { id: true, stock: true, status: true },
+        select: { id: true, stock: true, status: true, price: true, name: true },
     });
     const productById = new Map(products.map((p) => [p.id, p]));
 
+    let totalServer = 0;
     for (const item of items) {
         const product = productById.get(item.productId);
         if (!product) {
@@ -46,18 +56,19 @@ export async function createOrderWithStockCheck(params: {
         }
         if (product.status !== "ACTIVE" || product.stock < item.quantity) {
             throw new OrderCreationError(
-                `No hay suficiente stock para "${item.name || item.productId}"`,
+                `No hay suficiente stock para "${item.name || product.name}"`,
                 409
             );
         }
+        totalServer += product.price * item.quantity;
     }
 
-    return prisma.$transaction(async (tx) => {
+    const order = await prisma.$transaction(async (tx) => {
         const newOrder = await tx.order.create({
             data: {
                 customerName: params.customerName,
                 address: params.address,
-                total: params.total,
+                total: totalServer,
                 status: "PENDING",
                 paymentMethod: params.paymentMethod,
                 paymentStatus: params.paymentStatus,
@@ -67,10 +78,13 @@ export async function createOrderWithStockCheck(params: {
                 deliveryCodeStatus: "GENERATED",
                 ...(params.userId ? { user: { connect: { id: params.userId } } } : {}),
                 items: {
+                    // El precio que se guarda en cada renglón es el real de la
+                    // base de datos en el momento de la compra (product.price),
+                    // nunca el que mandó el cliente.
                     create: items.map((item) => ({
                         product: { connect: { id: item.productId } },
                         quantity: item.quantity,
-                        price: item.price,
+                        price: productById.get(item.productId)!.price,
                     })),
                 },
             },
@@ -94,6 +108,8 @@ export async function createOrderWithStockCheck(params: {
 
         return newOrder;
     });
+
+    return order;
 }
 
 // Cancela una orden PENDING y devuelve el stock que había apartado -- se usa

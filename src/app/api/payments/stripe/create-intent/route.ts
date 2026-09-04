@@ -46,7 +46,13 @@ export async function POST(request: Request) {
         }
 
         const stripe = getStripe();
-        const amountInCents = Math.round(Number(body.total) * 100);
+        // El monto que se cobra sale de order.total (calculado en el
+        // servidor con los precios reales de la base de datos, ver
+        // create-order.ts) -- NUNCA de body.total. Antes se usaba
+        // body.total directo: cualquiera con las herramientas de
+        // desarrollador podía cambiar el precio antes de que llegara al
+        // servidor y pagar lo que quisiera.
+        const amountInCents = Math.round(order.total * 100);
 
         const [intent, customerSessionClientSecret] = await Promise.all([
             stripe.paymentIntents.create({
