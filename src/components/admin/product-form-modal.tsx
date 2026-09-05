@@ -1,8 +1,8 @@
 "use client";
 
-import { Save, Loader2, Image as ImageIcon, X } from "lucide-react";
+import { Save, Loader2, Image as ImageIcon, X, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type ProductFormModalProps = {
     open: boolean;
@@ -24,6 +24,9 @@ export function ProductFormModal({ open, productId, onClose }: ProductFormModalP
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(!!productId);
     const [formData, setFormData] = useState(initialForm);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Al abrir el modal, si vamos a editar cargamos los datos actuales del producto.
     useEffect(() => {
@@ -54,6 +57,33 @@ export function ProductFormModal({ open, productId, onClose }: ProductFormModalP
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    // Sube la foto elegida directo a Vercel Blob (mismo hosting de la app) y
+    // guarda la URL pública que regresa -- ya no hace falta escribir/saber
+    // ninguna URL a mano.
+    const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = ""; // permite volver a elegir el mismo archivo después
+        if (!file) return;
+
+        setUploadError(null);
+        setIsUploadingImage(true);
+        try {
+            const body = new FormData();
+            body.append("file", file);
+            const res = await fetch("/api/products/upload-image", { method: "POST", body });
+            const data = await res.json();
+            if (!res.ok) {
+                setUploadError(data.error || "No se pudo subir la imagen");
+                return;
+            }
+            setFormData((prev) => ({ ...prev, image: data.url }));
+        } catch {
+            setUploadError("No se pudo subir la imagen. Revisa tu conexión.");
+        } finally {
+            setIsUploadingImage(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -192,25 +222,42 @@ export function ProductFormModal({ open, productId, onClose }: ProductFormModalP
                         {/* Image column */}
                         <div className="space-y-6">
                             <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 space-y-4">
-                                <h4 className="text-lg font-bold text-gray-900 border-b border-gray-200 pb-3">Imagen URL</h4>
-                                <div className="w-full h-40 bg-white border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-gray-400 overflow-hidden relative">
-                                    {formData.image ? (
-                                        <img src={formData.image} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                                <h4 className="text-lg font-bold text-gray-900 border-b border-gray-200 pb-3">Foto del producto</h4>
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploadingImage}
+                                    className="w-full h-40 bg-white border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-gray-400 overflow-hidden relative hover:border-primary/40 transition-colors disabled:opacity-70"
+                                >
+                                    {isUploadingImage ? (
+                                        <Loader2 size={28} className="animate-spin text-primary" />
+                                    ) : formData.image ? (
+                                        <>
+                                            <img src={formData.image} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-black/0 hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                                                <span className="text-white text-xs font-bold flex items-center gap-1.5">
+                                                    <Upload size={14} /> Cambiar foto
+                                                </span>
+                                            </div>
+                                        </>
                                     ) : (
                                         <>
                                             <ImageIcon size={32} className="mb-2" />
-                                            <span className="text-xs font-semibold">Previsualización</span>
+                                            <span className="text-xs font-semibold">Toca para subir una foto</span>
                                         </>
                                     )}
-                                </div>
+                                </button>
                                 <input
-                                    type="url"
-                                    name="image"
-                                    value={formData.image}
-                                    onChange={handleChange}
-                                    placeholder="https://ejemplo.com/imagen.jpg"
-                                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm text-gray-900 font-medium"
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/gif"
+                                    onChange={handleImageFile}
+                                    className="hidden"
                                 />
+                                {uploadError && <p className="text-xs font-semibold text-red-500">{uploadError}</p>}
+                                <p className="text-[11px] text-gray-400 font-medium leading-snug">
+                                    JPG, PNG, WEBP o GIF, máximo 5MB. Se guarda directo en la app -- no necesitas ningún link.
+                                </p>
                             </div>
                         </div>
 
@@ -225,7 +272,7 @@ export function ProductFormModal({ open, productId, onClose }: ProductFormModalP
                             </button>
                             <button
                                 type="submit"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || isUploadingImage}
                                 className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:-translate-y-0.5 transition-all disabled:opacity-70 disabled:hover:translate-y-0"
                             >
                                 {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
