@@ -1,0 +1,22 @@
+{
+    "name": "Cremería Admin",
+    "short_name": "Cremería Admin",
+    "description": "Panel administrativo de Cremería del Rancho: pedidos, ventas e inventario en vivo.",
+    "start_url": "/admin",
+    "scope": "/admin",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#f20d18",
+    "icons": [
+        {
+            "src": "/icon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

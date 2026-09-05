@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Download, Share, X } from "lucide-react";
 
 // Para cuando se reparte el link a muchos clientes: en vez de que cada quien
@@ -21,11 +22,17 @@ function isIOS() {
 }
 
 export function InstallPrompt() {
+    const pathname = usePathname();
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [show, setShow] = useState(false);
     const [platform, setPlatform] = useState<"android" | "ios" | null>(null);
 
     useEffect(() => {
+        // El panel /admin tiene su propio manifiesto (Cremería Admin, ver
+        // admin-manifest.json) y se instala en PC desde el propio ícono del
+        // navegador -- este banner es para el cliente en el celular, aquí
+        // mostraría el mensaje equivocado ("Pide más rápido...").
+        if (pathname?.startsWith("/admin")) return;
         if (isStandalone()) return; // ya la tiene instalada -- no molestar
         let dismissed = false;
         try { dismissed = !!window.localStorage.getItem("installPromptDismissed"); } catch { /* modo privado, etc. */ }
@@ -64,6 +71,10 @@ export function InstallPrompt() {
         try { window.localStorage.setItem("installPromptDismissed", "1"); } catch { /* no pasa nada */ }
     };
 
+    // Chequeo también al renderizar (no solo en el efecto): si ya se había
+    // mostrado el banner en otra ruta y de ahí se navega a /admin sin
+    // recargar, no debe quedarse pegado en pantalla.
+    if (pathname?.startsWith("/admin")) return null;
     if (!show || !platform) return null;
 
     return (
