@@ -2,37 +2,44 @@ import { prisma } from "@/lib/prisma";
 import { SingleScreenAdmin } from "@/components/admin/single-screen-admin";
 
 export default async function AdminDashboardPage() {
-    // Inventario: todos los productos (incluye inactivos/sin stock)
-    const products = await prisma.product.findMany({ orderBy: { createdAt: "desc" } });
+    // Las 5 consultas son independientes entre sí (no hay ninguna que
+    // necesite el resultado de otra) -- antes se pedían una tras otra en
+    // serie, sumando su tiempo; en paralelo el panel carga (y cada
+    // router.refresh() después de guardar algo) en lo que tarda la más
+    // lenta de las 5, no en la suma de las 5.
+    const [products, orders, salesRows, customers, drivers] = await Promise.all([
+        // Inventario: todos los productos (incluye inactivos/sin stock)
+        prisma.product.findMany({ orderBy: { createdAt: "desc" } }),
 
-    // Pedidos completos (para la pestaña de Pedidos)
-    const orders = await prisma.order.findMany({
-        include: { items: { include: { product: true } } },
-        orderBy: { createdAt: "desc" },
-    });
+        // Pedidos completos (para la pestaña de Pedidos)
+        prisma.order.findMany({
+            include: { items: { include: { product: true } } },
+            orderBy: { createdAt: "desc" },
+        }),
 
-    // Historial de ventas: solo COMPLETED / CANCELLED con items y delivery
-    const salesRows = await prisma.order.findMany({
-        where: { status: { in: ["COMPLETED", "CANCELLED"] } },
-        include: {
-            items: { include: { product: { select: { id: true, name: true } } } },
-            delivery: { select: { id: true, name: true } },
-        },
-        orderBy: { createdAt: "desc" },
-    });
+        // Historial de ventas: solo COMPLETED / CANCELLED con items y delivery
+        prisma.order.findMany({
+            where: { status: { in: ["COMPLETED", "CANCELLED"] } },
+            include: {
+                items: { include: { product: { select: { id: true, name: true } } } },
+                delivery: { select: { id: true, name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+        }),
 
-    // Clientes: todos los usuarios con conteo de pedidos
-    const customers = await prisma.user.findMany({
-        include: { _count: { select: { orders: true } } },
-        orderBy: { createdAt: "desc" },
-    });
+        // Clientes: todos los usuarios con conteo de pedidos
+        prisma.user.findMany({
+            include: { _count: { select: { orders: true } } },
+            orderBy: { createdAt: "desc" },
+        }),
 
-    // Repartidores
-    const drivers = await prisma.user.findMany({
-        where: { role: "DELIVERY" },
-        include: { _count: { select: { deliveryOrders: true } } },
-        orderBy: { createdAt: "desc" },
-    });
+        // Repartidores
+        prisma.user.findMany({
+            where: { role: "DELIVERY" },
+            include: { _count: { select: { deliveryOrders: true } } },
+            orderBy: { createdAt: "desc" },
+        }),
+    ]);
 
     return (
         <SingleScreenAdmin

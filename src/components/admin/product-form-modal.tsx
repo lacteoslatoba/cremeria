@@ -104,11 +104,19 @@ export function ProductFormModal({ open, productId, onClose }: ProductFormModalP
                 onClose();
                 router.refresh();
             } else {
-                alert("Ocurrió un error al guardar el producto");
-                setIsSubmitting(false);
+                const data = await res.json().catch(() => ({}));
+                alert(data.error || "Ocurrió un error al guardar el producto");
             }
         } catch (error) {
             console.error(error);
+            alert("Ocurrió un error de red al guardar el producto");
+        } finally {
+            // Igual que en el resto del admin (clientes, repartidores, estado
+            // de pedido): el botón SIEMPRE se restablece aquí, sin importar
+            // qué tan rápido cierre el modal -- antes esto dependía por
+            // completo de que onClose() desmontara el modal al instante, y
+            // si router.refresh() tardaba (el panel trae varias consultas
+            // pesadas), el botón se quedaba pegado en el ícono de carga.
             setIsSubmitting(false);
         }
     };
