@@ -52,8 +52,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 </div>
             </aside>
 
-            {/* Main Content */}
-            <main className="flex-1 flex flex-col h-[calc(100vh-70px)] md:h-screen overflow-hidden">
+            {/* Main Content -- con padding propio y centrado (max-width) para
+                que en monitores muy anchos no se vea todo pegado al sidebar
+                y estirado hasta el borde derecho sin ningún respiro. */}
+            <main className="flex-1 flex flex-col h-[calc(100vh-70px)] md:h-screen overflow-hidden p-4 md:p-8 md:max-w-[1600px] md:mx-auto md:w-full">
                 {children}
             </main>
         </div>

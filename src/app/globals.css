@@ -56,9 +56,19 @@ body {
 @media (min-width: 768px) {
   .app-wrapper {
     max-width: 100%;
-    margin-left: 256px; /* sidebar width */
+    margin-left: 256px; /* sidebar width (SideNav, fixed) */
     box-shadow: none;
     min-height: 100dvh;
+  }
+
+  /* El panel /admin trae su PROPIA barra lateral en flujo normal (ver
+     AdminLayout) -- no la de SideNav (que ahí no se renderiza). Sin este
+     override, admin-container heredaba el margin-left de arriba Y ENCIMA
+     el ancho de su propio sidebar, empujando todo el contenido ~512px a la
+     derecha (256px de más, sin ningún sidebar real ahí) en vez de los
+     256px reales -- por eso se veía cargado/descentrado. */
+  .app-wrapper:has(.admin-container) {
+    margin-left: 0;
   }
 
   /* Productos en grid de 3 columnas en desktop */

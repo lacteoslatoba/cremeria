@@ -134,13 +134,27 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ o
     try {
         const { orderId } = await params;
 
-        // Primero eliminar los OrderItems asociados (para evitar errores de foreign key)
-        await prisma.orderItem.deleteMany({
-            where: { orderId: orderId }
-        });
+        const deletedOrder = await prisma.$transaction(async (tx) => {
+            const items = await tx.orderItem.findMany({ where: { orderId } });
 
-        const deletedOrder = await prisma.order.delete({
-            where: { id: orderId }
+            // Si el pedido seguía PENDING (nunca se pagó ni se rechazó/expiró
+            // formalmente), el stock que se apartó al crearlo nunca se
+            // devolvió -- borrarlo así nomás lo dejaría restado del
+            // inventario real para siempre. Se devuelve aquí antes de
+            // borrar. Un pedido ya APPROVED/REJECTED no se toca (su stock
+            // ya quedó resuelto correctamente por el flujo normal).
+            const order = await tx.order.findUnique({ where: { id: orderId }, select: { paymentStatus: true } });
+            if (order?.paymentStatus === "PENDING") {
+                await Promise.all(
+                    items.map((item) =>
+                        tx.product.update({ where: { id: item.productId }, data: { stock: { increment: item.quantity } } })
+                    )
+                );
+            }
+
+            // Primero eliminar los OrderItems asociados (para evitar errores de foreign key)
+            await tx.orderItem.deleteMany({ where: { orderId } });
+            return tx.order.delete({ where: { id: orderId } });
         });
 
         revalidatePath("/admin/orders");

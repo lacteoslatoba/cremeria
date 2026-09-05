@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Plus, KeyRound, ShieldCheck, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Plus, KeyRound, ShieldCheck, User, Trash2, Loader2 } from "lucide-react";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
 import { OrderDeleteButton } from "@/components/admin/order-delete-button";
 import { AssignDriver } from "@/components/admin/assign-driver";
@@ -169,7 +170,19 @@ const getStatusLabel = (status: string) => {
 };
 
 // Tabla reutilizable de pedidos (se usa tanto para el pedido actual como el historial).
-function OrderTable({ orders, emptyMsg }: { orders: any[]; emptyMsg: string }) {
+function OrderTable({
+    orders,
+    emptyMsg,
+    selected,
+    onToggleRow,
+    onToggleAll,
+}: {
+    orders: any[];
+    emptyMsg: string;
+    selected: Set<string>;
+    onToggleRow: (id: string) => void;
+    onToggleAll: (ids: string[], checked: boolean) => void;
+}) {
     if (orders.length === 0) {
         return (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm w-full py-12 text-center text-gray-400 font-medium">
@@ -177,11 +190,25 @@ function OrderTable({ orders, emptyMsg }: { orders: any[]; emptyMsg: string }) {
             </div>
         );
     }
+    const ids = orders.map((o) => o.id);
+    const allSelected = ids.length > 0 && ids.every((id) => selected.has(id));
+    const someSelected = !allSelected && ids.some((id) => selected.has(id));
+
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm w-full overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100 uppercase text-xs font-bold text-gray-500 tracking-wider">
+                        <th className="pl-4 md:pl-6 py-4 w-10">
+                            <input
+                                type="checkbox"
+                                checked={allSelected}
+                                ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                                onChange={(e) => onToggleAll(ids, e.target.checked)}
+                                className="w-4 h-4 rounded accent-primary cursor-pointer"
+                                aria-label="Seleccionar todos"
+                            />
+                        </th>
                         <th className="px-4 md:px-6 py-4">ID / Fecha</th>
                         <th className="px-4 md:px-6 py-4">Cliente / Dirección</th>
                         <th className="px-4 md:px-6 py-4">Items</th>
@@ -195,7 +222,16 @@ function OrderTable({ orders, emptyMsg }: { orders: any[]; emptyMsg: string }) {
 
                 <tbody className="divide-y divide-gray-100 text-slate-700">
                     {orders.map((order: any) => (
-                        <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
+                        <tr key={order.id} className={`hover:bg-gray-50/50 transition-colors ${selected.has(order.id) ? "bg-primary/5" : ""}`}>
+                            <td className="pl-4 md:pl-6 py-4">
+                                <input
+                                    type="checkbox"
+                                    checked={selected.has(order.id)}
+                                    onChange={() => onToggleRow(order.id)}
+                                    className="w-4 h-4 rounded accent-primary cursor-pointer"
+                                    aria-label={`Seleccionar pedido #${order.id.slice(-6).toUpperCase()}`}
+                                />
+                            </td>
                             <td className="px-4 md:px-6 py-4">
                                 <div className="font-bold text-gray-900">#{order.id.slice(-6).toUpperCase()}</div>
                                 <div className="text-xs text-gray-500 mt-1">
@@ -249,8 +285,11 @@ function OrderTable({ orders, emptyMsg }: { orders: any[]; emptyMsg: string }) {
 
 
 export function AdminOrders({ orders }: { orders: any[] }) {
+    const router = useRouter();
     const [query, setQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
+    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
     const filtered = orders.filter((o) => {
         const matchesQuery =
@@ -264,6 +303,49 @@ export function AdminOrders({ orders }: { orders: any[] }) {
     const ACTIVE_STATES = ["PENDING", "PREPARING", "OUT_FOR_DELIVERY"];
     const activeOrders = filtered.filter((o) => ACTIVE_STATES.includes(o.status));
     const historyOrders = filtered.filter((o) => !ACTIVE_STATES.includes(o.status));
+
+    const toggleRow = (id: string) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleAll = (ids: string[], checked: boolean) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            for (const id of ids) { if (checked) next.add(id); else next.delete(id); }
+            return next;
+        });
+    };
+
+    // Selecciona/deselecciona TODO lo que está filtrado (ambas secciones a la
+    // vez), no solo una tabla -- así "seleccionar todos" de verdad significa
+    // todos los pedidos visibles, sin importar en qué sección estén.
+    const allFilteredIds = filtered.map((o) => o.id);
+    const allFilteredSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selected.has(id));
+
+    const handleBulkDelete = async () => {
+        const ids = Array.from(selected);
+        if (ids.length === 0) return;
+        if (!confirm(`¿Eliminar ${ids.length} pedido${ids.length > 1 ? "s" : ""}? Esta acción no se puede deshacer.`)) return;
+
+        setIsBulkDeleting(true);
+        try {
+            const results = await Promise.allSettled(
+                ids.map((id) => fetch(`/api/orders/${id}`, { method: "DELETE" }))
+            );
+            const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok));
+            if (failed.length > 0) {
+                alert(`No se pudieron eliminar ${failed.length} de ${ids.length} pedidos. Intenta de nuevo.`);
+            }
+            setSelected(new Set());
+            router.refresh();
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
 
     return (
         <div className="flex-1 flex flex-col w-full">
@@ -293,12 +375,56 @@ export function AdminOrders({ orders }: { orders: any[] }) {
                 </select>
             </div>
 
+            {/* Barra de selección -- solo aparece con al menos un pedido marcado */}
+            {selected.size > 0 && (
+                <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-primary/5 border border-primary/20 rounded-xl">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={allFilteredSelected}
+                            onChange={(e) => toggleAll(allFilteredIds, e.target.checked)}
+                            className="w-4 h-4 rounded accent-primary cursor-pointer"
+                        />
+                        {selected.size} pedido{selected.size > 1 ? "s" : ""} seleccionado{selected.size > 1 ? "s" : ""}
+                        {!allFilteredSelected && (
+                            <button type="button" onClick={() => toggleAll(allFilteredIds, true)} className="text-primary hover:underline font-bold">
+                                Seleccionar todos ({allFilteredIds.length})
+                            </button>
+                        )}
+                    </label>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setSelected(new Set())}
+                            className="text-sm font-semibold text-gray-500 hover:text-gray-700"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleBulkDelete}
+                            disabled={isBulkDeleting}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold text-sm shadow-sm transition-colors disabled:opacity-60"
+                        >
+                            {isBulkDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                            Eliminar seleccionados
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Pedido actual */}
             <section className="mb-8">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
                     Pedido actual {activeOrders.length > 0 && `(${activeOrders.length})`}
                 </h3>
-                <OrderTable orders={activeOrders} emptyMsg="No hay pedidos en curso." />
+                <OrderTable
+                    orders={activeOrders}
+                    emptyMsg="No hay pedidos en curso."
+                    selected={selected}
+                    onToggleRow={toggleRow}
+                    onToggleAll={toggleAll}
+                />
             </section>
 
             {/* Historial */}
@@ -306,7 +432,13 @@ export function AdminOrders({ orders }: { orders: any[] }) {
                 <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
                     Historial {historyOrders.length > 0 && `(${historyOrders.length})`}
                 </h3>
-                <OrderTable orders={historyOrders} emptyMsg="Todavía no hay historial de pedidos." />
+                <OrderTable
+                    orders={historyOrders}
+                    emptyMsg="Todavía no hay historial de pedidos."
+                    selected={selected}
+                    onToggleRow={toggleRow}
+                    onToggleAll={toggleAll}
+                />
             </section>
         </div>
     );
