@@ -1,6 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { SingleScreenAdmin } from "@/components/admin/single-screen-admin";
 
+// Esta página no lee cookies/headers ni nada que Next detecte como
+// "dinámico" por sí solo -- sin esto, la trata como estática y la sirve
+// desde caché (edge de Vercel + el router cache del navegador) hasta 5
+// minutos, aunque revalidatePath() ya haya corrido. Por eso después de
+// Guardar en un producto el panel no se actualizaba solo (router.refresh()
+// podía reusar esa copia en caché) y hacía falta un F5 a mano para
+// forzarlo. Un panel que existe para ver pedidos/ventas EN VIVO no puede
+// quedarse con datos de hace rato -- se marca explícitamente dinámica.
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
     // Las 5 consultas son independientes entre sí (no hay ninguna que
     // necesite el resultado de otra) -- antes se pedían una tras otra en
