@@ -301,8 +301,17 @@ export function AdminOrders({ orders }: { orders: any[] }) {
     });
 
     const ACTIVE_STATES = ["PENDING", "PREPARING", "OUT_FOR_DELIVERY"];
-    const activeOrders = filtered.filter((o) => ACTIVE_STATES.includes(o.status));
-    const historyOrders = filtered.filter((o) => !ACTIVE_STATES.includes(o.status));
+    // Un pedido con tarjeta que nunca se terminó de pagar (carrito
+    // abandonado a medio checkout, tarjeta rechazada) no debe verse como
+    // "pedido actual" -- prepararlo/entregarlo sería pérdida pura, nunca
+    // se cobró. Efectivo siempre se aprueba al crearse (se paga al
+    // recibir), asi que ahí "actual" solo depende del estado de entrega.
+    const isRealPurchase = (o: any) => o.paymentMethod === "CASH" || o.paymentStatus === "APPROVED";
+    const activeOrders = filtered.filter((o) => ACTIVE_STATES.includes(o.status) && isRealPurchase(o));
+    // Todo lo demás cae en Historial -- incluye lo ya terminado y los
+    // intentos de pago que nunca se completaron, para que nada desaparezca
+    // de la vista, solo se reclasifique.
+    const historyOrders = filtered.filter((o) => !(ACTIVE_STATES.includes(o.status) && isRealPurchase(o)));
 
     // Solo transacciones de Stripe que de verdad se cobraron -- ni efectivo
     // (no es "transacción" de tarjeta), ni pendientes/rechazadas (esas

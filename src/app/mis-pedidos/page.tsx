@@ -10,12 +10,20 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 type MyOrder = {
     id: string;
     status: string;
+    paymentMethod: string;
+    paymentStatus: string;
     total: number;
     createdAt: string;
     items: { product: { name: string; image?: string | null }; quantity: number; price: number }[];
 };
 
 const ACTIVE = ["PENDING", "PREPARING", "OUT_FOR_DELIVERY"];
+// Un pedido con tarjeta que nunca se terminó de pagar (carrito abandonado
+// a medio checkout, tarjeta rechazada) no debe verse como "en curso" --
+// todavía no es una compra real. Efectivo siempre se aprueba al crearse
+// (se paga al recibir), así que ahí "en curso" solo depende del estado de
+// entrega de siempre.
+const isRealPurchase = (o: MyOrder) => o.paymentMethod === "CASH" || o.paymentStatus === "APPROVED";
 // El historial ya no se muestra completo de una -- con muchos pedidos se
 // vuelve una lista interminable. Se ven los más recientes y el resto queda
 // oculto tras "Ver historial completo".
@@ -151,10 +159,14 @@ function MyOrdersContent() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const active = orders.filter(o => ACTIVE.includes(o.status));
+    const active = orders.filter(o => ACTIVE.includes(o.status) && isRealPurchase(o));
+    // Todo lo que no cuenta como "en curso" cae aquí -- incluye lo ya
+    // terminado (entregado/cancelado) Y los intentos de pago con tarjeta
+    // que nunca se completaron. Así nunca desaparece un pedido de la
+    // vista, nada más se reclasifica.
     // La API ya regresa los pedidos más nuevos primero, así que el "preview"
     // es simplemente cortar los primeros N.
-    const history = orders.filter(o => !ACTIVE.includes(o.status));
+    const history = orders.filter(o => !(ACTIVE.includes(o.status) && isRealPurchase(o)));
     const hiddenHistoryCount = Math.max(0, history.length - HISTORY_PREVIEW_COUNT);
     const visibleHistory = showFullHistory ? history : history.slice(0, HISTORY_PREVIEW_COUNT);
 
