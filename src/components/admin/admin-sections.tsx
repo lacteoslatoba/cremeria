@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, KeyRound, ShieldCheck, User, Trash2, Loader2 } from "lucide-react";
+import { Search, Plus, KeyRound, ShieldCheck, User, Trash2, Loader2, Download } from "lucide-react";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
 import { OrderDeleteButton } from "@/components/admin/order-delete-button";
 import { AssignDriver } from "@/components/admin/assign-driver";
@@ -304,6 +304,40 @@ export function AdminOrders({ orders }: { orders: any[] }) {
     const activeOrders = filtered.filter((o) => ACTIVE_STATES.includes(o.status));
     const historyOrders = filtered.filter((o) => !ACTIVE_STATES.includes(o.status));
 
+    // Solo transacciones de Stripe que de verdad se cobraron -- ni efectivo
+    // (no es "transacción" de tarjeta), ni pendientes/rechazadas (esas
+    // nunca se cobraron de verdad, aunque hayan quedado registradas).
+    const approvedStripeOrders = orders.filter((o) => o.paymentMethod === "STRIPE" && o.paymentStatus === "APPROVED");
+
+    const escapeCsv = (v: unknown) => {
+        const s = String(v ?? "");
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
+    const handleExportStripe = () => {
+        const rows = approvedStripeOrders.map((o) => [
+            o.id.slice(-6).toUpperCase(),
+            new Date(o.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" }),
+            new Date(o.createdAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+            o.customerName || "Invitado",
+            o.address || "",
+            o.total.toFixed(2),
+            o.stripePaymentIntentId || "",
+        ]);
+        const header = ["Folio", "Fecha", "Hora", "Cliente", "Dirección", "Total", "ID Stripe (PaymentIntent)"];
+        // BOM al inicio -- sin esto Excel muestra mal los acentos/ñ del CSV.
+        const csv = "﻿" + [header, ...rows].map((r) => r.map(escapeCsv).join(",")).join("\r\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `pedidos-stripe-aprobados-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    };
+
     const toggleRow = (id: string) => {
         setSelected((prev) => {
             const next = new Set(prev);
@@ -373,6 +407,17 @@ export function AdminOrders({ orders }: { orders: any[] }) {
                     <option value="COMPLETED">Completado</option>
                     <option value="CANCELLED">Cancelado</option>
                 </select>
+                <button
+                    type="button"
+                    onClick={handleExportStripe}
+                    disabled={approvedStripeOrders.length === 0}
+                    title="Descarga un CSV solo con los pedidos pagados con Stripe y aprobados de verdad"
+                    className="flex items-center justify-center gap-2 h-[46px] px-4 bg-white border border-gray-200 hover:border-primary/40 text-gray-700 rounded-xl font-bold text-sm shrink-0 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <Download size={18} />
+                    <span className="hidden sm:inline">Descargar Stripe ({approvedStripeOrders.length})</span>
+                    <span className="sm:hidden">({approvedStripeOrders.length})</span>
+                </button>
             </div>
 
             {/* Barra de selección -- solo aparece con al menos un pedido marcado */}
