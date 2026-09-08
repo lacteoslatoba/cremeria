@@ -134,24 +134,34 @@ export default function LoginPage() {
                     Cremería. Se quitaron y se dejó fondo blanco sólido, como se
                     pidió. */}
 
-                <div className="relative z-10 flex flex-col justify-between min-h-[100dvh] px-6 py-10 pt-2 pb-24">
+                <div className="relative z-10 flex flex-col items-center gap-[clamp(1rem,4dvh,2.5rem)] sm:gap-10 min-h-[100dvh] px-4 py-[clamp(1.25rem,5dvh,3.5rem)] sm:px-6 sm:pt-16 sm:pb-12">
                     {/* Antes había un logo placeholder externo (i.ibb.co) de otro
                         negocio ("La Toba") arriba, y debajo un título + frase que
                         repetían el nombre y el lema a mano. El logo oficial nuevo ya
                         trae ese mismo texto dibujado ("Cremeria del Rancho" + "Lo
                         nuestro es calidad"), así que se quitó el título duplicado y
-                        se agrandó el logo para que sea el único protagonista. */}
-                    <div className="flex justify-center pt-8 pb-4">
+                        se agrandó el logo para que sea el único protagonista.
+                        El logo era un tamaño fijo enorme (h-80 = 320px) que en la
+                        app instalada (pantalla completa, sin barra de Chrome)
+                        cortaba "¿Olvidaste tu contraseña?", "crea tu cuenta" e
+                        "Invitado" -- obligaba a hacer scroll para ver el login
+                        completo. Ahora el tamaño usa clamp() con dvh (alto real
+                        del viewport): grande en celulares altos, se achica solo
+                        lo necesario en los más cortos, para que todo entre sin
+                        scroll en cualquier pantalla. Verificado directo en la
+                        app instalada (org.chromium.webapk...), no solo en una
+                        pestaña de Chrome. */}
+                    <div className="flex justify-center">
                         {/* SVG en vez del PNG -- vectorial, se puede ver grande sin
                             perder nitidez. */}
                         <img
                             alt="Cremería del Rancho -- Lo nuestro es calidad"
-                            className="h-80 w-auto object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+                            className="h-[clamp(6rem,18dvh,10rem)] w-auto sm:h-56 md:h-80 object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
                             src="/logo-cremeria-del-rancho.svg"
                         />
                     </div>
 
-                    <div className="flex flex-col w-full max-w-[480px] mx-auto gap-6 z-20 bg-white/70 backdrop-blur-xl p-6 md:p-8 rounded-3xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
+                    <div className="flex flex-col w-full max-w-[480px] mx-auto gap-4 sm:gap-6 z-20 bg-white/70 backdrop-blur-xl p-[clamp(1rem,3.5dvh,1.5rem)] sm:p-6 md:p-8 rounded-3xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
                         {!isRegistering ? (
                             <form onSubmit={handleLogin} className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
                                 <div className="space-y-1 text-left">
@@ -162,7 +172,7 @@ export default function LoginPage() {
                                         placeholder="Ingresa tu usuario"
                                         value={identifier}
                                         onChange={(e) => setIdentifier(e.target.value)}
-                                        className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium"
+                                        className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 sm:py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium"
                                     />
                                 </div>
 
@@ -174,7 +184,7 @@ export default function LoginPage() {
                                         placeholder="••••••••"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium tracking-widest"
+                                        className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 sm:py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium tracking-widest"
                                     />
                                 </div>
 
@@ -184,14 +194,14 @@ export default function LoginPage() {
                                     </div>
                                 )}
 
-                                <button type="submit" disabled={loading} className="relative group w-full cursor-pointer items-center justify-center overflow-hidden rounded-2xl h-16 px-8 flex bg-primary text-white text-lg font-bold leading-normal tracking-[0.2em] shadow-xl shadow-primary/30 transition-all active:scale-[0.98] mt-2">
+                                <button type="submit" disabled={loading} className="relative group w-full cursor-pointer items-center justify-center overflow-hidden rounded-2xl h-[clamp(3rem,7dvh,4rem)] px-8 flex bg-primary text-white text-lg font-bold leading-normal tracking-[0.2em] shadow-xl shadow-primary/30 transition-all active:scale-[0.98] mt-2">
                                     <span className="relative z-10 flex items-center gap-2">
                                         {loading ? <Loader2 size={24} className="animate-spin" /> : "ENTRAR"}
                                     </span>
                                     <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:left-full transition-all duration-1000"></div>
                                 </button>
 
-                                <div className="text-center mt-4 mb-2 relative z-50">
+                                <div className="text-center mt-3 sm:mt-4 mb-1 sm:mb-2 relative z-50">
                                     <button
                                         type="button"
                                         onClick={(e) => { e.preventDefault(); router.push('/forgot-password'); }}
@@ -212,7 +222,7 @@ export default function LoginPage() {
                                     </button>
                                 </div>
 
-                                <div className="flex justify-center mt-4 border-t border-gray-200/50 pt-4">
+                                <div className="flex justify-center mt-3 sm:mt-4 border-t border-gray-200/50 pt-3 sm:pt-4">
                                     <button
                                         type="button"
                                         onClick={handleGuestLogin}
