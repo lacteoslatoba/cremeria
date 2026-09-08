@@ -55,6 +55,16 @@ export async function createStripeCustomerSession(customerId: string): Promise<s
                     payment_method_save: "enabled",
                     payment_method_save_usage: "off_session",
                     payment_method_redisplay: "enabled",
+                    // Máximo 2 tarjetas guardadas visibles en el Payment
+                    // Element -- si el cliente tiene más, Stripe oculta las
+                    // demás (el tope que acepta Stripe es 3, pero aquí se
+                    // pide explícitamente 2).
+                    payment_method_redisplay_limit: 2,
+                    // Muestra un ícono de basurita en cada tarjeta guardada
+                    // dentro del propio Payment Element -- al usarlo, Stripe
+                    // desasocia (detach) esa tarjeta del cliente solo, sin
+                    // que necesitemos un endpoint propio para borrarla.
+                    payment_method_remove: "enabled",
                 },
             },
         },
