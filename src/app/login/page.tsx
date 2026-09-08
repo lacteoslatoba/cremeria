@@ -134,7 +134,7 @@ export default function LoginPage() {
                     Cremería. Se quitaron y se dejó fondo blanco sólido, como se
                     pidió. */}
 
-                <div className="relative z-10 flex flex-col items-center gap-[clamp(1rem,4dvh,2.5rem)] sm:gap-10 min-h-[100dvh] px-4 py-[clamp(1.25rem,5dvh,3.5rem)] sm:px-6 sm:pt-16 sm:pb-12">
+                <div className="relative z-10 flex flex-col items-center gap-[clamp(0.75rem,3dvh,2.5rem)] sm:gap-10 min-h-[100dvh] px-4 py-[clamp(1rem,3.5dvh,3.5rem)] sm:px-6 sm:pt-16 sm:pb-12">
                     {/* Antes había un logo placeholder externo (i.ibb.co) de otro
                         negocio ("La Toba") arriba, y debajo un título + frase que
                         repetían el nombre y el lema a mano. El logo oficial nuevo ya
@@ -156,12 +156,12 @@ export default function LoginPage() {
                             perder nitidez. */}
                         <img
                             alt="Cremería del Rancho -- Lo nuestro es calidad"
-                            className="h-[clamp(7rem,21dvh,12rem)] w-auto sm:h-56 md:h-80 object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+                            className="h-[clamp(7rem,20dvh,12.5rem)] w-auto sm:h-56 md:h-80 object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
                             src="/logo-cremeria-del-rancho.svg"
                         />
                     </div>
 
-                    <div className="flex flex-col w-full max-w-[480px] mx-auto gap-4 sm:gap-6 z-20 bg-white/70 backdrop-blur-xl p-[clamp(1rem,3.5dvh,1.5rem)] sm:p-6 md:p-8 rounded-3xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
+                    <div className="flex flex-col w-full max-w-[480px] mx-auto gap-[clamp(0.75rem,2.5dvh,1.5rem)] sm:gap-6 z-20 bg-white/70 backdrop-blur-xl p-[clamp(0.75rem,3dvh,1.5rem)] sm:p-6 md:p-8 rounded-3xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
                         {!isRegistering ? (
                             <form onSubmit={handleLogin} className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
                                 <div className="space-y-1 text-left">
@@ -201,7 +201,7 @@ export default function LoginPage() {
                                     <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:left-full transition-all duration-1000"></div>
                                 </button>
 
-                                <div className="text-center mt-3 sm:mt-4 mb-1 sm:mb-2 relative z-50">
+                                <div className="text-center mt-1 sm:mt-4 mb-0.5 sm:mb-2 relative z-50">
                                     <button
                                         type="button"
                                         onClick={(e) => { e.preventDefault(); router.push('/forgot-password'); }}
@@ -211,7 +211,7 @@ export default function LoginPage() {
                                     </button>
                                 </div>
 
-                                <div className="text-center mt-2">
+                                <div className="text-center mt-0.5 sm:mt-2">
                                     <span className="text-sm text-[#2d2a28]/70 font-medium">Si no tienes cuenta aún, </span>
                                     <button
                                         type="button"
@@ -222,7 +222,7 @@ export default function LoginPage() {
                                     </button>
                                 </div>
 
-                                <div className="flex justify-center mt-3 sm:mt-4 border-t border-gray-200/50 pt-3 sm:pt-4">
+                                <div className="flex justify-center mt-1 sm:mt-4 border-t border-gray-200/50 pt-2 sm:pt-4">
                                     <button
                                         type="button"
                                         onClick={handleGuestLogin}
