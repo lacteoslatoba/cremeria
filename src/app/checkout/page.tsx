@@ -475,12 +475,12 @@ export default function CheckoutPage() {
                     <div className="flex gap-2 p-1 rounded-2xl bg-white/5 border border-white/10">
                         {/* Dentro de este bloque method siempre es "CASH" (es la
                             condición que lo muestra) -- Efectivo queda resaltado
-                            como estado activo y "Tarjeta" es el botón para volver. */}
+                            como estado activo y "Añadir Tarjeta" es el botón para volver. */}
                         <button
                             onClick={() => { setMethod("CARD"); setError(""); }}
                             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all text-gray-400"
                         >
-                            <CreditCard size={16} /> Tarjeta
+                            <CreditCard size={16} /> Añadir Tarjeta
                         </button>
                         <button
                             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all bg-green-600 text-white shadow-lg shadow-green-600/30"
