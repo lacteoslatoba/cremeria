@@ -147,26 +147,18 @@ export default function LoginPage() {
                 </div>
 
                 <div className="relative z-10 flex flex-col justify-between min-h-[100dvh] px-6 py-10 pt-2 pb-24">
-                    <div className="flex justify-center pt-8">
-                        <div className="flex items-center justify-center p-3">
-                            {/* Antes apuntaba a un placeholder externo (i.ibb.co) que quedó
-                                de una plantilla de IA y con el nombre de otro negocio ("La
-                                Toba") -- ese host es poco confiable (ver safe-image.tsx) y
-                                además no era ni el logo correcto. Usamos el logo real de la
-                                Cremería, ya local en /public, sin depender de internet de
-                                terceros. */}
-                            <img alt="Cremería del Rancho" className="h-20 w-auto object-contain" src="/icon.png" />
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col items-center justify-start pt-4 pb-6 text-center">
-                        <h1 className="text-[#2d2a28] font-serif tracking-tight text-5xl font-bold leading-[1.1]" style={{ textShadow: "0 1px 3px rgba(0, 0, 0, 0.05)" }}>
-                            Cremeria <br />
-                            <span className="text-primary italic">del Rancho</span>
-                        </h1>
-                        <p className="mt-3 text-[#2d2a28] text-lg font-medium italic tracking-[0.15em] opacity-90 font-serif">
-                            Lo nuestro es calidad
-                        </p>
+                    {/* Antes había un logo placeholder externo (i.ibb.co) de otro
+                        negocio ("La Toba") arriba, y debajo un título + frase que
+                        repetían el nombre y el lema a mano. El logo oficial nuevo ya
+                        trae ese mismo texto dibujado ("Cremeria del Rancho" + "Lo
+                        nuestro es calidad"), así que se quitó el título duplicado y
+                        se agrandó el logo para que sea el único protagonista. */}
+                    <div className="flex justify-center pt-10 pb-6">
+                        <img
+                            alt="Cremería del Rancho -- Lo nuestro es calidad"
+                            className="h-56 w-auto object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+                            src="/logo-cremeria-del-rancho.png"
+                        />
                     </div>
 
                     <div className="flex flex-col w-full max-w-[480px] mx-auto gap-6 z-20 bg-white/70 backdrop-blur-xl p-6 md:p-8 rounded-3xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
