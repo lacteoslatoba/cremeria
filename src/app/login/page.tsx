@@ -125,26 +125,14 @@ export default function LoginPage() {
     if (!mounted) return null;
 
     return (
-        <main className="font-sans antialiased overflow-y-auto overflow-x-hidden min-h-[100dvh]" style={{ background: "radial-gradient(circle at 50% 50%, #fff 0%, #f9fafb 100%)" }}>
+        <main className="font-sans antialiased overflow-y-auto overflow-x-hidden min-h-[100dvh] bg-white">
             <div className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden">
-                <div className="fixed inset-0 z-0">
-                    <div className="absolute inset-0" style={{
-                        backgroundImage: "url(https://lh3.googleusercontent.com/aida-public/AB6AXuCk-86BX5m8rJtfnpBeucRNCOEXlT0kL1nxNJhrtamKf4_cd1y8c4VlHzgEpyUv-yhZh4xah0Mr9lBPbkJ4yNdxfPxBJXxDuRKT3i9W-v7LxwY-XlZySEBXbChnSBB3X_VZmVQs_UH7QaxUMJEO8IMWnlm8IZtozXpCIfExWMnDTCTUz8nPHVuYn1XEg4v1F99zrUTVaHh_7ACLqL3VfVgxNwYpqyKNyRQLGHd4arYD5slwwDj3kMziH-3ZQ5T7_jvWhuNDxTy98iiv)",
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        opacity: 0.08,
-                        filter: "grayscale(40%) contrast(90%)",
-                        mixBlendMode: "multiply"
-                    }}></div>
-                    <div className="absolute inset-0" style={{
-                        backgroundImage: "url(https://lh3.googleusercontent.com/aida-public/AB6AXuARSHF88XEMPgG-YromyIEau96ck20nFhp36acDO42qPciNQlHuB5-TLLDu377LPEKfL9fJxm2dPae_lSc5p4uSf15q9nzmjuTZMW8JI9WIQH7lIUUN3ifESzF5bKS98kqddHIbY3U1aNiu7t6t3VjFkLYYnpbqxhsdNF1kRGVzGXpkxC8OUoZ9FHF8Kt72lH7wO9_wSTnWMYJHIglfw8638NvR7rrn-H9Tb_elNz-nYrvJquIEFJQozdiID4oXa8rnARr-DUNk-4lg)",
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        opacity: 0.05,
-                        mixBlendMode: "luminosity"
-                    }}></div>
-                    <div className="absolute inset-0 bg-gradient-to-tr from-white/60 via-transparent to-white/40"></div>
-                </div>
+                {/* Antes había dos capas de textura de fondo tomadas de
+                    lh3.googleusercontent.com/aida-public/... -- leftover de la misma
+                    plantilla de IA que traía el logo equivocado ("La Toba"). Mismo
+                    problema de fondo: dependían de un host externo ajeno a la
+                    Cremería. Se quitaron y se dejó fondo blanco sólido, como se
+                    pidió. */}
 
                 <div className="relative z-10 flex flex-col justify-between min-h-[100dvh] px-6 py-10 pt-2 pb-24">
                     {/* Antes había un logo placeholder externo (i.ibb.co) de otro
@@ -153,11 +141,13 @@ export default function LoginPage() {
                         trae ese mismo texto dibujado ("Cremeria del Rancho" + "Lo
                         nuestro es calidad"), así que se quitó el título duplicado y
                         se agrandó el logo para que sea el único protagonista. */}
-                    <div className="flex justify-center pt-10 pb-6">
+                    <div className="flex justify-center pt-8 pb-4">
+                        {/* SVG en vez del PNG -- vectorial, se puede ver grande sin
+                            perder nitidez. */}
                         <img
                             alt="Cremería del Rancho -- Lo nuestro es calidad"
-                            className="h-56 w-auto object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
-                            src="/logo-cremeria-del-rancho.png"
+                            className="h-80 w-auto object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+                            src="/logo-cremeria-del-rancho.svg"
                         />
                     </div>
 
