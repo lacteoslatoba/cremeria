@@ -149,7 +149,13 @@ export default function LoginPage() {
                 <div className="relative z-10 flex flex-col justify-between min-h-[100dvh] px-6 py-10 pt-2 pb-24">
                     <div className="flex justify-center pt-8">
                         <div className="flex items-center justify-center p-3">
-                            <img alt="La Toba Logo" className="h-20 w-auto object-contain" src="https://i.ibb.co/qMMcGwNr/a2.png" />
+                            {/* Antes apuntaba a un placeholder externo (i.ibb.co) que quedó
+                                de una plantilla de IA y con el nombre de otro negocio ("La
+                                Toba") -- ese host es poco confiable (ver safe-image.tsx) y
+                                además no era ni el logo correcto. Usamos el logo real de la
+                                Cremería, ya local en /public, sin depender de internet de
+                                terceros. */}
+                            <img alt="Cremería del Rancho" className="h-20 w-auto object-contain" src="/icon.png" />
                         </div>
                     </div>
 
