@@ -156,7 +156,7 @@ export default function LoginPage() {
                             perder nitidez. */}
                         <img
                             alt="Cremería del Rancho -- Lo nuestro es calidad"
-                            className="h-[clamp(6.25rem,18.3dvh,10.25rem)] w-auto sm:h-56 md:h-80 object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+                            className="h-[clamp(7rem,21dvh,12rem)] w-auto sm:h-56 md:h-80 object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
                             src="/logo-cremeria-del-rancho.svg"
                         />
                     </div>
