@@ -32,8 +32,8 @@ export async function POST(request: Request) {
         }
         const cancelled = await cancelPendingOrderAndRestoreStock(body.orderId, session.id);
         return NextResponse.json({ cancelled });
-    } catch (error: any) {
+    } catch (error) {
         console.error("[STRIPE_CANCEL_PENDING_ERROR]", error);
-        return NextResponse.json({ error: error?.message || "No se pudo cancelar" }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo cancelar" }, { status: 500 });
     }
 }

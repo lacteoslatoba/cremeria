@@ -2,8 +2,9 @@
 import { useState } from "react";
 import { Edit, Trash2, X, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { User } from "@prisma/client";
 
-export function CustomerActions({ user }: { user: any }) {
+export function CustomerActions({ user }: { user: User }) {
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
     const [isEditing, setIsEditing] = useState(false);

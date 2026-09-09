@@ -3,16 +3,14 @@
 import { Plus } from "lucide-react";
 import { useCartStore } from "@/lib/cart-store";
 import { useState, useEffect } from "react";
+import { useMounted } from "@/lib/use-mounted";
+import type { Product } from "@prisma/client";
 
-export function AddToCartButton({ product }: { product: any }) {
+export function AddToCartButton({ product }: { product: Product }) {
     const { addItem, items } = useCartStore();
     const [added, setAdded] = useState(false);
-    const [mounted, setMounted] = useState(false);
+    const mounted = useMounted();
     const [isExpanded, setIsExpanded] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
 
     const cartItem = items.find((i) => i.productId === product.id);
     const quantity = cartItem?.quantity || 0;

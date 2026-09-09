@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { signSession, setSessionCookie, requireAuth } from "@/lib/auth";
+import type { Prisma, User } from "@prisma/client";
 
 // Serializa un usuario para responder, garantizando que NUNCA se expone el
 // hash ni el id interno del cliente de Stripe.
-function toSafeUser(user: any) {
+function toSafeUser(user: User) {
     const { password, resetToken, resetTokenExpiry, stripeCustomerId, ...safe } = user;
     return safe;
 }
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
         const cleanEmail = email ? email.trim().toLowerCase() : null;
 
         // Check if user exists
-        const orConditions: any[] = [
+        const orConditions: Prisma.UserWhereInput[] = [
             { username: cleanUser }
         ];
 

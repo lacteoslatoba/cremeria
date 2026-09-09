@@ -8,7 +8,7 @@ export async function PopularItems({ categoryFilter, queryFilter }: { categoryFi
             status: "ACTIVE",
             stock: { gt: 0 },
             ...(categoryFilter ? { category: categoryFilter } : {}),
-            ...(queryFilter ? { name: { contains: queryFilter, mode: "insensitive" } as any } : {}),
+            ...(queryFilter ? { name: { contains: queryFilter, mode: "insensitive" } } : {}),
         },
         take: 40,
     });
@@ -24,7 +24,7 @@ export async function PopularItems({ categoryFilter, queryFilter }: { categoryFi
             ) : (
                 /* Mobile: flex column / Desktop: 3-4 column grid via CSS class */
                 <div className="flex flex-col gap-4 md:grid md:grid-cols-3 xl:grid-cols-4 md:gap-5">
-                    {products.map((item: any) => (
+                    {products.map((item) => (
                         <div key={item.id}
                             className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-sm md:flex-col md:items-start md:p-4 md:gap-3 hover:border-white/20 transition-all">
                             <SafeImage

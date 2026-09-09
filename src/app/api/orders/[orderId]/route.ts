@@ -159,8 +159,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ o
 
         revalidatePath("/admin/orders");
         return NextResponse.json(deletedOrder);
-    } catch (error: any) {
+    } catch (error) {
         console.error("[ORDER_DELETE_ERROR]", error);
-        return NextResponse.json({ error: error?.message || "Failed to delete order" }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to delete order" }, { status: 500 });
     }
 }

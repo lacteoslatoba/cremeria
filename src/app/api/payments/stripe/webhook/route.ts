@@ -18,8 +18,8 @@ export async function POST(request: Request) {
         let event;
         try {
             event = getStripe().webhooks.constructEvent(rawBody, signature, webhookSecret);
-        } catch (err: any) {
-            console.error("[STRIPE_WEBHOOK] Firma inválida:", err?.message);
+        } catch (err) {
+            console.error("[STRIPE_WEBHOOK] Firma inválida:", err instanceof Error ? err.message : err);
             return NextResponse.json({ error: "Firma inválida" }, { status: 400 });
         }
 

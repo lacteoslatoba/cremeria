@@ -10,9 +10,11 @@ import {
     AdminDrivers,
     type AdminTab,
 } from "@/components/admin/admin-sections";
-import { SalesHistory } from "@/components/admin/sales-history";
+import { SalesHistory, type SalesOrder } from "@/components/admin/sales-history";
+import type { Product, Order, User } from "@prisma/client";
+import type { LucideIcon } from "lucide-react";
 
-const TABS: { key: AdminTab; label: string; icon: any; title: string; subtitle: string }[] = [
+const TABS: { key: AdminTab; label: string; icon: LucideIcon; title: string; subtitle: string }[] = [
     { key: "inventory", label: "Inventario", icon: LayoutDashboard, title: "Inventario", subtitle: "Gestiona los productos disponibles en tienda." },
     { key: "orders", label: "Pedidos", icon: ShoppingCart, title: "Pedidos", subtitle: "Revisa y actualiza el estado de los pedidos." },
     { key: "sales", label: "Ventas", icon: History, title: "Historial de Ventas", subtitle: "Registro de ventas finalizadas y pedidos cancelados." },
@@ -21,11 +23,11 @@ const TABS: { key: AdminTab; label: string; icon: any; title: string; subtitle: 
 ];
 
 type SingleScreenAdminProps = {
-    products: any[];
-    orders: any[];
-    salesOrders: any[];
-    customers: any[];
-    drivers: any[];
+    products: Product[];
+    orders: Order[];
+    salesOrders: SalesOrder[];
+    customers: (User & { _count: { orders: number } })[];
+    drivers: (User & { _count?: { deliveryOrders: number } })[];
 };
 
 export function SingleScreenAdmin({ products, orders, salesOrders, customers, drivers }: SingleScreenAdminProps) {

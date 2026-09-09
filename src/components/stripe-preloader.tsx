@@ -14,7 +14,7 @@ import { useEffect } from "react";
 export function StripePreloader() {
     useEffect(() => {
         if (typeof window === "undefined") return;
-        if ((window as any).Stripe) return;
+        if ((window as unknown as { Stripe?: unknown }).Stripe) return;
         if (document.getElementById("stripe-sdk-v3")) return;
 
         const s = document.createElement("script");

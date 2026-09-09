@@ -51,11 +51,16 @@ export default async function AdminDashboardPage() {
         }),
     ]);
 
+    // SalesHistory (cliente) espera ISO strings; los pedidos en Prisma llegan
+    // como objeto Date -- Next las serializa a ISO en el cable igual, pero la
+    // firma TS lo pide explícito.
+    const salesFeed = salesRows.map((s) => ({ ...s, createdAt: s.createdAt.toISOString() }));
+
     return (
         <SingleScreenAdmin
             products={products}
             orders={orders}
-            salesOrders={salesRows}
+            salesOrders={salesFeed}
             customers={customers}
             drivers={drivers}
         />

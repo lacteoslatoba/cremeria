@@ -2,16 +2,12 @@
 import { useAuthStore } from "@/lib/auth-store";
 import { LogOut, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useMounted } from "@/lib/use-mounted";
 
 export function HomeHeader() {
     const { user, logout } = useAuthStore();
     const router = useRouter();
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    const mounted = useMounted();
 
     const handleLogout = () => {
         logout();

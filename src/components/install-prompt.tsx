@@ -21,9 +21,17 @@ function isIOS() {
     return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
 
+// El navegador no incluye un tipo para beforeinstallprompt en su lib DOM
+// (es un evento ad-hoc del estándar de instalación de PWA). Se declara la
+// forma que en realidad usamos para no caer en `any`.
+type BeforeInstallPromptEvent = Event & {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+
 export function InstallPrompt() {
     const pathname = usePathname();
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [show, setShow] = useState(false);
     const [platform, setPlatform] = useState<"android" | "ios" | null>(null);
 
@@ -41,20 +49,24 @@ export function InstallPrompt() {
         if (isIOS()) {
             // Safari nunca dispara "beforeinstallprompt" -- ahí solo queda
             // mostrar las instrucciones, no hay instalación con un solo toque.
-            setPlatform("ios");
-            setShow(true);
-            return;
+            // Se difiere un tick para no hacer setState *síncronos* dentro del
+            // cuerpo del effect (regla react-hooks/set-state-in-effect).
+            const id = window.setTimeout(() => {
+                setPlatform("ios");
+                setShow(true);
+            }, 0);
+            return () => window.clearTimeout(id);
         }
 
-        const handler = (e: any) => {
+        const handler = (e: Event) => {
             e.preventDefault(); // evita el mini-banner nativo del navegador -- se usa el propio
-            setDeferredPrompt(e);
+            setDeferredPrompt(e as BeforeInstallPromptEvent);
             setPlatform("android");
             setShow(true);
         };
         window.addEventListener("beforeinstallprompt", handler);
         return () => window.removeEventListener("beforeinstallprompt", handler);
-    }, []);
+    }, [pathname]);
 
     const handleInstall = async () => {
         if (!deferredPrompt) return;

@@ -8,8 +8,30 @@ import { ChevronLeft, Loader2, CreditCard, CheckCircle2, AlertCircle, Banknote }
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { consumePrefetchedStripeIntent } from "@/lib/stripe-prefetch";
 
+// Errores como { message } que devuelve Stripe.js (tipos del navegador no
+// están incluidos en el paquete `stripe` del servidor; se modela aquí solo la
+// superficie que el checkout usa, sin recurrir a `any`).
+type StripeErrorLike = { message?: string };
+type StripeErrorEventPayload = { error?: StripeErrorLike };
+type StripePaymentElement = {
+    mount(el: HTMLElement | null): void;
+    on(event: "ready", handler: () => void): StripePaymentElement;
+    on(event: "error", handler: (payload: StripeErrorEventPayload) => void): StripePaymentElement;
+};
+type StripeElementsApi = {
+    create(type: "payment", options: object): StripePaymentElement;
+};
+type StripeApi = {
+    elements(options: object): StripeElementsApi;
+    confirmPayment(options: {
+        elements: StripeElementsApi;
+        confirmParams: { return_url: string; payment_method_data?: object };
+        redirect?: "if_required";
+    }): Promise<{ error?: StripeErrorLike }>;
+};
+
 declare global {
-    interface Window { Stripe: any; }
+    interface Window { Stripe?: (publicKey: string) => StripeApi; }
 }
 
 // Métodos de pago: TARJETA (via Stripe Payment Element -- los datos de la
@@ -41,8 +63,8 @@ export default function CheckoutPage() {
     const [stripeReady, setStripeReady] = useState(false);
     const [stripeSubmitting, setStripeSubmitting] = useState(false);
     const stripePublicKeyRef = useRef("");
-    const stripeRef = useRef<any>(null); // instancia de window.Stripe(pk)
-    const stripeElementsRef = useRef<any>(null);
+    const stripeRef = useRef<StripeApi | null>(null); // instancia de window.Stripe(pk)
+    const stripeElementsRef = useRef<StripeElementsApi | null>(null);
     const stripeOrderIdRef = useRef("");
     const stripeMountRef = useRef<HTMLDivElement>(null);
     const stripeReadyRef = useRef(false);
@@ -291,8 +313,8 @@ export default function CheckoutPage() {
                 stripeReadyRef.current = true;
                 setStripeReady(true);
             });
-            paymentElement.on("error", (event: any) => {
-                console.error("[STRIPE_ELEMENT_ERROR]", event?.error);
+            paymentElement.on("error", (event) => {
+                console.error("[STRIPE_ELEMENT_ERROR]", event?.error?.message);
                 setStripeReady(false);
                 setError(event?.error?.message || "El formulario de pago no pudo cargar. Revisa tu conexión y reintenta.");
             });
@@ -300,7 +322,7 @@ export default function CheckoutPage() {
             mountPaymentAttemptRef.current = 1;
             try {
                 paymentElement.mount(stripeMountRef.current);
-            } catch (mountErr: any) {
+            } catch (mountErr) {
                 throw mountErr;
             }
 
@@ -311,8 +333,8 @@ export default function CheckoutPage() {
                     setError("El formulario de pago tarda en cargar. Si el problema continúa, recarga la página.");
                 }
             }, 12000);
-        } catch (err: any) {
-            setError(err?.message || "Error al conectar con el sistema de pago.");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Error al conectar con el sistema de pago.");
         } finally {
             setStripeSubmitting(false);
         }

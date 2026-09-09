@@ -12,6 +12,15 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Herramientas de consola (Node en la raíz / carpeta scripts): son
+    // utilidades operativas, no código de la app ni del bundle.
+    "fetch.js",
+    "seed.js",
+    "scripts/**",
+    "write-upstash.cjs",
+    // PWA assets generados por next-pwa (minified, no se escriben a mano).
+    "public/sw.js",
+    "public/workbox-*.js",
   ]),
 ]);
 

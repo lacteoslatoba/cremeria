@@ -42,8 +42,11 @@ function TrackingContent() {
             return;
         }
 
-        let interval: NodeJS.Timeout;
-
+        // Polling cada 3s. `handle.id` cambia de valor (la regla prefer-const
+        // no aplica a mutación de propiedad) y siempre está definido al
+        // dispararse cada tick, para poder auto-detener el intervalo cuando
+        // el pedido llega a un estado terminal.
+        const handle: { id?: ReturnType<typeof setInterval> } = {};
         const fetchStatus = async () => {
             try {
                 const res = await fetch(`/api/orders/${orderId}`);
@@ -54,7 +57,7 @@ function TrackingContent() {
                     setDeliveryCode(data.deliveryCode || null);
 
                     if (data.status === "COMPLETED" || data.status === "CANCELLED") {
-                        clearInterval(interval);
+                        if (handle.id) clearInterval(handle.id);
                     }
                 }
             } catch (err) {
@@ -65,9 +68,9 @@ function TrackingContent() {
         };
 
         fetchStatus();
-        interval = setInterval(fetchStatus, 3000);
+        handle.id = setInterval(() => { void fetchStatus(); }, 3000);
 
-        return () => clearInterval(interval);
+        return () => { if (handle.id) clearInterval(handle.id); };
     }, [orderId]);
 
     const hasLiveLocation = !!(delivery?.currentLat && delivery?.currentLng);

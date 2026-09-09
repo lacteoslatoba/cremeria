@@ -23,9 +23,10 @@ export function OrderDeleteButton({ orderId }: { orderId: string }) {
                 const data = await res.json().catch(() => ({}));
                 alert(`Ocurrió un error al eliminar el pedido: ${data.error || res.statusText}`);
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
-            alert(`Ocurrió un error de red: ${error.message}`);
+            const message = error instanceof Error ? error.message : "Error de red desconocido.";
+            alert(`Ocurrió un error de red: ${message}`);
         } finally {
             setIsDeleting(false);
         }

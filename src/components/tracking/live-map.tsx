@@ -1,7 +1,8 @@
-"use client"
+"use client";
 
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
+import type { Map as LeafletMap, Marker } from "leaflet";
 
 type LiveMapProps = {
     lat: number;
@@ -13,8 +14,8 @@ type LiveMapProps = {
 // imported lazily inside useEffect rather than at module scope.
 export function LiveMap({ lat, lng }: LiveMapProps) {
     const containerRef = useRef<HTMLDivElement>(null);
-    const mapRef = useRef<any>(null);
-    const markerRef = useRef<any>(null);
+    const mapRef = useRef<LeafletMap | null>(null);
+    const markerRef = useRef<Marker | null>(null);
 
     useEffect(() => {
         let cancelled = false;

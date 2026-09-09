@@ -24,8 +24,17 @@ type PrefetchPayload = {
     items: { productId: string; quantity: number; price: number }[];
 };
 
+// Lo que devuelve /api/payments/stripe/create-intent (JSON tal cual viene del
+// servidor, sin anotaciones `any`).
+type IntentJson = {
+    orderId?: string;
+    clientSecret?: string;
+    customerSessionClientSecret?: string;
+};
+type CreateIntentResult = { ok: boolean; data: IntentJson };
+
 type PendingPrefetch = {
-    promise: Promise<{ ok: boolean; data: any }>;
+    promise: Promise<CreateIntentResult>;
     total: number;
     orderIdPromise: Promise<string | null>;
 };

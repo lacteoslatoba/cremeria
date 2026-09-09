@@ -3,8 +3,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowLeft, Image as ImageIcon, Save } from "lucide-react";
 import Link from "next/link";
+import type { Product } from "@prisma/client";
 
-export function ProductForm({ existingProduct = null }: { existingProduct?: any }) {
+export function ProductForm({ existingProduct = null }: { existingProduct?: Product | null }) {
     const router = useRouter();
     const isEditing = !!existingProduct;
 

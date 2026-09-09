@@ -11,7 +11,7 @@ type OrderItem = {
     product: { id: string; name: string } | null;
 };
 
-type Order = {
+export type SalesOrder = {
     id: string;
     customerName: string | null;
     address: string;
@@ -20,8 +20,11 @@ type Order = {
     paymentMethod: string;
     createdAt: string;
     delivery?: { id: string; name: string | null } | null;
-    items: OrderItem[];
+    items: { id: string; productId: string; quantity: number; price: number; product: { id: string; name: string } | null }[];
 };
+
+// Alias interno usado en el resto de este archivo (tablas, modal de ticket).
+type Order = SalesOrder;
 
 function getStatusColor(status: string) {
     switch (status) {

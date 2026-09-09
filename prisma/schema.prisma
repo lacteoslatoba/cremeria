@@ -33,6 +33,11 @@ model User {
   isOnline    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Índices: role para filtrar admins/repartidores; phone para búsquedas de
+  // soporte. email/username ya tienen índice implícito por @unique.
+  @@index([role])
+  @@index([phone])
 }
 
 model Product {
@@ -47,11 +52,17 @@ model Product {
   orderItems  OrderItem[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Índices: (status, stock) cubre el filtro principal de la tienda pública
+  // (WHERE status='ACTIVE' AND stock > 0); category para el filtro de categoría.
+  @@index([status, stock])
+  @@index([category])
+  @@index([status])
 }
 
 model Order {
   id            String      @id @default(cuid())
-  stripePaymentIntentId String? // Stripe PaymentIntent id
+  stripePaymentIntentId String? @unique // Stripe PaymentIntent id
   paymentStatus String      @default("PENDING") // PENDING, APPROVED, REJECTED
   paymentMethod String      @default("CASH")    // CASH, STRIPE (CONEKTA/CARD/CLIP/MERCADOPAGO quedan solo por historial)
   userId        String?
@@ -75,6 +86,18 @@ model Order {
   // sin que se borre de verdad -- el admin lo sigue viendo entero para
   // reportes/contabilidad. No aplica a nada del lado del admin/repartidor.
   hiddenFromUser Boolean    @default(false)
+
+  // Índices críticos para rendimiento a escala:
+  // - userId: "Mis pedidos" filtra siempre por usuario
+  // - status: el panel admin filtra por estado constantemente
+  // - deliveryId: el repartidor consulta sus órdenes activas
+  // - (status, createdAt): listados paginados del admin ordenados por fecha
+  // - stripePaymentIntentId ya tiene @unique (implica índice)
+  @@index([userId])
+  @@index([status])
+  @@index([deliveryId])
+  @@index([status, createdAt])
+  @@index([createdAt])
 }
 
 model OrderItem {

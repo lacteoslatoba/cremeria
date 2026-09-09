@@ -53,5 +53,7 @@ next-env.d.ts
 /src/generated/prisma
 _cel_screen*.png
 _*.js
+_*.png
+_*.map
 nextdev_live.log
 cel_capture.png

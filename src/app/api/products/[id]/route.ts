@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { requireAuth } from "@/lib/auth";
 import { parseJsonBody, handleRoute } from "@/lib/http";
 import { parseProduct } from "@/lib/validators";
@@ -36,6 +36,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
         const product = await prisma.product.update({ where: { id }, data });
 
+        revalidateTag("products", { expire: 60 });
         revalidatePath("/");
         revalidatePath("/admin");
 
@@ -58,9 +59,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
             where: { id }
         });
 
+        revalidateTag("products", { expire: 60 });
         revalidatePath("/");
         revalidatePath("/admin");
-
         return NextResponse.json(deletedProduct);
     } catch (error) {
         console.error(error);

@@ -9,7 +9,16 @@ import { ProductActions } from "@/components/admin/product-actions";
 import { CustomerActions } from "@/components/admin/customer-actions";
 import { AdminDriversTable } from "@/components/admin/admin-drivers-table";
 import { ProductFormModal } from "@/components/admin/product-form-modal";
-import { SafeImage } from "@/components/ui/safe-image";
+import { SafeImage } from "@/components/ui/safe-image"; import type { Product, Order, User as DbUser } from "@prisma/client";
+
+// Un pedido listado en el panel puede venir con o sin sus relaciones cargadas
+// (según lo que traiga la consulta del servidor): se modela el item con esas
+// piezas opcionales para no exigir tanta profundidad en cada fetch.
+type OrderRow = Omit<Order, "items" | "user" | "delivery"> & {
+    items?: { productId: string; quantity: number; price: number }[] | null;
+    delivery?: { id: string; name: string | null } | null;
+    user?: { id: string; name: string | null; phone?: string | null } | null;
+};
 
 /* ───────────────────────────── TABS ───────────────────────────── */
 
@@ -27,7 +36,7 @@ const getTagColor = (category: string) => {
     }
 };
 
-export function AdminInventory({ products }: { products: any[] }) {
+export function AdminInventory({ products }: { products: Product[] }) {
     const [query, setQuery] = useState("");
     const [formOpen, setFormOpen] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
@@ -231,7 +240,7 @@ function OrderTable({
     onToggleRow,
     onToggleAll,
 }: {
-    orders: any[];
+    orders: OrderRow[];
     emptyMsg: string;
     selected: Set<string>;
     onToggleRow: (id: string) => void;
@@ -275,8 +284,9 @@ function OrderTable({
                 </thead>
 
                 <tbody className="divide-y divide-gray-100 text-slate-700">
-                    {orders.map((order: any) => (
-                        <tr key={order.id} className={`hover:bg-gray-50/50 transition-colors ${selected.has(order.id) ? "bg-primary/5" : ""}`}>
+                    {orders.map((order) => (
+                        <tr key={order.id}
+                            className={`hover:bg-gray-50/50 transition-colors ${selected.has(order.id) ? "bg-primary/5" : ""}`}>
                             <td className="pl-4 md:pl-6 py-4">
                                 <input
                                     type="checkbox"
@@ -297,7 +307,7 @@ function OrderTable({
                                 <div className="text-xs text-gray-500 mt-1">{order.address}</div>
                             </td>
                             <td className="px-4 md:px-6 py-4 text-sm font-medium">
-                                {order.items?.reduce((acc: number, item: any) => acc + item.quantity, 0) ?? 0} items
+                                {order.items?.reduce((acc: number, item) => acc + item.quantity, 0) ?? 0} items
                             </td>
                             <td className="px-4 md:px-6 py-4 font-bold text-gray-900">${order.total.toFixed(2)}</td>
                             <td className="px-4 md:px-6 py-4 text-center">
@@ -338,7 +348,7 @@ function OrderTable({
 }
 
 
-export function AdminOrders({ orders }: { orders: any[] }) {
+export function AdminOrders({ orders }: { orders: OrderRow[] }) {
     const router = useRouter();
     const [query, setQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
@@ -360,7 +370,7 @@ export function AdminOrders({ orders }: { orders: any[] }) {
     // "pedido actual" -- prepararlo/entregarlo sería pérdida pura, nunca
     // se cobró. Efectivo siempre se aprueba al crearse (se paga al
     // recibir), asi que ahí "actual" solo depende del estado de entrega.
-    const isRealPurchase = (o: any) => o.paymentMethod === "CASH" || o.paymentStatus === "APPROVED";
+    const isRealPurchase = (o: Order) => o.paymentMethod === "CASH" || o.paymentStatus === "APPROVED";
     const activeOrders = filtered.filter((o) => ACTIVE_STATES.includes(o.status) && isRealPurchase(o));
     // Todo lo demás cae en Historial -- incluye lo ya terminado y los
     // intentos de pago que nunca se completaron, para que nada desaparezca
@@ -554,9 +564,8 @@ export function AdminOrders({ orders }: { orders: any[] }) {
 
 /* ─────────────────────── CLIENTES ─────────────────────── */
 
-export function AdminCustomers({ users }: { users: any[] }) {
+export function AdminCustomers({ users }: { users: (DbUser & { _count: { orders: number } })[] }) {
     const [query, setQuery] = useState("");
-
     const filtered = users.filter(
         (u) =>
             (u.name || "").toLowerCase().includes(query.toLowerCase()) ||
@@ -599,7 +608,7 @@ export function AdminCustomers({ users }: { users: any[] }) {
                                 <tr>
                                     <td colSpan={7} className="text-center py-10 text-gray-400 italic">No hay clientes registrados aún.</td>
                                 </tr>
-                            ) : filtered.map((u: any) => (
+                            ) : filtered.map((u) => (
                                 <tr key={u.id} className="hover:bg-gray-50/50 transition-colors group">
                                     <td className="px-4 md:px-6 py-4">
                                         <div className="flex items-center gap-3">
@@ -644,7 +653,7 @@ export function AdminCustomers({ users }: { users: any[] }) {
 
 /* ─────────────────────── REPARTIDORES ─────────────────────── */
 
-export function AdminDrivers({ drivers }: { drivers: any[] }) {
+export function AdminDrivers({ drivers }: { drivers: (DbUser & { _count?: { deliveryOrders: number } })[] }) {
     return (
         <div className="flex-1 flex flex-col w-full">
             <AdminDriversTable
@@ -653,7 +662,7 @@ export function AdminDrivers({ drivers }: { drivers: any[] }) {
                     name: d.name,
                     username: d.username,
                     phone: d.phone,
-                    locationUpdatedAt: d.locationUpdatedAt,
+                    locationUpdatedAt: d.locationUpdatedAt ? d.locationUpdatedAt.toISOString() : null,
                     deliveryCount: d._count?.deliveryOrders ?? 0,
                 }))}
             />

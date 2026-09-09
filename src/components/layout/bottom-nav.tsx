@@ -6,17 +6,14 @@ import { cn } from '@/lib/utils';
 import styles from './bottom-nav.module.css';
 import { useCartStore } from '@/lib/cart-store';
 import { useAuthStore } from '@/lib/auth-store';
-import { useState, useEffect } from 'react';
+import { useMounted } from '@/lib/use-mounted';
+import type { LucideIcon } from 'lucide-react';
 
 export function BottomNav() {
     const pathname = usePathname();
     const { items } = useCartStore();
     const { user } = useAuthStore();
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    const mounted = useMounted();
 
     const cartCount = mounted ? items.reduce((acc, item) => acc + item.quantity, 0) : 0;
 
@@ -34,7 +31,7 @@ export function BottomNav() {
 }
 
 
-function NavItem({ href, icon: Icon, label, active, badge }: { href: string; icon: any; label: string; active: boolean; badge?: number }) {
+function NavItem({ href, icon: Icon, label, active, badge }: { href: string; icon: LucideIcon; label: string; active: boolean; badge?: number }) {
     return (
         <Link href={href} className={cn(styles.navItem, "relative flex flex-col items-center justify-center w-full h-full space-y-1", active ? "text-[#ee2b34]" : "text-gray-400 hover:text-gray-200")}>
             <div className="relative">

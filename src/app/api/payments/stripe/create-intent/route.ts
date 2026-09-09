@@ -108,11 +108,11 @@ export async function POST(request: Request) {
             clientSecret: intent.client_secret,
             customerSessionClientSecret,
         });
-    } catch (error: any) {
+    } catch (error) {
         if (error instanceof OrderCreationError) {
             return NextResponse.json({ error: error.message }, { status: error.status });
         }
         console.error("[STRIPE_CREATE_INTENT_ERROR]", error);
-        return NextResponse.json({ error: error?.message || "No se pudo iniciar el pago con Stripe" }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo iniciar el pago con Stripe" }, { status: 500 });
     }
 }

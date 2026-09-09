@@ -87,18 +87,28 @@ export async function createOrderWithStockCheck(params: {
             include: { items: true },
         });
 
-        // Reserve/deduct stock unless the payment already failed outright.
-        // En paralelo -- son productos distintos, no hay fila compartida
-        // entre ellos que se puedan pisar, así que no hace falta esperarlos
-        // uno por uno.
+        // Reserva/descuenta stock con OPTIMISTIC LOCKING para evitar la race
+        // condition clásica (TOCTOU): en lugar de verificar stock y luego
+        // decrementar en dos pasos separados, hacemos un UPDATE condicional
+        // atómico. Si el UPDATE afecta 0 filas, significa que otro request
+        // compró el último item entre nuestra verificación y este write — la
+        // transacción hace rollback automáticamente con un 409 limpio.
         if (params.paymentStatus !== "REJECTED") {
             await Promise.all(
-                items.map((item) =>
-                    tx.product.update({
-                        where: { id: item.productId },
-                        data: { stock: { decrement: item.quantity } },
-                    })
-                )
+                items.map(async (item) => {
+                    const updated: number = await tx.$executeRaw`
+                        UPDATE "Product"
+                        SET stock = stock - ${item.quantity}
+                        WHERE id = ${item.productId}
+                          AND stock >= ${item.quantity}
+                    `;
+                    if (updated === 0) {
+                        throw new OrderCreationError(
+                            `Sin stock suficiente para "${productById.get(item.productId)?.name ?? item.productId}". Intenta de nuevo.`,
+                            409
+                        );
+                    }
+                })
             );
         }
 

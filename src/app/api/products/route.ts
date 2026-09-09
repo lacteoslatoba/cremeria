@@ -1,9 +1,10 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { requireAuth } from "@/lib/auth";
 import { parseJsonBody, handleRoute } from "@/lib/http";
 import { parseProduct } from "@/lib/validators";
+import { getCachedActiveProducts, getCachedAllProducts } from "@/lib/cache";
 
 export async function GET(request: Request) {
     try {
@@ -17,13 +18,22 @@ export async function GET(request: Request) {
             if (!auth.user) return auth.response;
         }
 
-        const products = await prisma.product.findMany({
-            where: admin
-                ? undefined  // Admin ve todos
-                : { status: "ACTIVE", stock: { gt: 0 } }, // Tienda: solo disponibles con stock
-            orderBy: { createdAt: "desc" },
+        // Usamos el cache en modo tienda para reducir queries a la BD bajo alta
+        // concurrencia. El admin siempre recibe datos frescos (cache de 10s).
+        const products = admin
+            ? await getCachedAllProducts()
+            : await getCachedActiveProducts();
+
+        // Cache-Control: Vercel Edge y CDN pueden servir respuestas cacheadas
+        // mientras se revalidan en segundo plano (stale-while-revalidate).
+        // El admin nunca cachea porque necesita datos frescos.
+        const cacheHeader = admin
+            ? "no-store"
+            : "public, s-maxage=60, stale-while-revalidate=300";
+
+        return NextResponse.json(products, {
+            headers: { "Cache-Control": cacheHeader },
         });
-        return NextResponse.json(products);
     } catch (error) {
         return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
     }
@@ -34,15 +44,13 @@ export async function POST(request: Request) {
     if (!auth.user) return auth.response;
 
     return handleRoute(async () => {
-        // Antes se tomaba body.price/body.stock a ciegas -- un typo (texto en
-        // vez de número, negativo, etc.) se guardaba tal cual en la base de
-        // datos. parseProduct valida tipos y rangos reales antes de tocar
-        // Prisma, y tira un 400 claro en vez de un 500 genérico o datos
-        // corruptos silenciosos.
         const body = await parseJsonBody<Record<string, unknown>>(request);
         const data = parseProduct(body);
         const product = await prisma.product.create({ data });
 
+        // Invalida el cache de productos para que el siguiente GET traiga
+        // el catálogo actualizado sin esperar el revalidate automático.
+        revalidateTag("products", { expire: 60 });
         revalidatePath("/");
         revalidatePath("/admin");
 

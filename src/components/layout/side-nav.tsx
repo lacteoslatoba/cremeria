@@ -4,16 +4,14 @@ import { Home, ShoppingCart, User, LogOut, Package } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
-import { useState, useEffect } from "react";
+import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
 
 export function SideNav() {
     const pathname = usePathname();
     const { items } = useCartStore();
     const { user, logout } = useAuthStore();
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => { setMounted(true); }, []);
+    const mounted = useMounted();
     const cartCount = mounted ? items.reduce((a, i) => a + i.quantity, 0) : 0;
 
     // El panel /admin trae su propia barra lateral completa (AdminLayout).
