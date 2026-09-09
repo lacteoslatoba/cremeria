@@ -124,3 +124,30 @@ body {
     height: auto;
   }
 }
+
+/* ── LOGIN: fondo 100% blanco (no el gris #f8f9fa ni el negro del modo
+   oscuro automático). Se activa solo cuando el Login está presente y pinta
+   en blanco puro el body y el app-wrapper que lo envuelven, para que no
+   queden franjas grises/negras al hacer scroll ni alrededor en desktop. */
+body:has(.login-page),
+body:has(.login-page) .app-wrapper {
+  background-color: #ffffff;
+}
+
+/* Pantallas de celular bajas (p. ej. 320x568, 360x640): el logo grande
+   (30dvh + márgenes) + formulario exceden 100dvh y generan scroll vertical.
+   Se acota solo en esta franja (móvil low-height, ancho <= 480px) el logo y el
+   espaciado vertical de la columna para que todo el Login quepa sin scroll.
+   En pantallas medianas/altas o de escritorio NO se aplica. */
+@media (max-height: 720px) and (min-width: 320px) and (max-width: 480px) {
+  body:has(.login-page) .login-logo {
+    height: clamp(6.25rem, 24dvh, 13rem) !important;
+  }
+  body:has(.login-page) .login-col {
+    gap: 0.5rem !important;
+    padding-top: 0.625rem !important;
+    padding-bottom: 0.625rem !important;
+  }
+}
+
+

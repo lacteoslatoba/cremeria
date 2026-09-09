@@ -125,7 +125,7 @@ export default function LoginPage() {
     if (!mounted) return null;
 
     return (
-        <main className="font-sans antialiased overflow-y-auto overflow-x-hidden min-h-[100dvh] bg-white">
+        <main className="font-sans antialiased overflow-y-auto overflow-x-hidden min-h-[100dvh] bg-white login-page">
             <div className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden">
                 {/* Antes había dos capas de textura de fondo tomadas de
                     lh3.googleusercontent.com/aida-public/... -- leftover de la misma
@@ -134,7 +134,7 @@ export default function LoginPage() {
                     Cremería. Se quitaron y se dejó fondo blanco sólido, como se
                     pidió. */}
 
-                <div className="relative z-10 flex flex-col items-center gap-[clamp(0.75rem,3dvh,2.5rem)] sm:gap-10 min-h-[100dvh] px-4 py-[clamp(1rem,3.5dvh,3.5rem)] sm:px-6 sm:pt-16 sm:pb-12">
+                <div className="relative z-10 login-col flex flex-col items-center gap-[clamp(0.75rem,2dvh,2.5rem)] sm:gap-10 min-h-[100dvh] px-4 py-[clamp(0.75rem,2.25dvh,3.5rem)] sm:px-6 sm:pt-16 sm:pb-12">
                     {/* Antes había un logo placeholder externo (i.ibb.co) de otro
                         negocio ("La Toba") arriba, y debajo un título + frase que
                         repetían el nombre y el lema a mano. El logo oficial nuevo ya
@@ -152,11 +152,17 @@ export default function LoginPage() {
                         app instalada (org.chromium.webapk...), no solo en una
                         pestaña de Chrome. */}
                     <div className="flex justify-center">
-                        {/* SVG en vez del PNG -- vectorial, se puede ver grande sin
-                            perder nitidez. */}
+                        {/*
+                            SVG en vez del PNG: vectorial, se ve grande sin perder
+                            nitidez. El logo crece con el alto real del viewport
+                            (dvh) para llenar mejor el espacio vertical y no dejar la
+                            pantalla vacía; en teléfonos bajos el clamp() lo acota
+                            para que todo el login entre sin scroll. Complementado
+                            por el gap responsivo del contenedor padre.
+                        */}
                         <img
                             alt="Cremería del Rancho -- Lo nuestro es calidad"
-                            className="h-[clamp(7rem,20dvh,12.5rem)] w-auto sm:h-56 md:h-80 object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+                            className="login-logo h-[clamp(9.5rem,31dvh,23rem)] w-auto sm:h-80 md:h-96 object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
                             src="/logo-cremeria-del-rancho.svg"
                         />
                     </div>
