@@ -31,13 +31,18 @@ type MinimalRatelimit = {
 };
 
 function makeRatelimit(maxRequests: number, windowSeconds: number): MinimalRatelimit {
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+    // La integracion nativa de Vercel para Upstash (Marketplace: "Upstash for
+    // Redis") carga las credenciales como KV_REST_API_URL/KV_REST_API_TOKEN
+    // (prefijo heredado de Vercel KV), no como UPSTASH_REDIS_REST_URL/TOKEN
+    // (el nombre que usa el SDK de Upstash y el resto de su documentacion).
+    // Se aceptan ambos pares para no depender de como se haya provisionado.
+    const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 
     // En dev sin credenciales: noop (siempre permite).
     if (!url || !token) {
         if (process.env.NODE_ENV === "production") {
-            console.warn("[upstash] Faltan UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN en produccion.");
+            console.warn("[upstash] Faltan credenciales de Redis (UPSTASH_REDIS_REST_URL/TOKEN o KV_REST_API_URL/TOKEN) en produccion.");
         }
         return {
             limit: async (_key: string): Promise<RatelimitResult> => ({
