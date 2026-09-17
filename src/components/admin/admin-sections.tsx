@@ -331,7 +331,11 @@ function OrderTable({
                                 )}
                             </td>
                             <td className="px-4 md:px-6 py-4 text-center">
-                                <AssignDriver orderId={order.id} currentDeliveryId={order.deliveryId || null} />
+                                <AssignDriver
+                                    orderId={order.id}
+                                    currentDeliveryId={order.deliveryId || null}
+                                    addressConfirmed={!!order.addressConfirmedAt}
+                                />
                             </td>
                             <td className="px-4 md:px-6 py-4">
                                 <div className="flex items-center justify-center gap-3">

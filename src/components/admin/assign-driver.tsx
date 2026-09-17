@@ -1,26 +1,30 @@
 "use client"
 
 import { useEffect, useState } from "react";
-import { Loader2, Bike } from "lucide-react";
+import { Loader2, Bike, MapPinOff } from "lucide-react";
 
 type Driver = { id: string; name: string | null };
 
 type AssignDriverProps = {
     orderId: string;
     currentDeliveryId: string | null;
+    // El pedido debe tener ubicacion confirmada por el cliente antes de
+    // poder asignarse a un repartidor -- si no, no hay a donde mandarlo.
+    addressConfirmed: boolean;
 };
 
-export function AssignDriver({ orderId, currentDeliveryId }: AssignDriverProps) {
+export function AssignDriver({ orderId, currentDeliveryId, addressConfirmed }: AssignDriverProps) {
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [value, setValue] = useState(currentDeliveryId || "");
     const [isUpdating, setIsUpdating] = useState(false);
 
     useEffect(() => {
+        if (!addressConfirmed) return;
         fetch("/api/users?role=DELIVERY")
             .then(r => r.json())
             .then(data => setDrivers(Array.isArray(data) ? data : []))
             .catch(() => { });
-    }, []);
+    }, [addressConfirmed]);
 
     const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const deliveryId = e.target.value;
@@ -43,6 +47,18 @@ export function AssignDriver({ orderId, currentDeliveryId }: AssignDriverProps) 
             setIsUpdating(false);
         }
     };
+
+    if (!addressConfirmed) {
+        return (
+            <div
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg pl-2.5 pr-3 py-1.5 text-xs font-semibold text-gray-400 min-w-[140px]"
+                title="El cliente todavía no confirma su ubicación de entrega"
+            >
+                <MapPinOff size={14} />
+                Falta dirección
+            </div>
+        );
+    }
 
     return (
         <div className="relative">

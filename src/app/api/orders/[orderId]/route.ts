@@ -60,7 +60,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
         // ── Otros cambios de estado (PREPARING, OUT_FOR_DELIVERY, CANCELLED) ──
         const data: { status?: string; deliveryId?: string | null } = {};
         if (body.status !== undefined) data.status = body.status;
-        if (body.deliveryId !== undefined) data.deliveryId = body.deliveryId || null;
+        if (body.deliveryId !== undefined) {
+            // Asignar (no desasignar) exige que el cliente ya haya confirmado
+            // su ubicacion -- si no, el repartidor no tiene a donde ir. La
+            // UI del admin ya lo bloquea (ver AssignDriver), esto es la
+            // misma regla del lado del servidor para que no se pueda saltar
+            // llamando al endpoint directo.
+            if (body.deliveryId) {
+                const current = await prisma.order.findUnique({ where: { id: orderId }, select: { addressConfirmedAt: true } });
+                if (!current) return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 });
+                if (!current.addressConfirmedAt) {
+                    return NextResponse.json({ error: "El cliente todavía no confirma su ubicación de entrega" }, { status: 400 });
+                }
+            }
+            data.deliveryId = body.deliveryId || null;
+        }
 
         const updatedOrder = await prisma.order.update({
             where: { id: orderId },
