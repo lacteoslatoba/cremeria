@@ -84,7 +84,14 @@ export default function ConfirmAddressPage() {
     }
 
     return (
-        <main className="min-h-[100dvh] flex flex-col bg-white">
+        // h-[100dvh] (no min-h): el hijo "flex-1" que contiene el mapa
+        // necesita que este contenedor tenga una altura DEFINIDA para poder
+        // crecer y llenarla -- con min-h solamente, varios navegadores le dan
+        // 0px de alto real al hijo flex-1 (el mapa cargaba los tiles bien,
+        // pero el contenedor medía 0px y no se veía nada). Verificado en un
+        // Chrome real de Android: con min-h el mapa quedaba invisible: con
+        // h-[100dvh] se ve completo.
+        <main className="h-[100dvh] flex flex-col bg-white">
             <header className="px-4 py-4 border-b border-gray-100 text-center">
                 <h1 className="font-bold text-lg text-gray-900">¿A dónde te lo llevamos?</h1>
                 <p className="text-xs text-gray-500 mt-0.5">Ajusta el pin a tu ubicación exacta</p>
