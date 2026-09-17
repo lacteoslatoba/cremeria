@@ -16,7 +16,7 @@ module.exports = {
                 border: "var(--border)",
             },
             fontFamily: {
-                sans: ["Plus Jakarta Sans", "sans-serif"],
+                sans: ["var(--font-plus-jakarta-sans)", "Plus Jakarta Sans", "sans-serif"],
             },
         },
     },
