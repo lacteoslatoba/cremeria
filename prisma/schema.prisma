@@ -68,7 +68,16 @@ model Order {
   userId        String?
   user          User?       @relation(fields: [userId], references: [id])
   customerName  String?
-  address       String
+  // Antes era obligatorio y se llenaba con un placeholder fijo
+  // ("Ubicación GPS (Actual)") al crear la orden -- ahora la orden se crea
+  // SIN dirección y el cliente la confirma después de pagar, arrastrando un
+  // pin en el mapa (ver /direccion/[orderId]). addressConfirmedAt es la
+  // señal real de "ya tiene ubicación real": una orden pagada con este
+  // campo en null todavía no se puede asignar a un repartidor.
+  address             String?
+  addressLat          Float?
+  addressLng          Float?
+  addressConfirmedAt  DateTime?
   total         Float
   status        String      @default("PENDING") // PENDING, PREPARING, OUT_FOR_DELIVERY, COMPLETED, CANCELLED
   deliveryId    String?
