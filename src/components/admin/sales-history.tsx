@@ -14,7 +14,7 @@ type OrderItem = {
 export type SalesOrder = {
     id: string;
     customerName: string | null;
-    address: string;
+    address: string | null;
     total: number;
     status: string;
     paymentMethod: string;
@@ -164,7 +164,7 @@ export function SalesHistory({ orders }: { orders: Order[] }) {
                                     </td>
                                     <td className="px-4 md:px-6 py-4">
                                         <div className="font-bold text-gray-800">{order.customerName || "Invitado"}</div>
-                                        <div className="text-xs md:text-sm text-gray-500 mt-1">{order.address}</div>
+                                        <div className="text-xs md:text-sm text-gray-500 mt-1">{order.address || "Sin dirección"}</div>
                                     </td>
                                     <td className="px-4 md:px-6 py-4 text-sm font-medium">
                                         {order.items.reduce((acc, item) => acc + item.quantity, 0)} items
@@ -225,7 +225,7 @@ function TicketModal({ order, onClose }: { order: Order; onClose: () => void }) 
                 <div className="p-6 space-y-5">
                     <div className="text-sm text-gray-600 leading-relaxed">
                         <p><span className="font-bold text-gray-800">Cliente:</span> {order.customerName || "Invitado"}</p>
-                        <p><span className="font-bold text-gray-800">Direccion:</span> {order.address}</p>
+                        <p><span className="font-bold text-gray-800">Direccion:</span> {order.address || "Sin dirección"}</p>
                         <p>
                             <span className="font-bold text-gray-800">Metodo:</span>{" "}
                             {order.paymentMethod === "CARD" ? (
