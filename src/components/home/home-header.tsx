@@ -24,7 +24,7 @@ export function HomeHeader() {
                 <h1 className="text-2xl font-black text-foreground tracking-tight">
                     Hola, <span className="text-primary drop-shadow-[0_0_8px_rgba(238,43,52,0.4)]">{firstName}</span> 👋
                 </h1>
-                <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mt-1">¿Llevamos tu despensa hoy?</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mt-1">¿Qué se te antoja hoy?</p>
             </div>
             {/* Cerrar Sesión / Login Button */}
             <button
