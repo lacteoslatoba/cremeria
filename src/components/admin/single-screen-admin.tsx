@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutDashboard, ShoppingCart, History, Users, Bike } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, History, Users, Bike, BarChart3, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     AdminInventory,
@@ -11,15 +11,19 @@ import {
     type AdminTab,
 } from "@/components/admin/admin-sections";
 import { SalesHistory, type SalesOrder } from "@/components/admin/sales-history";
-import type { Product, Order, User } from "@prisma/client";
+import { StatusDashboard } from "@/components/admin/status-dashboard";
+import { ProfileForm } from "@/components/admin/profile-form";
+import type { Product, Order, User, Business } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
 
 const TABS: { key: AdminTab; label: string; icon: LucideIcon; title: string; subtitle: string }[] = [
+    { key: "dashboard", label: "Estado", icon: BarChart3, title: "Estado", subtitle: "Resumen operativo de la cremería en tiempo real." },
     { key: "inventory", label: "Inventario", icon: LayoutDashboard, title: "Inventario", subtitle: "Gestiona los productos disponibles en tienda." },
     { key: "orders", label: "Pedidos", icon: ShoppingCart, title: "Pedidos", subtitle: "Revisa y actualiza el estado de los pedidos." },
     { key: "sales", label: "Ventas", icon: History, title: "Historial de Ventas", subtitle: "Registro de ventas finalizadas y pedidos cancelados." },
     { key: "customers", label: "Clientes", icon: Users, title: "Directorio de Clientes", subtitle: "Visualiza los clientes que se han registrado en tu tienda." },
     { key: "drivers", label: "Repartidores", icon: Bike, title: "Repartidores", subtitle: "Da de alta a tus repartidores y revisa quién está en línea." },
+    { key: "profile", label: "Perfil", icon: Store, title: "Perfil del negocio", subtitle: "Nombre, teléfono, dirección y ubicación del negocio." },
 ];
 
 type SingleScreenAdminProps = {
@@ -28,10 +32,11 @@ type SingleScreenAdminProps = {
     salesOrders: SalesOrder[];
     customers: (User & { _count: { orders: number } })[];
     drivers: (User & { _count?: { deliveryOrders: number } })[];
+    business: Business | null;
 };
 
-export function SingleScreenAdmin({ products, orders, salesOrders, customers, drivers }: SingleScreenAdminProps) {
-    const [tab, setTab] = useState<AdminTab>("inventory");
+export function SingleScreenAdmin({ products, orders, salesOrders, customers, drivers, business }: SingleScreenAdminProps) {
+    const [tab, setTab] = useState<AdminTab>("dashboard");
     const active = TABS.find((t) => t.key === tab)!;
 
     return (
@@ -63,11 +68,13 @@ export function SingleScreenAdmin({ products, orders, salesOrders, customers, dr
 
             {/* Contenido de la pestaña activa */}
             <div className="flex-1 overflow-y-auto w-full">
+                {tab === "dashboard" && <StatusDashboard orders={orders} productsCount={products.length} productsInStock={products.filter((p) => p.stock > 0).length} customersCount={customers.length} />}
                 {tab === "inventory" && <AdminInventory products={products} />}
                 {tab === "orders" && <AdminOrders orders={orders} />}
                 {tab === "sales" && <SalesHistory orders={salesOrders} />}
                 {tab === "customers" && <AdminCustomers users={customers} />}
                 {tab === "drivers" && <AdminDrivers drivers={drivers} />}
+                {tab === "profile" && <ProfileForm business={business} />}
             </div>
         </div>
     );

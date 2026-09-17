@@ -22,7 +22,7 @@ type OrderRow = Omit<Order, "items" | "user" | "delivery"> & {
 
 /* ───────────────────────────── TABS ───────────────────────────── */
 
-export type AdminTab = "inventory" | "orders" | "sales" | "customers" | "drivers";
+export type AdminTab = "dashboard" | "inventory" | "orders" | "sales" | "customers" | "drivers" | "profile";
 
 /* ─────────────────────── INVENTARIO ─────────────────────── */
 

@@ -8,6 +8,9 @@ import { Loader2, MapPin } from "lucide-react";
 type LocationPickerProps = {
     onConfirm: (lat: number, lng: number) => void;
     confirming?: boolean;
+    // Ubicación inicial opcional (p. ej. la ya guardada en el perfil del
+    // negocio). Si viene, se centra el mapa ahí en vez de pedir GPS.
+    initial?: [number, number];
 };
 
 // Centro por defecto cuando el navegador niega o no tiene el permiso de
@@ -24,7 +27,7 @@ const GPS_ZOOM = 16;
 // marker es `draggable: true` y el mapa también se puede arrastrar/hacer
 // zoom con normalidad -- el cliente ajusta el pin a mano hasta su punto
 // exacto antes de confirmar.
-export function LocationPicker({ onConfirm, confirming }: LocationPickerProps) {
+export function LocationPicker({ onConfirm, confirming, initial }: LocationPickerProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<LeafletMap | null>(null);
     const markerRef = useRef<Marker | null>(null);
@@ -72,6 +75,16 @@ export function LocationPicker({ onConfirm, confirming }: LocationPickerProps) {
             map.on("click", (e: { latlng: { lat: number; lng: number } }) => {
                 setPosition([e.latlng.lat, e.latlng.lng]);
             });
+
+            // Si ya hay una ubicación inicial (perfil del negocio, etc.), se
+            // muestra esa en vez de pedirle el GPS al navegador.
+            if (initial) {
+                map.setView(initial, GPS_ZOOM);
+                placeMarker(L, map, initial[0], initial[1]);
+                setPosition(initial);
+                setLocating(false);
+                return;
+            }
 
             if (!("geolocation" in navigator)) {
                 setUsedFallback(true);

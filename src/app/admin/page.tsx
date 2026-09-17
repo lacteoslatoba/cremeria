@@ -17,7 +17,7 @@ export default async function AdminDashboardPage() {
     // serie, sumando su tiempo; en paralelo el panel carga (y cada
     // router.refresh() después de guardar algo) en lo que tarda la más
     // lenta de las 5, no en la suma de las 5.
-    const [products, orders, salesRows, customers, drivers] = await Promise.all([
+    const [products, orders, salesRows, customers, drivers, business] = await Promise.all([
         // Inventario: todos los productos (incluye inactivos/sin stock)
         prisma.product.findMany({ orderBy: { createdAt: "desc" } }),
 
@@ -49,6 +49,9 @@ export default async function AdminDashboardPage() {
             include: { _count: { select: { deliveryOrders: true } } },
             orderBy: { createdAt: "desc" },
         }),
+
+        // Perfil del negocio (fila única, id fijo "default")
+        prisma.business.findUnique({ where: { id: "default" } }),
     ]);
 
     // SalesHistory (cliente) espera ISO strings; los pedidos en Prisma llegan
@@ -63,6 +66,7 @@ export default async function AdminDashboardPage() {
             salesOrders={salesFeed}
             customers={customers}
             drivers={drivers}
+            business={business}
         />
     );
 }

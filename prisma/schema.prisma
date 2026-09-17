@@ -118,3 +118,18 @@ model OrderItem {
   quantity  Int
   price     Float
 }
+
+// Perfil único del negocio: UNA sola fila (id fijo "default") con los datos
+// que se muestran en la tienda (nombre, teléfono, dirección) y la ubicación
+// precisa (addressLat/addressLng) que el admin fija arrastrando un pin en el
+// mapa (Leaflet/OSM, sin API key). Se lee/escribe con upsert sobre "default".
+model Business {
+  id         String   @id @default("default")
+  name       String   @default("Cremería del Rancho")
+  phone      String?
+  address    String?
+  addressLat Float?
+  addressLng Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
