@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ord
         }
 
         const result = await prisma.order.updateMany({
-            where: { id: orderId, deliveryId: null },
+            where: { id: orderId, deliveryId: null, addressConfirmedAt: { not: null } },
             data: { deliveryId: auth.user.id },
         });
 

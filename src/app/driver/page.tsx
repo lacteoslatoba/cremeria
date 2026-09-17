@@ -9,7 +9,7 @@ import { Bike, MapPin, Package, LogOut, Loader2, Navigation, CheckCircle2, Radio
 type OrderItem = { id: string; quantity: number; product: { name: string } };
 type DriverOrder = {
     id: string;
-    address: string;
+    address: string | null;
     customerName: string | null;
     total: number;
     status: string;
@@ -32,7 +32,7 @@ function OrderCard({ order, action }: { order: DriverOrder; action: React.ReactN
 
             <div className="flex items-start gap-2 text-sm text-gray-300">
                 <MapPin size={16} className="shrink-0 mt-0.5 text-gray-400" />
-                <span>{order.address}</span>
+                <span>{order.address || "Sin dirección"}</span>
             </div>
 
             <div className="flex items-center gap-2 text-sm text-gray-400">

@@ -304,7 +304,7 @@ function OrderTable({
                             </td>
                             <td className="px-4 md:px-6 py-4">
                                 <div className="font-bold text-gray-800">{order.customerName || "Invitado"}</div>
-                                <div className="text-xs text-gray-500 mt-1">{order.address}</div>
+                                <div className="text-xs text-gray-500 mt-1">{order.address || "Sin dirección"}</div>
                             </td>
                             <td className="px-4 md:px-6 py-4 text-sm font-medium">
                                 {order.items?.reduce((acc: number, item) => acc + item.quantity, 0) ?? 0} items

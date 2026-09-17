@@ -106,6 +106,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
                 customerName: true,
                 total: true,
                 paymentStatus: true,
+                paymentMethod: true,
                 deliveryCode: true,
                 userId: true,
                 addressConfirmedAt: true,

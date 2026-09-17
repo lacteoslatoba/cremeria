@@ -39,15 +39,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ ord
         const { orderId } = await params;
         const body = await parseJsonBody<AddressBody>(request);
 
-        const lat = typeof body.lat === "number" ? body.lat : Number(body.lat);
-        const lng = typeof body.lng === "number" ? body.lng : Number(body.lng);
+        const lat = typeof body.lat === "number" ? body.lat : NaN;
+        const lng = typeof body.lng === "number" ? body.lng : NaN;
         if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
             throw new HttpError("Coordenadas inválidas", 400);
         }
 
         const order = await prisma.order.findUnique({
             where: { id: orderId },
-            select: { id: true, userId: true, paymentStatus: true },
+            select: { id: true, userId: true, paymentStatus: true, status: true, addressConfirmedAt: true },
         });
         if (!order) throw new HttpError("Pedido no encontrado", 404);
 
@@ -65,12 +65,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ ord
         if (order.paymentStatus !== "APPROVED") {
             throw new HttpError("Este pedido todavía no está pagado", 400);
         }
+        if (["COMPLETED", "CANCELLED"].includes(order.status)) {
+            throw new HttpError("Este pedido ya finalizó", 400);
+        }
+        if (order.addressConfirmedAt) {
+            throw new HttpError("Este pedido ya tiene una ubicación confirmada", 409);
+        }
 
         const address = await reverseGeocode(lat, lng);
 
         const updated = await prisma.order.update({
             where: { id: orderId },
             data: { address, addressLat: lat, addressLng: lng, addressConfirmedAt: new Date() },
+            select: { id: true, address: true, addressLat: true, addressLng: true, addressConfirmedAt: true },
         });
 
         return NextResponse.json(updated);

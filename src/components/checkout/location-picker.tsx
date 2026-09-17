@@ -109,7 +109,6 @@ export function LocationPicker({ onConfirm, confirming }: LocationPickerProps) {
                 mapRef.current = null;
             }
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Si el pin se movió (click en el mapa), reposiciona el marker existente

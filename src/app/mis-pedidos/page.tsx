@@ -29,7 +29,7 @@ const isRealPurchase = (o: MyOrder) => o.paymentMethod === "CASH" || o.paymentSt
 // /direccion/[orderId] antes de terminar. Se le vuelve a ofrecer el mismo
 // paso desde aca -- unico lugar donde se avisa (no hay push notifications,
 // segun el spec).
-const needsAddress = (o: MyOrder) => isRealPurchase(o) && !o.addressConfirmedAt;
+const needsAddress = (o: MyOrder) => isRealPurchase(o) && ACTIVE.includes(o.status) && !o.addressConfirmedAt;
 // El historial ya no se muestra completo de una -- con muchos pedidos se
 // vuelve una lista interminable. Se ven los más recientes y el resto queda
 // oculto tras "Ver historial completo".

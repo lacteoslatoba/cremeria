@@ -10,6 +10,7 @@ type OrderLookup = {
     id: string;
     userId: string | null;
     paymentStatus: string;
+    paymentMethod: string;
     addressConfirmedAt: string | null;
 };
 
@@ -48,6 +49,7 @@ export default function ConfirmAddressPage() {
     }, [params.orderId]);
 
     const handleConfirm = async (lat: number, lng: number) => {
+        if (!order) return;
         setConfirming(true);
         setError("");
         try {
@@ -62,7 +64,11 @@ export default function ConfirmAddressPage() {
                 setConfirming(false);
                 return;
             }
-            router.push("/mis-pedidos?paid=1");
+            if (!order.userId) {
+                router.push(`/tracking?orderId=${params.orderId}`);
+            } else {
+                router.push(`/mis-pedidos?paid=${order.paymentMethod === "CASH" ? "cash" : "1"}`);
+            }
         } catch {
             setError("Error de conexión. Intenta de nuevo.");
             setConfirming(false);
