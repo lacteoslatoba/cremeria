@@ -43,7 +43,6 @@ export default function CartPage() {
             prefetchStripeIntent({
                 userId: user.id,
                 customerName: user.name || user.email || "Cliente",
-                address: "Ubicación GPS (Actual)",
                 total,
                 payerEmail,
                 items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),

@@ -18,7 +18,7 @@
 type PrefetchPayload = {
     userId?: string;
     customerName: string;
-    address: string;
+    address?: string;
     total: number;
     payerEmail?: string;
     items: { productId: string; quantity: number; price: number }[];

@@ -94,6 +94,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
                 paymentStatus: true,
                 deliveryCode: true,
                 userId: true,
+                addressConfirmedAt: true,
                 delivery: {
                     select: { id: true, name: true, phone: true, currentLat: true, currentLng: true, locationUpdatedAt: true }
                 },

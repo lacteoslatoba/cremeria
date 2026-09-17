@@ -20,7 +20,9 @@ export function generateDeliveryCode(): string {
 
 export async function createOrderWithStockCheck(params: {
     customerName?: string;
-    address: string;
+    // Ya no es obligatorio: la orden puede crearse sin ubicacion y
+    // confirmarse despues del pago (ver /direccion/[orderId]).
+    address?: string;
     // "total" del cliente queda solo como referencia/compatibilidad -- NUNCA
     // se usa para cobrar. El monto real que se guarda en la orden (y que
     // cada pasarela debe leer para saber cuánto cobrar) es totalServer,
