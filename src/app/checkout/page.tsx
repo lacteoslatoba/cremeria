@@ -379,7 +379,7 @@ export default function CheckoutPage() {
 
             if (order.paymentStatus === "APPROVED") {
                 clearCart();
-                router.push(`/mis-pedidos?paid=1`);
+                router.push(`/direccion/${order.id}`);
             } else if (order.paymentStatus === "REJECTED") {
                 setError("Tu pago no se completó. No se hizo ningún cargo.");
                 setStripeSubmitting(false);
@@ -443,7 +443,7 @@ export default function CheckoutPage() {
                 return;
             }
             clearCart();
-            router.push(`/mis-pedidos?paid=cash`);
+            router.push(`/direccion/${data.id}`);
         } catch {
             setError("Error al crear el pedido. Verifica tu conexión e intenta de nuevo.");
             setCashSubmitting(false);
