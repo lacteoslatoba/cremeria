@@ -22,6 +22,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         const isForgotPassword = pathname === "/forgot-password";
         const isCheckout = pathname.startsWith("/checkout"); // incluye /checkout/stripe-return
         const isTracking = pathname.startsWith("/tracking");
+        const isDireccion = pathname.startsWith("/direccion");
         const isAdmin = pathname.startsWith("/admin");
         const isDriver = pathname.startsWith("/driver");
 
@@ -34,7 +35,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        if (!user && !isLogin && !isAdmin && !isDriver && !isForgotPassword && !isCheckout && !isTracking) {
+        if (!user && !isLogin && !isAdmin && !isDriver && !isForgotPassword && !isCheckout && !isTracking && !isDireccion) {
             router.push("/login");
         }
     }, [user, pathname, router, initialized]);
