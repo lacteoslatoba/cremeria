@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap, Marker } from "leaflet";
-import { Loader2, MapPin } from "lucide-react";
+import { Loader2, MapPin, LocateFixed } from "lucide-react";
 
 type LocationPickerProps = {
     onConfirm: (lat: number, lng: number) => void;
@@ -34,6 +34,12 @@ export function LocationPicker({ onConfirm, confirming, initial }: LocationPicke
     const [position, setPosition] = useState<[number, number] | null>(null);
     const [usedFallback, setUsedFallback] = useState(false);
     const [locating, setLocating] = useState(true);
+    // Overlay de "Buscando..." solo se usa en la carga inicial (`locating`).
+    // Este spinner es aparte porque se dispara desde el botón "Usar mi
+    // ubicación actual" -- disponible SIEMPRE, incluso cuando ya hay un
+    // `initial` guardado (perfil del negocio) y por eso el efecto de montaje
+    // nunca llega a pedir GPS.
+    const [locatingMe, setLocatingMe] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -132,6 +138,31 @@ export function LocationPicker({ onConfirm, confirming, initial }: LocationPicke
         }
     }, [position]);
 
+    // Recentra en el GPS del dispositivo bajo demanda. A diferencia del
+    // efecto de montaje (que solo pide GPS si NO hay `initial`), esto corre
+    // en cualquier momento -- el marker ya existe siempre a esta altura, así
+    // que basta con mover el mapa y actualizar `position`; el efecto de
+    // arriba se encarga de reposicionar el pin.
+    function handleLocateMe() {
+        if (!mapRef.current || !("geolocation" in navigator)) return;
+        setLocatingMe(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                mapRef.current?.setView([lat, lng], GPS_ZOOM);
+                setPosition([lat, lng]);
+                setUsedFallback(false);
+                setLocatingMe(false);
+            },
+            () => {
+                setUsedFallback(true);
+                setLocatingMe(false);
+            },
+            { enableHighAccuracy: true, timeout: 8000 }
+        );
+    }
+
     return (
         <div className="relative w-full h-full">
             <div ref={containerRef} className="absolute inset-0" />
@@ -146,19 +177,30 @@ export function LocationPicker({ onConfirm, confirming, initial }: LocationPicke
             )}
 
             {usedFallback && !locating && (
-                <div className="absolute top-4 left-4 right-4 z-[500] bg-white rounded-2xl shadow-lg border border-gray-100 px-4 py-3 flex items-center gap-2 text-sm text-gray-700">
+                <div className="absolute top-4 left-4 right-16 z-[500] bg-white rounded-2xl shadow-lg border border-gray-100 px-4 py-3 flex items-center gap-2 text-sm text-gray-700">
                     <MapPin size={18} className="text-primary shrink-0" />
                     <span>No pudimos ubicarte automáticamente. Mueve el mapa y toca o arrastra el pin hasta tu domicilio.</span>
                 </div>
             )}
 
-            <div className="absolute bottom-6 left-4 right-4 z-[500]">
+            <button
+                type="button"
+                onClick={handleLocateMe}
+                disabled={locating || locatingMe}
+                title="Usar mi ubicación actual"
+                aria-label="Usar mi ubicación actual"
+                className="absolute top-4 right-4 z-[500] w-11 h-11 flex items-center justify-center bg-white rounded-full shadow-lg border border-gray-100 text-gray-700 disabled:opacity-60 active:scale-[0.96] transition-all"
+            >
+                {locatingMe ? <Loader2 className="animate-spin" size={20} /> : <LocateFixed size={20} />}
+            </button>
+
+            <div className="absolute bottom-4 left-4 right-4 z-[500] flex justify-center">
                 <button
                     onClick={() => position && onConfirm(position[0], position[1])}
                     disabled={!position || confirming}
-                    className="w-full flex items-center justify-center gap-2 bg-primary text-white font-bold text-base py-4 rounded-2xl shadow-xl shadow-primary/30 disabled:opacity-60 active:scale-[0.98] transition-all"
+                    className="flex items-center justify-center gap-1.5 bg-primary text-white font-bold text-xs py-2 px-4 rounded-full shadow-lg shadow-primary/30 disabled:opacity-60 active:scale-[0.98] transition-all"
                 >
-                    {confirming ? <Loader2 className="animate-spin" size={20} /> : <MapPin size={20} />}
+                    {confirming ? <Loader2 className="animate-spin" size={15} /> : <MapPin size={15} />}
                     {confirming ? "Confirmando…" : "Confirmar ubicación aquí"}
                 </button>
             </div>

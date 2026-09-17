@@ -22,6 +22,41 @@ export function ProfileForm({ business }: { business: Business | null }) {
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [error, setError] = useState("");
+    const [geocoding, setGeocoding] = useState(false);
+    const [geocodeError, setGeocodeError] = useState("");
+
+    // Al confirmar el pin, se llena el cuadro de "Dirección" con el texto
+    // real del lugar (reverse geocoding via Nominatim, en el servidor porque
+    // ese endpoint exige un User-Agent que fetch() del navegador no puede
+    // fijar). Mejor esfuerzo: las coordenadas (lo que de verdad importa) ya
+    // quedaron guardadas aunque esto falle -- pero SÍ se avisa (antes fallaba
+    // en silencio, p. ej. con la sesión vencida, y parecía que el botón
+    // simplemente no hacía nada).
+    async function handleConfirmLocation(newLat: number, newLng: number) {
+        setLat(newLat);
+        setLng(newLng);
+        setGeocoding(true);
+        setGeocodeError("");
+        try {
+            const res = await fetch("/api/business/reverse-geocode", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ lat: newLat, lng: newLng }),
+            });
+            const data = await res.json();
+            if (res.ok && typeof data?.address === "string" && data.address.trim()) {
+                setAddress(data.address);
+            } else if (res.status === 401) {
+                setGeocodeError("Tu sesión venció -- vuelve a iniciar sesión y confirma de nuevo para llenar la dirección.");
+            } else {
+                setGeocodeError("No se pudo obtener la dirección automáticamente. Escríbela manualmente.");
+            }
+        } catch {
+            setGeocodeError("No se pudo obtener la dirección automáticamente. Escríbela manualmente.");
+        } finally {
+            setGeocoding(false);
+        }
+    }
 
     async function handleSave() {
         if (!name.trim()) {
@@ -102,9 +137,18 @@ export function ProfileForm({ business }: { business: Business | null }) {
                                 value={address}
                                 onChange={(e) => setAddress(e.target.value)}
                                 placeholder="Av. Reforma 245, Col. Centro"
-                                className={`${inputClass} pl-10`}
+                                className={`${inputClass} pl-10 pr-10`}
                             />
+                            {geocoding && (
+                                <Loader2
+                                    size={18}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin"
+                                />
+                            )}
                         </div>
+                        {geocodeError && (
+                            <p className="text-xs text-amber-600 font-semibold mt-1.5">{geocodeError}</p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -118,10 +162,7 @@ export function ProfileForm({ business }: { business: Business | null }) {
                 <div className="h-72 rounded-2xl overflow-hidden border border-gray-100">
                     <LocationPicker
                         initial={lat !== null && lng !== null ? [lat, lng] : undefined}
-                        onConfirm={(newLat, newLng) => {
-                            setLat(newLat);
-                            setLng(newLng);
-                        }}
+                        onConfirm={handleConfirmLocation}
                     />
                 </div>
                 {lat !== null && lng !== null && (
