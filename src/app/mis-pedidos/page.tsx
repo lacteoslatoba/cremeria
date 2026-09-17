@@ -14,6 +14,7 @@ type MyOrder = {
     paymentStatus: string;
     total: number;
     createdAt: string;
+    addressConfirmedAt: string | null;
     items: { product: { name: string; image?: string | null }; quantity: number; price: number }[];
 };
 
@@ -24,6 +25,11 @@ const ACTIVE = ["PENDING", "PREPARING", "OUT_FOR_DELIVERY"];
 // (se paga al recibir), así que ahí "en curso" solo depende del estado de
 // entrega de siempre.
 const isRealPurchase = (o: MyOrder) => o.paymentMethod === "CASH" || o.paymentStatus === "APPROVED";
+// Pagado pero sin ubicacion confirmada: el cliente cerro la app en
+// /direccion/[orderId] antes de terminar. Se le vuelve a ofrecer el mismo
+// paso desde aca -- unico lugar donde se avisa (no hay push notifications,
+// segun el spec).
+const needsAddress = (o: MyOrder) => isRealPurchase(o) && !o.addressConfirmedAt;
 // El historial ya no se muestra completo de una -- con muchos pedidos se
 // vuelve una lista interminable. Se ven los más recientes y el resto queda
 // oculto tras "Ver historial completo".
@@ -188,6 +194,21 @@ function MyOrdersContent() {
                     <p className="font-bold text-sm leading-snug">
                         {paid === "cash" ? "¡Pedido confirmado! Pagas en efectivo al recibir." : "¡Tu pago fue realizado con éxito!"}
                     </p>
+                </div>
+            )}
+
+            {!loading && orders.some(needsAddress) && (
+                <div className="mx-4 mt-4 px-5 py-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-3">
+                    <div className="flex-1">
+                        <p className="font-bold text-sm text-amber-800">Falta confirmar tu ubicación</p>
+                        <p className="text-xs text-amber-700 mt-0.5">Tu pedido está pagado pero no sabemos a dónde llevarlo.</p>
+                    </div>
+                    <Link
+                        href={`/direccion/${orders.find(needsAddress)!.id}`}
+                        className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors"
+                    >
+                        Completar
+                    </Link>
                 </div>
             )}
 
