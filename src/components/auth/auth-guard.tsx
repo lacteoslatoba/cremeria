@@ -21,9 +21,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
         const isLogin = pathname === "/login";
         const isForgotPassword = pathname === "/forgot-password";
-        const isCheckout = pathname.startsWith("/checkout"); // incluye /checkout/stripe-return
-        const isTracking = pathname.startsWith("/tracking");
-        const isDireccion = pathname.startsWith("/direccion");
         const isAdmin = pathname.startsWith("/admin");
         const isDriver = pathname.startsWith("/driver");
 
@@ -36,7 +33,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        if (!user && !isLogin && !isAdmin && !isDriver && !isForgotPassword && !isCheckout && !isTracking && !isDireccion) {
+        // Ya no hay compra de invitado: antes /checkout, /tracking y /direccion
+        // quedaban exentos para permitir pagar y confirmar entrega sin cuenta.
+        // Ahora cualquier ruta de cliente exige sesión real -- solo login,
+        // recuperar contraseña, y los paneles de admin/repartidor (que tienen
+        // su propio control de acceso) quedan fuera de este bloqueo.
+        if (!user && !isLogin && !isAdmin && !isDriver && !isForgotPassword) {
             router.push("/login");
         }
     }, [user, pathname, router, initialized]);
