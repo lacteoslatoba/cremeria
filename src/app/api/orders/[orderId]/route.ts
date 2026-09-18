@@ -89,7 +89,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
 
         revalidatePath("/admin/orders");
         return NextResponse.json(updatedOrder);
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
     }
 }
@@ -140,7 +140,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
             deliveryCode: shouldHideCode ? undefined : (order.deliveryCode as string | undefined),
         };
         return NextResponse.json(result);
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: "Failed to fetch order" }, { status: 500 });
     }
 }
