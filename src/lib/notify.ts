@@ -33,6 +33,36 @@ export async function sendSms(phone: string, body: string): Promise<boolean> {
     return false;
 }
 
+// Mismo patrón que sendSms pero por WhatsApp -- usa las credenciales de
+// Twilio ya configuradas más un remitente de WhatsApp aparte
+// (TWILIO_WHATSAPP_NUMBER, sin el prefijo "whatsapp:", p. ej. el número
+// del sandbox de Twilio mientras se aprueba el número de WhatsApp
+// Business para producción).
+export async function sendWhatsAppCode(phone: string, code: string): Promise<boolean> {
+    if (!phone) return false;
+    const body = `Cremeria del Rancho: tu codigo de verificacion es ${code}. Expira en 10 minutos.`;
+
+    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_NUMBER) {
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const twilio = require("twilio");
+            const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+            await client.messages.create({
+                body,
+                from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
+                to: `whatsapp:${formatMxPhone(phone)}`,
+            });
+            return true;
+        } catch (err) {
+            console.error("[WHATSAPP ERROR]", err);
+            return false;
+        }
+    }
+
+    console.log(`[SIMULATED WHATSAPP] to ${phone}: ${body}`);
+    return false;
+}
+
 const STATUS_MESSAGES: Record<string, string> = {
     PREPARING: "estamos preparando tu pedido",
     OUT_FOR_DELIVERY: "tu pedido va en camino",
