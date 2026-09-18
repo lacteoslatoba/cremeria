@@ -50,6 +50,11 @@ build.err.log
 *.tsbuildinfo
 next-env.d.ts
 
+# herramientas de agente (skills locales / locks) — no son parte de la app
+/.agents
+/.claude
+skills-lock.json
+
 /src/generated/prisma
 _cel_screen*.png
 _*.js

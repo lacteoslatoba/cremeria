@@ -110,6 +110,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
                 deliveryCode: true,
                 userId: true,
                 addressConfirmedAt: true,
+                addressLat: true,
+                addressLng: true,
                 delivery: {
                     select: { id: true, name: true, phone: true, currentLat: true, currentLng: true, locationUpdatedAt: true }
                 },
