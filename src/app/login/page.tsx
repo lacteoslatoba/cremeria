@@ -129,7 +129,7 @@ export default function LoginPage() {
                     Cremería. Se quitaron y se dejó fondo blanco sólido, como se
                     pidió. */}
 
-                <div className="relative z-10 login-col flex flex-col items-center justify-center gap-[clamp(0.75rem,2dvh,2.5rem)] sm:gap-10 min-h-[100dvh] px-4 py-[clamp(0.75rem,2.25dvh,3.5rem)] sm:px-6 sm:pt-16 sm:pb-12">
+                <div className="relative z-10 login-col flex flex-col items-center justify-end gap-[clamp(0.75rem,2dvh,2.5rem)] sm:gap-10 min-h-[100dvh] px-4 py-[clamp(0.75rem,2.25dvh,3.5rem)] sm:px-6 sm:pt-16 sm:pb-12">
                     {/* Antes había un logo placeholder externo (i.ibb.co) de otro
                         negocio ("La Toba") arriba, y debajo un título + frase que
                         repetían el nombre y el lema a mano. El logo oficial nuevo ya
