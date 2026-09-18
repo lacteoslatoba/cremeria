@@ -40,6 +40,12 @@ export function LocationPicker({ onConfirm, confirming, initial }: LocationPicke
     // `initial` guardado (perfil del negocio) y por eso el efecto de montaje
     // nunca llega a pedir GPS.
     const [locatingMe, setLocatingMe] = useState(false);
+    // `initial` solo se lee al montar (el mapa se crea UNA vez, y su cleanup
+    // lo destruye): meterlo en las deps del efecto de montaje lo haría
+    // re-correr y recrear el mapa sin necesidad. Leerlo por ref deja el
+    // efecto genuinamente independiente de esa prop, que es lo que se
+    // pretende -- de ahí que las deps sean [] a propósito.
+    const initialRef = useRef(initial);
 
     useEffect(() => {
         let cancelled = false;
@@ -84,10 +90,11 @@ export function LocationPicker({ onConfirm, confirming, initial }: LocationPicke
 
             // Si ya hay una ubicación inicial (perfil del negocio, etc.), se
             // muestra esa en vez de pedirle el GPS al navegador.
-            if (initial) {
-                map.setView(initial, GPS_ZOOM);
-                placeMarker(L, map, initial[0], initial[1]);
-                setPosition(initial);
+            const start = initialRef.current;
+            if (start) {
+                map.setView(start, GPS_ZOOM);
+                placeMarker(L, map, start[0], start[1]);
+                setPosition(start);
                 setLocating(false);
                 return;
             }
