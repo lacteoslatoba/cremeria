@@ -1,0 +1,14 @@
+# Reglas del proyecto (Cline)
+
+Las instrucciones completas están en **`AGENTS.md`** en la raíz del repo. Léelo al
+empezar a trabajar en una tarea nueva.
+
+Recordatorio mínimo:
+
+- Este repo lo trabajan dos agentes: **Claude Code asigna, Cline ejecuta** (yo).
+- Antes de trabajar: `npm.cmd run tasks -- list`
+- Tomar solo lo mío: `npm.cmd run tasks -- next` (ya filtra por `asignado-a`)
+- Cerrar con evidencia: `npm.cmd run tasks -- done <id> --notas "qué hice y cómo lo verifiqué"`
+- Lo que necesite navegador, credenciales o desplegar → `--to usuario`, no lo hago yo.
+- **Usar `npm.cmd`, nunca `npm`**: PowerShell bloquea `npm.ps1` en este equipo.
+- Verificar con: `npx tsc --noEmit -p tsconfig.json`, `npm run prisma -- validate`, `npx eslint .`
