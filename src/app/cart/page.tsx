@@ -3,7 +3,7 @@
 import { ChevronLeft, Minus, Plus, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
@@ -28,27 +28,47 @@ export default function CartPage() {
     // cuanto el cliente está viendo su carrito con productos -- no hasta que
     // toca "Continuar". Así, para cuando de verdad llega a pagar, el
     // formulario de tarjeta puede estar listo al instante (como en apps de
-    // primer nivel). Con debounce de 700ms: si sigue cambiando cantidades,
-    // no se dispara un pedido nuevo por cada clic, solo cuando el carrito
-    // se queda quieto un momento. stripe-prefetch.ts cancela solo el pedido
-    // adelantado anterior si este lo reemplaza, para no dejar stock
-    // apartado de más por cambios de carrito que nadie llega a pagar.
+    // primer nivel). Con debounce de 700ms para cambios de cantidad: si
+    // sigue ajustando, no se dispara un pedido nuevo por cada clic, solo
+    // cuando el carrito se queda quieto un momento. stripe-prefetch.ts
+    // cancela solo el pedido adelantado anterior si este lo reemplaza, para
+    // no dejar stock apartado de más por cambios que nadie llega a pagar.
+    //
+    // "GUEST" (rol real, sin cuenta creada) tiene que iniciar sesión antes
+    // de pagar -- ver handleCheckout, no llega a /checkout -- así que
+    // prefetch para él no serviría de nada. Un visitante SIN sesión del
+    // todo (!user) es distinto: el checkout SÍ le permite pagar con
+    // tarjeta como invitado (userId queda undefined, igual que aquí), así
+    // que antes se saltaba el prefetch sin necesidad -- siempre cargaba
+    // desde cero.
+    const firedOnceRef = useRef(false);
     useEffect(() => {
         if (!mounted) return;
         if (items.length === 0) return;
-        if (user?.role === "GUEST" || !user) return;
+        if (user?.role === "GUEST") return;
 
-        const payerEmail = user.email || (user.phone ? `${user.phone}@cremeriadelrancho.com` : undefined);
-        const t = setTimeout(() => {
-            prefetchStripeIntent({
-                userId: user.id,
-                customerName: user.name || user.email || "Cliente",
-                total,
-                payerEmail,
-                items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
-            }).catch(() => { /* si falla, el checkout simplemente pide una orden nueva */ });
-        }, 700);
+        const payerEmail = user?.email || (user?.phone ? `${user.phone}@cremeriadelrancho.com` : undefined);
+        const payload = {
+            userId: user?.id,
+            customerName: user?.name || user?.email || "Cliente",
+            total,
+            payerEmail,
+            items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
+        };
+        const fire = () => {
+            prefetchStripeIntent(payload).catch(() => { /* si falla, el checkout simplemente pide una orden nueva */ });
+        };
 
+        // La primera vez que el carrito tiene productos no hay nada que
+        // debounciar todavía -- dispara de inmediato. Solo los cambios
+        // posteriores (ajustar cantidades) esperan los 700ms.
+        if (!firedOnceRef.current) {
+            firedOnceRef.current = true;
+            fire();
+            return;
+        }
+
+        const t = setTimeout(fire, 700);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mounted, user?.id, user?.role, total, JSON.stringify(items.map(i => `${i.productId}:${i.quantity}`))]);
