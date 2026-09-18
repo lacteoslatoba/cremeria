@@ -161,8 +161,15 @@ function TrackingContent() {
 
             {paidBanner}
 
-            {/* Map Area */}
-            <div className={`absolute inset-0 top-0 h-[55%] w-full flex items-center justify-center ${isLive ? "bg-white" : "bg-[#121212]"}`}>
+            {/* Map Area -- "isolate" es clave: Leaflet le pone z-index 200-700
+                a sus panes internos (tiles, marcadores) SOBRE su propio
+                contenedor, que a su vez no crea contexto de apilamiento
+                propio (position:relative sin z-index). Sin "isolate" esos
+                z-index se escapan y compiten directo contra el z-30 de la
+                tarjeta inferior -- ganaban ellos, así que el mapa se pintaba
+                encima de la tarjeta y la tapaba por completo en la franja
+                donde se superponen. */}
+            <div className={`absolute inset-0 top-0 h-[55%] w-full flex items-center justify-center isolate ${isLive ? "bg-white" : "bg-[#121212]"}`}>
                 {isLive ? (
                     <LiveMap
                         lat={delivery!.currentLat!}
