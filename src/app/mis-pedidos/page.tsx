@@ -155,13 +155,34 @@ function MyOrdersContent() {
     }, [paid]);
 
     useEffect(() => {
-        fetch("/api/orders/mine")
-            .then((r) => {
-                if (r.status === 401 || r.status === 403) { router.push("/login"); return null; }
-                return r.json();
-            })
-            .then((data) => { if (Array.isArray(data)) setOrders(data); setLoading(false); })
-            .catch(() => setLoading(false));
+        function loadOrders() {
+            fetch("/api/orders/mine")
+                .then((r) => {
+                    if (r.status === 401 || r.status === 403) { router.push("/login"); return null; }
+                    return r.json();
+                })
+                .then((data) => { if (Array.isArray(data)) setOrders(data); setLoading(false); })
+                .catch(() => setLoading(false));
+        }
+
+        loadOrders();
+
+        // Android suele SUSPENDER la app (no cerrarla) cuando el cliente la
+        // manda a segundo plano -- al volver, esta página nunca se vuelve a
+        // montar, así que sin esto se queda mostrando los pedidos de la
+        // primera vez que se abrió (p. ej. "aún no tienes pedidos" aunque ya
+        // haya uno nuevo pagado hace rato). "visibilitychange" cubre volver
+        // de segundo plano; "pageshow" cubre el caso de bfcache (atrás/
+        // adelante del navegador) restaurando la página tal cual quedó.
+        function onVisible() {
+            if (document.visibilityState === "visible") loadOrders();
+        }
+        document.addEventListener("visibilitychange", onVisible);
+        window.addEventListener("pageshow", loadOrders);
+        return () => {
+            document.removeEventListener("visibilitychange", onVisible);
+            window.removeEventListener("pageshow", loadOrders);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
