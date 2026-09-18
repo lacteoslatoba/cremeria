@@ -45,6 +45,9 @@ STRIPE_WEBHOOK_SECRET="whsec_..."
 TWILIO_ACCOUNT_SID="..."
 TWILIO_AUTH_TOKEN="..."
 TWILIO_PHONE_NUMBER="+1..."
+# Remitente habilitado para WhatsApp (sin el prefijo "whatsapp:"); el
+# número del sandbox de Twilio sirve para pruebas.
+TWILIO_WHATSAPP_NUMBER="+1..."
 ```
 
 > **Nunca** versiones `.env*.local` con credenciales reales.

@@ -370,6 +370,7 @@ export default function LoginPage() {
                                         type="text"
                                         inputMode="numeric"
                                         required
+                                        autoFocus
                                         maxLength={6}
                                         placeholder="123456"
                                         value={regCode}

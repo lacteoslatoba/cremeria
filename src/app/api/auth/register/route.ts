@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { signSession, setSessionCookie, requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
 import { sendWhatsAppCode } from "@/lib/notify";
 import type { Prisma, User } from "@prisma/client";
@@ -25,6 +25,10 @@ export async function POST(request: Request) {
         // Se aceptan username/email/address si vienen (p. ej. un admin
         // creando una cuenta con más detalle desde otro flujo) pero ya no
         // son obligatorios para el registro público del cliente.
+        // OJO: `address` solo se usa en el path de ADMIN (abajo, al crear
+        // el User directo). En el path público con OTP se ignora en
+        // silencio -- PendingRegistration no tiene columna `address` y las
+        // cuentas creadas por ese flujo no piden dirección al registrarse.
         const username = body.username || phone;
         const email = body.email;
         const address = body.address;
@@ -108,7 +112,11 @@ export async function POST(request: Request) {
         // Si Twilio SÍ está configurado pero el envío real falló, no se
         // guarda el registro pendiente -- se le pide reintentar en vez de
         // dejarlo esperando un código que nunca va a llegar.
-        if (twilioWhatsAppConfigured && !sent) {
+        // En producción, además, que Twilio NO esté configurado se trata
+        // igual que un envío fallido -- si no, el registro "tendría éxito"
+        // en silencio sin que el código llegue nunca por WhatsApp, y caería
+        // al fallback simulado (que solo debe pisarse en dev/local).
+        if (!sent && (twilioWhatsAppConfigured || process.env.NODE_ENV === "production")) {
             return NextResponse.json(
                 { error: "No pudimos enviar el código por WhatsApp. Intenta de nuevo." },
                 { status: 502 }
@@ -129,7 +137,10 @@ export async function POST(request: Request) {
             _dev_code: process.env.NODE_ENV === "production" ? undefined : (sent ? undefined : code),
         });
     } catch (error) {
-        console.error("Register error:", error);
+        // No se loguea el objeto de error completo -- un error de validación
+        // de Prisma puede serializar los argumentos (p. ej. el hash de la
+        // contraseña o el código de 6 dígitos del upsert/create) en el mensaje.
+        console.error("Register error:", error instanceof Error ? error.message : error);
         return NextResponse.json({ error: "Ocurrió un error al registrar. Intenta de nuevo." }, { status: 500 });
     }
 }

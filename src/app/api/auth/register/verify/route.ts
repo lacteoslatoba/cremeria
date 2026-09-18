@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { signSession, setSessionCookie } from "@/lib/auth";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
+import { Prisma } from "@prisma/client";
 import type { User } from "@prisma/client";
 
 function toSafeUser(user: User) {
@@ -45,25 +46,44 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Código incorrecto o expiró" }, { status: 400 });
         }
 
-        const newUser = await prisma.user.create({
-            data: {
-                name: pending.name,
-                username: pending.username,
-                phone: pending.phone,
-                email: pending.email,
-                password: pending.password,
-                role: "CUSTOMER",
-            },
-        });
-
-        await prisma.pendingRegistration.delete({ where: { phone } });
+        // Crear el User y borrar el PendingRegistration en una sola
+        // transacción -- si algo falla a medias (p. ej. un choque de
+        // unique constraint porque el usuario/correo/teléfono ya se creó
+        // en otro lado durante la ventana entre /register y /verify) no
+        // queda un PendingRegistration huérfano ni un estado a medias.
+        let newUser: User;
+        try {
+            newUser = await prisma.$transaction(async (tx) => {
+                const created = await tx.user.create({
+                    data: {
+                        name: pending.name,
+                        username: pending.username,
+                        phone: pending.phone,
+                        email: pending.email,
+                        password: pending.password,
+                        role: "CUSTOMER",
+                    },
+                });
+                await tx.pendingRegistration.delete({ where: { phone } });
+                return created;
+            });
+        } catch (txError) {
+            // Choque de unique constraint (username/email/phone) -- mismo
+            // mensaje que ya usa /api/auth/register para el mismo caso.
+            if (txError instanceof Prisma.PrismaClientKnownRequestError && txError.code === "P2002") {
+                return NextResponse.json({ error: "El usuario, correo o teléfono ya están en uso" }, { status: 400 });
+            }
+            throw txError;
+        }
 
         const response = NextResponse.json(toSafeUser(newUser), { status: 201 });
         const token = await signSession({ id: newUser.id, role: newUser.role });
         setSessionCookie(response, token);
         return response;
     } catch (error) {
-        console.error("Register verify error:", error);
+        // No se loguea el objeto de error completo -- podría incluir el
+        // hash de la contraseña o el código de la PendingRegistration.
+        console.error("Register verify error:", error instanceof Error ? error.message : error);
         return NextResponse.json({ error: "Ocurrió un error al verificar el código." }, { status: 500 });
     }
 }
