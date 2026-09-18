@@ -62,3 +62,11 @@ _*.png
 _*.map
 nextdev_live.log
 cel_capture.png
+
+# restos de depuracion que se colaban por el patron _*.js
+_*.mjs
+_*.err
+_*.out
+
+# estado local del vigilante de agentes (cada maquina lleva el suyo)
+docs/verifications/.ultimo-verificado
