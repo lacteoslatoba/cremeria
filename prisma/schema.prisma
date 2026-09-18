@@ -40,6 +40,22 @@ model User {
   @@index([phone])
 }
 
+// Registro pendiente de verificación por WhatsApp: se crea al llenar el
+// formulario de registro y se borra al verificar el código (o queda
+// huérfano y expira solo -- no se crea el User real hasta verificar).
+model PendingRegistration {
+  id         String   @id @default(cuid())
+  phone      String   @unique
+  name       String?
+  username   String?
+  email      String?
+  password   String
+  code       String
+  codeExpiry DateTime
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
 model Product {
   id          String   @id @default(cuid())
   name        String
