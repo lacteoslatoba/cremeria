@@ -90,8 +90,17 @@ export default function CheckoutPage() {
     // minuto antes de caer al respaldo de Mercado Pago.
     const SDK_TIMEOUTS_MS = [4000, 3000, 3000]; // 10s en total
 
+    // El SDK solo sirve si de verdad quedó como función. Caso real: el
+    // <script> dispara onload pero lo que llegó viene vacío/a medias (red
+    // móvil, caché del navegador o del Service Worker, operador que bloquea
+    // js.stripe.com) y window.Stripe queda como cualquier cosa menos algo que
+    // se pueda llamar. Antes bastaba con que EXISTIERA para darlo por bueno,
+    // así que el checkout seguía, pedía una orden real y reventaba más
+    // adelante con "window.Stripe is not a function".
+    const stripeSdkUsable = () => typeof window.Stripe === "function";
+
     const loadStripeSDK = () => {
-        if (window.Stripe) { setStripeSdkLoaded(true); return; }
+        if (stripeSdkUsable()) { setStripeSdkLoaded(true); return; }
 
         const attempt = stripeSdkAttemptsRef.current;
         stripeSdkAttemptsRef.current += 1;
@@ -118,14 +127,14 @@ export default function CheckoutPage() {
         // (lento o bloqueado en silencio), reintentamos -- solo después de
         // darle tiempo de sobra, no a los pocos segundos de empezar.
         window.setTimeout(() => {
-            if (!window.Stripe && stripeSdkAttemptsRef.current === attempt + 1) {
+            if (!stripeSdkUsable() && stripeSdkAttemptsRef.current === attempt + 1) {
                 retryOrGiveUp(attempt, false);
             }
         }, SDK_TIMEOUTS_MS[attempt] ?? 12000);
     };
 
     const retryOrGiveUp = (attempt: number, hardFailure: boolean) => {
-        if (window.Stripe) return; // ya cargó a través de otra vía justo a tiempo
+        if (stripeSdkUsable()) return; // ya cargó a través de otra vía justo a tiempo
         if (attempt < SDK_TIMEOUTS_MS.length - 1) {
             // Solo si el script falló de verdad (bloqueado) quitamos el tag
             // roto para que el siguiente reintento use uno limpio. Por
@@ -143,6 +152,43 @@ export default function CheckoutPage() {
             // error es el respaldo para no dejar al cliente varado.
             setError("No se pudo conectar con el sistema de pago. Verifica tu conexión a internet e intenta de nuevo.");
         }
+    };
+
+    // El intento (orden + PaymentIntent) se pide UNA sola vez por total. Si el
+    // montaje del formulario falla y el cliente toca "Reintentar", se reutiliza
+    // ese mismo -- sigue siendo pagable -- en vez de crear otra orden real y
+    // volver a apartar stock. Caso real: en un celular el SDK de Stripe no
+    // cargó, el cliente tocó "Reintentar" 4 veces y se crearon 4 órdenes
+    // idénticas de $10 en 33s (4 PaymentIntents, ningún cobro intentado y 4
+    // unidades de stock apartadas) -- una por cada toque.
+    const cachedIntentRef = useRef<{
+        total: number;
+        promise: Promise<{ ok: boolean; data: { orderId?: string; clientSecret?: string; customerSessionClientSecret?: string } }>;
+    } | null>(null);
+
+    const requestStripeIntent = () => {
+        if (cachedIntentRef.current && Math.abs(cachedIntentRef.current.total - total) < 0.01) {
+            return cachedIntentRef.current.promise;
+        }
+
+        // Si el carrito ya adelantó esta misma orden al tocar "Continuar"
+        // (ver prefetchStripeIntent en cart/page.tsx), se usa esa promesa en
+        // vez de pedir una nueva -- para cuando el cliente llega aquí, la
+        // orden ya está lista o a punto, no recién empezando a pedirse.
+        const promise = consumePrefetchedStripeIntent(total) || fetch("/api/payments/stripe/create-intent", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                userId: user?.id,
+                customerName: user?.name || user?.email || "Cliente",
+                total,
+                payerEmail,
+                items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
+            }),
+        }).then(async (res) => ({ ok: res.ok, data: await res.json() }));
+
+        cachedIntentRef.current = { total, promise };
+        return promise;
     };
 
     // Crea la orden + PaymentIntent en el servidor, y monta el formulario de
@@ -169,34 +215,38 @@ export default function CheckoutPage() {
                 if (cached) stripePublicKeyRef.current = cached;
             }
 
-            // config y create-intent no dependen uno del otro -- antes se
-            // esperaban en serie (dos idas y vueltas seguidas al servidor);
-            // ahora van en paralelo, que es justo la mitad de esa espera.
-            const configPromise = stripePublicKeyRef.current
-                ? Promise.resolve({ publicKey: stripePublicKeyRef.current })
-                : fetch("/api/payments/stripe/config").then(r => r.json());
-
-            // Si el carrito ya adelantó esta misma orden al tocar "Continuar"
-            // (ver prefetchStripeIntent en cart/page.tsx), se usa esa promesa
-            // en vez de pedir una nueva -- para cuando el cliente llega aquí,
-            // la orden ya está lista o a punto, no recién empezando a pedirse.
-            const intentPromise = consumePrefetchedStripeIntent(total) || fetch("/api/payments/stripe/create-intent", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    userId: user?.id,
-                    customerName: user?.name || user?.email || "Cliente",
-                    total,
-                    payerEmail,
-                    items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
-                }),
-            }).then(async (res) => ({ ok: res.ok, data: await res.json() }));
-
-            const [cfg, intentResult] = await Promise.all([configPromise, intentPromise]);
+            // La llave pública primero (casi siempre ya está en localStorage,
+            // o sea sin ida y vuelta al servidor) y, una vez que el SDK de
+            // Stripe SÍ está disponible, recién se pide la orden + el
+            // PaymentIntent.
+            //
+            // Antes iban en paralelo y la revisión del SDK venía al final:
+            // cuando el SDK no cargaba, el intento ya había creado una orden
+            // real con stock apartado, el cliente solo veía el error y el botón
+            // "Reintentar", y CADA toque de ese botón creaba OTRA orden. Sin SDK
+            // usable no se pide nada: ese intento no se va a poder pagar desde
+            // este aparato, así que no tiene caso apartar inventario por él.
+            const cfg = stripePublicKeyRef.current
+                ? { publicKey: stripePublicKeyRef.current }
+                : await fetch("/api/payments/stripe/config").then(r => r.json());
             if (!cfg.publicKey) throw new Error("El pago con tarjeta no está disponible todavía.");
             stripePublicKeyRef.current = cfg.publicKey;
             try { window.localStorage.setItem("stripe_pk", cfg.publicKey); } catch { /* modo privado, etc. -- no pasa nada */ }
 
+            // Caso real confirmado: a veces el <script> "termina de cargar"
+            // (onload dispara) pero el contenido que en verdad llegó viene
+            // vacío/incompleto por la red -- window.Stripe se queda sin
+            // definir (o como algo que no se puede llamar) aunque
+            // stripeSdkLoaded ya diga que sí.
+            const stripeFactory = window.Stripe;
+            if (typeof stripeFactory !== "function") {
+                setError("No se pudo conectar con el sistema de pago. Verifica tu conexión a internet e intenta de nuevo.");
+                setStripeSubmitting(false);
+                return;
+            }
+            if (!stripeRef.current) stripeRef.current = stripeFactory(stripePublicKeyRef.current);
+
+            const intentResult = await requestStripeIntent();
             const { ok, data } = intentResult;
             if (!ok || !data.clientSecret) {
                 setError(data.error || "No se pudo iniciar el pago.");
@@ -204,18 +254,6 @@ export default function CheckoutPage() {
                 return;
             }
             stripeOrderIdRef.current = data.orderId;
-
-            // Caso real confirmado: a veces el <script> "termina de cargar"
-            // (onload dispara) pero el contenido que en verdad llegó viene
-            // vacío/incompleto por la red -- window.Stripe se queda sin
-            // definir aunque stripeSdkLoaded ya diga que sí. Sin esta
-            // guarda, la siguiente línea tronaría con un TypeError críptico.
-            if (!window.Stripe) {
-                setError("No se pudo conectar con el sistema de pago. Verifica tu conexión a internet e intenta de nuevo.");
-                setStripeSubmitting(false);
-                return;
-            }
-            if (!stripeRef.current) stripeRef.current = window.Stripe(stripePublicKeyRef.current);
 
             // El Payment Element traía el look genérico de Stripe (recuadros
             // blancos, tipografía default) que no pegaba nada con el resto de
@@ -408,7 +446,7 @@ export default function CheckoutPage() {
     // formulario -- si no, truena porque window.Stripe todavía no existe.
     const retryStripeCheckout = () => {
         setError("");
-        if (!window.Stripe) {
+        if (!stripeSdkUsable()) {
             // El tag que ya está en el DOM a estas alturas ya falló/agotó
             // sus intentos -- lo quitamos para forzar uno de verdad nuevo.
             document.getElementById("stripe-sdk-v3")?.remove();
