@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { getStripe, getOrCreateStripeCustomer, createStripeCustomerSession } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
-import { createOrderWithStockCheck, OrderCreationError } from "@/lib/create-order";
+import { createOrderWithStockCheck, OrderCreationError, cancelPendingOrderAndRestoreStock } from "@/lib/create-order";
 import { notifyDeliveryCode } from "@/lib/notify";
 import { readSession } from "@/lib/auth";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
+
+// Mínimo que Stripe acepta por cargo en pesos (MX$10.00 = 1000 centavos).
+// Por debajo de eso su API responde con un error de monto inválido que, tal
+// cual, llegaba a la pantalla del cliente y dejaba el formulario de tarjeta
+// sin cargar.
+const STRIPE_MIN_AMOUNT_MXN_CENTS = 1000;
 
 // Crea la orden (PENDING/PENDING, stock reservado — igual que un pago con
 // tarjeta "in_process" de MP) y una PaymentIntent de Stripe para ese monto.
@@ -78,6 +84,24 @@ export async function POST(request: Request) {
         // desarrollador podía cambiar el precio antes de que llegara al
         // servidor y pagar lo que quisiera.
         const amountInCents = Math.round(order.total * 100);
+
+        // Stripe no acepta cobros por debajo del mínimo de la moneda (MX$10):
+        // responde "The amount must be greater than or equal to the minimum
+        // charge amount..." y ese texto crudo era lo que veía el cliente
+        // mientras el formulario de tarjeta se quedaba sin montar. Se detecta
+        // aquí y se cancela la orden que se acababa de crear (devolviendo el
+        // stock que alcanzó a apartar) en vez de dejarla PENDING para siempre
+        // y responder un 500.
+        if (amountInCents < STRIPE_MIN_AMOUNT_MXN_CENTS) {
+            await cancelPendingOrderAndRestoreStock(order.id, userId)
+                .catch(() => { /* la limpieza no debe tapar el aviso al cliente */ });
+            return NextResponse.json(
+                {
+                    error: `El pago con tarjeta requiere un mínimo de $${(STRIPE_MIN_AMOUNT_MXN_CENTS / 100).toFixed(2)}. Agrega más productos o elige pagar en efectivo.`,
+                },
+                { status: 400 }
+            );
+        }
 
         const [intent, customerSessionClientSecret] = await Promise.all([
             stripe.paymentIntents.create({

@@ -149,6 +149,15 @@ export default function CheckoutPage() {
     // tarjeta de Stripe (Payment Element) directo en esta pantalla.
     const setupStripeCheckout = async () => {
         if (stripeElementsRef.current) return; // ya montado
+
+        // Carrito vacío: el efecto de montaje ya manda a /cart, pero este
+        // montaje del formulario de pago alcanzaba a dispararse antes de que
+        // esa redirección pasara -- y con items vacíos el servidor creaba una
+        // orden real de $0 que Stripe rechazaba, dejando la pantalla de pago
+        // sin formulario y con un error crudo de Stripe. Sin productos no se
+        // pide nada.
+        if (items.length === 0) return;
+
         setStripeSubmitting(true);
         setError("");
         try {
@@ -422,6 +431,14 @@ export default function CheckoutPage() {
     // Efectivo: no depende de Stripe ni de ningún script externo -- crea el
     // pedido directo y ya, el repartidor cobra en persona al entregar.
     const handleCashPay = async () => {
+        // Mismo caso que el pago con tarjeta: sin productos no hay pedido que
+        // crear (antes se mandaba el POST con items: [] y nacía una orden de
+        // $0 en la base de datos, sin nada que cobrar).
+        if (items.length === 0) {
+            setError("Tu carrito está vacío. Agrega productos antes de continuar.");
+            return;
+        }
+
         setCashSubmitting(true);
         setError("");
         try {

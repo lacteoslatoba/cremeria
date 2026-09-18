@@ -38,6 +38,17 @@ export async function createOrderWithStockCheck(params: {
 }) {
     const { items } = params;
 
+    // Un carrito vacío llegaba hasta aquí y creaba una orden REAL con total 0
+    // y sin renglones: Stripe después la rechazaba (el monto no llega al
+    // mínimo de la moneda) y quedaba basura PENDING en la base de datos, con
+    // el checkout mostrando un error crudo de Stripe en vez de algo que el
+    // cliente entienda. Se corta de raíz, ANTES de la transacción (no se crea
+    // la orden ni se aparta stock), para los dos caminos que pasan por aquí:
+    // efectivo (/api/orders) y tarjeta (/api/payments/stripe/create-intent).
+    if (items.length === 0) {
+        throw new OrderCreationError("Tu carrito está vacío. Agrega productos antes de continuar.", 400);
+    }
+
     // ── Validar stock disponible Y traer el precio real antes de crear la
     // orden ── Antes era un findUnique por producto EN SERIE (un viaje a la
     // base de datos tras otro) -- con un solo findMany se trae todo en una
@@ -61,6 +72,15 @@ export async function createOrderWithStockCheck(params: {
             );
         }
         totalServer += product.price * item.quantity;
+    }
+
+    // Suma de precios reales en 0 (o menos) no es un pedido pagable: ninguna
+    // pasarela puede cobrar eso y en efectivo tampoco significa nada (es el
+    // mismo tipo de orden basura que la del carrito vacío, pero con renglones
+    // creados a partir de productos a $0). Se valida aquí, con el precio de
+    // la base de datos, no con el total que manda el navegador.
+    if (totalServer <= 0) {
+        throw new OrderCreationError("El total del pedido no es válido. Revisa los precios de tu carrito.", 400);
     }
 
     const order = await prisma.$transaction(async (tx) => {
