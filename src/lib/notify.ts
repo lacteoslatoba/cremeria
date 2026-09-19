@@ -9,6 +9,23 @@ function formatMxPhone(raw: string): string {
     return `+${cleaned}`;
 }
 
+// WhatsApp NO usa el mismo formato que SMS en Mexico: los moviles conservan el
+// "1" historico en su identidad de WhatsApp (+521 + 10 digitos), mientras que
+// para SMS ese "1" ya se elimino (+52 + 10). Mandar al formato de SMS hace que
+// Twilio conteste 63015 ("can only send messages to phone numbers that have
+// joined the Sandbox"), que suena a opt-in faltante pero es el numero
+// equivocado. Comprobado contra la API con el mismo telefono y el mismo
+// instante: con el 1 llega "delivered", sin el 1 falla con 63015.
+export function formatMxPhoneWhatsApp(raw: string): string {
+    const cleaned = raw.replace(/[^\d]/g, "");
+    const conUno = (diezDigitos: string) => `+521${diezDigitos}`;
+    if (cleaned.length === 10) return conUno(cleaned);
+    if (cleaned.length === 12 && cleaned.startsWith("52")) return conUno(cleaned.slice(2));
+    if (cleaned.length === 13 && cleaned.startsWith("521")) return `+${cleaned}`;
+    if (raw.startsWith("+")) return raw;
+    return `+${cleaned}`;
+}
+
 export async function sendSms(phone: string, body: string): Promise<boolean> {
     if (!phone) return false;
 
@@ -50,7 +67,7 @@ export async function sendWhatsAppCode(phone: string, code: string): Promise<boo
             await client.messages.create({
                 body,
                 from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
-                to: `whatsapp:${formatMxPhone(phone)}`,
+                to: `whatsapp:${formatMxPhoneWhatsApp(phone)}`,
             });
             return true;
         } catch (err) {
