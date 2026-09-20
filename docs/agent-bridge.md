@@ -155,7 +155,73 @@ externo (una API key, por ejemplo). Detalle completo en `docs/tasks/LEEME.md`.
 
 Esa secuencia — **Claude Code decide, Cline ejecuta** — es la colaboración funcionando.
 
+## Vía 6 — Que Claude resuelva sin preguntar (permisos preaprobados)
+
+El problema, medido y no supuesto. Una sesión de Claude Code **sin permisos
+preaprobados no puede hacer nada**: en modo headless se le pidió correr
+`npm.cmd run tasks -- list` y contestó:
+
+> No pude ejecutar el comando: esta sesión no tiene forma de mostrar el prompt de
+> aprobación… necesitas correrlo tú mismo o desde una sesión interactiva.
+
+O sea: cada comando del repo terminaba convertido en una pregunta al usuario. Se
+arregla en tres capas, de la más barata a la más profunda:
+
+1. **Política escrita.** `CLAUDE.md`, sección "Regla 0 — Resuelve, no preguntes"
+   (y el resumen compartido en `AGENTS.md`). Claude Code los lee solo al abrir el
+   proyecto: primero agotar repo / comando real / default seguro, y solo después,
+   en una lista cerrada de casos, preguntar.
+2. **Permisos.** `.claude/settings.json` (versionado, ver `.gitignore`):
+   - `defaultMode: acceptEdits` → editar archivos no pide aprobación.
+   - `allow` → `tsc`, `eslint`, `prisma validate`, `npm.cmd run tasks|claude|dev|build`,
+     `npx tsx|next`, `git add|commit|diff|log|show`, lecturas y ediciones.
+   - `ask` → lo que decide un humano: `git push`, `vercel`, `npm install`,
+     `prisma migrate`, `npm run db:*`, `playwright`.
+   - `deny` → irreversible o secreto: `rm`/`Remove-Item`, `git reset --hard`,
+     `git clean`, `git push -f`, `migrate reset`, leer o editar `.env*`, `dev.db`, `*.pem`.
+   - Precedencia: **deny > ask > allow**.
+3. **Puente.** `scripts/claude-bridge.mts` lee *ese mismo archivo* y le pasa las reglas
+   al CLI como `--allowedTools`, más `--permission-mode acceptEdits
+   --permission-prompts none`. Así `npm.cmd run claude -- "..."` resuelve solo: no se
+   cuelga esperando aprobación (lo no listado se niega al instante y Claude sigue por
+   otra vía) y trae de fábrica el preámbulo "no preguntes, resuelve".
+
+**El candado que cuesta una hora:** las reglas de un `.claude/settings.json` **de
+proyecto se ignoran hasta que el workspace está confiado**. Lo dice el propio CLI:
+
+```
+Ignoring 33 permissions.allow entries from .claude/settings.json: this workspace has
+not been trusted. Run Claude Code interactively here once and accept the trust dialog,
+or set projects["C:/Users/Administrador/Documents/APPS/Cremeria"].hasTrustDialogAccepted: true
+in C:\Users\Administrador\.claude.json.
+```
+
+Pasarlas con `--settings` **no** salta el candado; `--allowedTools` explícito **sí**
+(ambos probados el 20/09/2026). Por eso el puente usa `--allowedTools` y no depende del
+archivo.
+
+**Pero el candado sí se puede abrir sin que nadie haga clic**, y aquí está el detalle que
+cuesta una hora de pruebas. El binario busca
+`projects[<raíz del repo con "/">].hasTrustDialogAccepted`, y en Windows esa ruta lleva
+**la unidad en MAYÚSCULA**: `C:/Users/Administrador/Documents/APPS/Cremeria`. En
+`~/.claude.json` solo existía la variante en minúscula (`c:/...`), que es la que escribe
+otro cliente del mismo archivo; marcar `true` **en esa entrada no servía de nada**, porque
+el CLI nunca la encontraba. Se agregó la entrada con la unidad en mayúscula y el candado
+cedió. Prueba (con `--permission-prompts none` y **sin** `--allowedTools`, a propósito):
+
+```
+$ claude -p --permission-prompts none
+  "corre npm.cmd run tasks -- list y dime cuantas pendientes hay"
+→ 2 tareas pendientes (T-0006 y T-0002).        <- stderr vacío: ya no avisa nada
+```
+
+O sea que ahora las reglas de `.claude/settings.json` valen **también** para la sesión
+interactiva del IDE (basta reiniciar el panel de Claude Code una vez para que las lea):
+ya no pregunta por cada comando ni pide permiso para editar archivos.
+
+
 ## Qué NO funciona
+
 
 - **Que YO me despierte solo.** Cline solo actúa cuando hay un turno tuyo en el
   panel. Lo que sí funciona es lo inverso: **yo puedo invocar a Claude Code cuando

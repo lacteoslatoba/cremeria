@@ -19,6 +19,12 @@
  *
  * Requiere acceso a la API o al CLI. Sin ninguno de los dos el script explica
  * cómo configurarlo y sale con código 1.
+ *
+ * Desde el 20/09/2026 el puente está pensado para que Claude RESUELVA sin preguntar:
+ * adjunta un preámbulo que prohíbe devolver la pregunta al usuario y le pasa al CLI las
+ * reglas `permissions.allow` de `.claude/settings.json` junto con
+ * `--permission-mode acceptEdits --permission-prompts none`, para que una llamada
+ * headless nunca se quede colgada esperando una aprobación que nadie va a ver.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -102,6 +108,42 @@ if (!prompt) {
 }
 
 
+/**
+ * Preámbulo por defecto: el puente existe para que Claude RESUELVA, no para que
+ * devuelva la pregunta. Es el mismo espíritu de la "Regla 0" de CLAUDE.md, pero
+ * puesto también en el system prompt porque una llamada headless puede correr en
+ * un directorio donde ese archivo no se lea.
+ */
+const PREAMBULO_POR_DEFECTO = [
+    "Estas en el repo Cremeria del Rancho (Next.js 16 + Prisma + Stripe, Windows/PowerShell).",
+    "Resuelve sin preguntar: no pidas confirmacion ni permiso, no devuelvas la pregunta al usuario.",
+    "Si falta un dato, elige el default seguro, dilo en una linea y entrega la respuesta completa.",
+    "Usa npm.cmd (nunca npm) y responde en espanol.",
+].join(" ");
+
+/**
+ * Reglas de permiso preaprobadas del repo, leídas del MISMO archivo que usa Claude
+ * Code en modo interactivo (`.claude/settings.json`) para no mantener dos listas que
+ * se desincronicen. Sin esto el CLI headless no tiene dónde pedir aprobación: niega
+ * todo y la sesión termina pidiéndole al humano que corra los comandos él mismo.
+ */
+function reglasPermitidas(): string[] {
+    const abs = path.join(ROOT, ".claude", "settings.json");
+    if (!fs.existsSync(abs)) return [];
+    try {
+        const cfg = JSON.parse(fs.readFileSync(abs, "utf8")) as {
+            permissions?: { allow?: unknown };
+        };
+        const allow = cfg.permissions?.allow;
+        return Array.isArray(allow) ? allow.filter((r): r is string => typeof r === "string") : [];
+    } catch {
+        console.error("⚠ .claude/settings.json no es JSON válido; se ignora su lista de permisos.");
+        return [];
+    }
+}
+
+const PERMITIDAS = reglasPermitidas();
+
 // ── Detección de backend ──
 /**
  * Ruta al binario del CLI de Claude Code, o null si no está en ninguna parte.
@@ -162,6 +204,7 @@ console.log("  Puente a Claude — Cremería del Rancho");
 console.log("════════════════════════════════════════════════════════");
 console.log(`▸ Backend: ${backend === "api" ? "API de Anthropic (ANTHROPIC_API_KEY)" : backend === "cli" ? "Claude Code CLI" : "✗ NINGUNO"}`);
 if (backend === "cli") console.log(`▸ CLI:     ${CLI_PATH}`);
+if (backend === "cli") console.log(`▸ Permisos: ${PERMITIDAS.length} regla(s) allow de .claude/settings.json · modo acceptEdits`);
 console.log(`▸ Modelo:  ${model}${flagValue("--model") ? " (--model)" : " (por defecto)"}`);
 console.log(`▸ Prompt:  ${prompt.length} caracteres`);
 if (filePath) console.log(`▸ Archivo: ${filePath}`);
@@ -194,7 +237,8 @@ async function viaApi(): Promise<string> {
         max_tokens: maxTokens,
         messages: [{ role: "user", content: prompt }],
     };
-    if (systemPrompt) body.system = systemPrompt;
+    if (systemPrompt) body.system = `${PREAMBULO_POR_DEFECTO}\n${systemPrompt}`;
+    else body.system = PREAMBULO_POR_DEFECTO;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -222,8 +266,18 @@ async function viaApi(): Promise<string> {
 // ── Backend 2: Claude Code CLI en modo no interactivo ──
 function viaCli(): string {
     const bin = CLI_PATH as string;
-    const args = ["-p"];
-    if (systemPrompt) args.push("--append-system-prompt", systemPrompt);
+    const args = [
+        "-p",
+        // acceptEdits: los cambios de archivo no se detienen a pedir aprobación.
+        "--permission-mode", "acceptEdits",
+        // Sin superficie de aprobación, lo que no esté permitido se niega AL INSTANTE:
+        // así la llamada nunca se queda colgada esperando a un humano que no está.
+        "--permission-prompts", "none",
+        "--append-system-prompt", systemPrompt ? `${PREAMBULO_POR_DEFECTO}\n${systemPrompt}` : PREAMBULO_POR_DEFECTO,
+    ];
+    // La lista sale de .claude/settings.json: misma fuente de verdad para el modo
+    // interactivo y para el puente, así no hay dos listas que se desincronicen.
+    if (PERMITIDAS.length) args.push("--allowedTools", PERMITIDAS.join(","));
     const res = spawnSync(bin, args, {
         // Un .exe se lanza directo; los shims .cmd/.bat de npm sí necesitan shell.
         shell: /\.(cmd|bat)$/i.test(bin),

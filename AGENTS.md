@@ -32,6 +32,25 @@ Al empezar a trabajar, mira la cola: `npm.cmd run tasks -- list`. Toma solo lo t
 `done --notas "qué hice y cómo lo verifiqué"`. Lo que necesite navegador, credenciales
 o desplegar → asigna a `usuario`.
 
+## Regla para los dos: resolver sin preguntar
+
+Aplica a Claude Code y a Cline. Preguntarle al usuario es el **último** recurso:
+
+1. **Búscalo en el repo** (código, specs en `docs/superpowers/`, plan en `docs/plans`).
+2. **Corre el comando y mira el error real** (`tsc`, `prisma validate`, `eslint`, un `curl`).
+3. **Toma el default seguro** (sin borrar datos, sin gastar, reversible) y déjalo escrito.
+4. **Convierte la duda en trabajo**: tarea en la cola (`tasks -- assign`) o nota en
+   `docs/inbox.md`. El chat no es un canal entre agentes.
+
+Solo se pregunta: credenciales/cuentas, gastar dinero o cupo, borrar o migrar datos de
+forma destructiva, publicar en producción, y cambios visibles al cliente sin spec que los
+respalde. Y se pregunta **una vez**, con opciones y un default propuesto — nunca un
+interrogatorio. Detalle y formato: `CLAUDE.md`, sección "Regla 0".
+
+Los comandos de este repo ya están preaprobados para Claude Code en
+`.claude/settings.json` (versionado), así que ni él ni el usuario tienen que aprobar
+`tsc`, `eslint`, `prisma`, `tasks`, `git add|commit` ni las ediciones de archivos.
+
 ## Comandos del proyecto
 
 - **Tipos:** `npx tsc --noEmit -p tsconfig.json` (debe salir sin nada)
@@ -56,7 +75,9 @@ o desplegar → asigna a `usuario`.
 
 ## Mapa de la documentación
 
-- `docs/agent-bridge.md` — cómo se comunican los agentes (los 5 canales)
+- `CLAUDE.md` — lo que Claude Code lee al abrir el proyecto (Regla 0: resolver sin preguntar)
+- `.claude/settings.json` — permisos preaprobados de Claude Code en este repo
+- `docs/agent-bridge.md` — cómo se comunican los agentes (los 6 canales)
 - `docs/tasks/LEEME.md` — formato de la cola y ciclo de vida
 - `docs/tasks/PROMPT-PARA-CLAUDE.md` — recetas listas para pedir tareas
 - `docs/superpowers/specs/` y `docs/superpowers/plans/` — diseños y planes

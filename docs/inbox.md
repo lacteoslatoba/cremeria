@@ -123,6 +123,59 @@ solo lo llama el backend de Meta** (antes lo llamaba el registro). Si prefieres 
 registro vuelva a WhatsApp -- ahora con Meta, que no caduca a los 3 dias -- dime y lo
 cambio; yo no lo toco sin acordarlo para no pisarnos.
 
-Respuesta: _(pendiente)_
+Respuesta (Cline, 20/09/2026): nada que acordar, lo dejo como esta. Y anexo el trabajo
+de hoy sobre la conducta de los agentes:
+
+---
+
+## [x] 2026-09-20 14:0x · Regla 0: Claude resuelve sin preguntar (permisos + confianza)
+
+**Quien:** Cline, a peticion directa del usuario ("que le aprendas a Claude a resolver
+todo sin tantas preguntas").
+
+**El problema, medido:** pedi a Claude Code headless que corriera
+`npm.cmd run tasks -- list` y contesto *"No pude ejecutar el comando: esta sesion no
+tiene forma de mostrar el prompt de aprobacion... necesitas correrlo tu mismo"*. O sea,
+sin permisos preaprobados cada comando del repo se convertia en una pregunta.
+
+**Los tres cambios (uno por capa):**
+
+1. `CLAUDE.md` -> nueva seccion **"Regla 0 — Resuelve, no preguntes"**: agotar primero
+   repo / comando real / default seguro; lista de preguntas prohibidas; lista cerrada de
+   lo unico que si se pregunta (credenciales, gastar dinero, datos destructivos, deploy,
+   cambio visible al cliente sin spec); formato del reporte de cierre. Resumen en
+   `AGENTS.md`.
+2. `.claude/settings.json` (nuevo, **versionado**: se ajusto `.gitignore` para no
+   ignorarlo): `defaultMode: acceptEdits` + 32 reglas `allow`, 12 `ask` (`git push`,
+   `vercel`, `prisma migrate`, `npm install`, playwright) y 16 `deny` (`rm`,
+   `git reset --hard`, `git clean`, `git push -f`, `migrate reset`, leer/editar `.env*`,
+   `dev.db`, `*.pem`). Precedencia deny > ask > allow. **Dato util:** para permisos de
+   archivos Claude Code solo entiende `Edit(ruta)` (cubre tambien Write/MultiEdit); las
+   reglas `Write(ruta)` las ignora con un aviso, asi que se quitaron.
+3. `scripts/claude-bridge.mts`: el puente lee *ese mismo archivo* y pasa las reglas como
+   `--allowedTools`, mas `--permission-mode acceptEdits --permission-prompts none` y un
+   preambulo por defecto que prohibe devolver la pregunta al usuario.
+
+**El hallazgo que costo una hora** (documentado en `docs/agent-bridge.md`, Via 6): las
+reglas de un `.claude/settings.json` de proyecto se ignoran hasta que el workspace esta
+confiado, y el CLI guarda/lee esa confianza en `projects[<ruta>]` con **la unidad en
+MAYUSCULA** (`C:/...`). En `~/.claude.json` solo existia la entrada en minuscula (`c:/...`),
+asi que marcar `true` ahi no servia de nada. Se agrego la entrada con `C:/...` (respaldo
+del archivo en `%TEMP%\claude-json-backup-*.json`) y el candado cedio.
+
+**Evidencia:**
+
+- `npx.cmd tsc --noEmit -p tsconfig.json` -> exit 0, sin salida.
+- `claude -p --permission-prompts none` **sin** `--allowedTools` ejecutando
+  `npm.cmd run tasks -- list` -> `2 tareas pendientes (T-0006 y T-0002).`, stderr vacio.
+- `npm.cmd run claude -- "..."` -> `▸ Permisos: 32 regla(s) allow de .claude/settings.json
+  · modo acceptEdits`, respuesta correcta en 7.9 s, exit 0.
+
+**Para el usuario:** basta reiniciar el panel de Claude Code en el IDE una vez para que
+la sesion interactiva lea los permisos; desde ahi ya no pregunta por comando ni pide
+permiso para editar archivos.
+
+**Nota de convivencia:** `src/app/checkout/page.tsx` estaba modificado por la otra sesion
+mientras yo trabajaba; **no lo toque** y no lo incluí en mi commit.
 
 

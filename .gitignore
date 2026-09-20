@@ -52,7 +52,9 @@ next-env.d.ts
 
 # herramientas de agente (skills locales / locks) — no son parte de la app
 /.agents
-/.claude
+/.claude/*
+# ...salvo la politica de permisos, que SI se comparte con el repo
+!/.claude/settings.json
 skills-lock.json
 
 /src/generated/prisma
