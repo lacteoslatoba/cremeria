@@ -12,7 +12,11 @@
  *   npm run tasks -- assign "Título" --files src/x.ts --criterio "compila y lint pasa"
  *   npm run tasks -- next                    # la siguiente pendiente (para el worker)
  *   npm run tasks -- next --json
+ *   npm run tasks -- take                    # claim + expediente, en un solo paso
+ *   npm run tasks -- take T-0001             # igual, pero de una tarea concreta
  *   npm run tasks -- claim T-0001            # la marca en_proceso
+ *   npm run tasks -- note T-0001 --notas "hallazgo parcial"   # sin cerrar la tarea
+ *   npm run tasks -- reopen T-0001 --motivo "se cortó a medias" # vuelve a pendiente
  *   npm run tasks -- done T-0001 --notas "listo, tests OK"
  *   npm run tasks -- block T-0001 --motivo "falta la API key de Stripe"
  *   npm run tasks -- show T-0001
@@ -144,6 +148,8 @@ function flag(name: string): string | undefined {
     return i !== -1 ? args[i + 1] : undefined;
 }
 const CON_VALOR = new Set(["--estado", "--files", "--criterio", "--prioridad", "--by", "--to", "--para", "--notas", "--motivo", "--contexto"]);
+/** `--forzar` salta el aviso de "ya la está trabajando otro agente". */
+const FORZAR = args.includes("--forzar");
 function posicional(): string {
     const out: string[] = [];
     for (let i = 0; i < args.length; i++) {
@@ -271,10 +277,15 @@ function anexarNota(t: Task, titulo: string, texto: string) {
     fs.writeFileSync(abs, `${previo}\n\n### ${ahora()} — ${titulo}\n\n${texto}\n`, "utf8");
 }
 
-function cmdClaim() {
-    const t = buscar(posicional());
+// Compartida por claim y take: marcar en_proceso con los avisos de rigor.
+function tomar(t: Task, quien: string) {
     if (t.estado === "hecho") throw new Error(`La tarea ${t.id} ya está marcada como hecha.`);
-    const quien = flag("--to") ?? "cline";
+    // Dos agentes trabajan este repo a la vez: si la tarea ya la tiene otro en las
+    // manos, no se pisa. Pasó de verdad el 20/09/2026 con T-0008, que la tomaron al
+    // mismo tiempo el carril rápido (queue:auto) y la sesión del IDE.
+    if (t.estado === "en_proceso" && t.asignadoA.toLowerCase() !== quien.toLowerCase() && !FORZAR) {
+        throw new Error(`${t.id} ya la está trabajando "${t.asignadoA}". Si de verdad la quieres, repite con --forzar.`);
+    }
     // Aviso, no bloqueo: a veces uno toma una tarea ajena a propósito.
     if (t.asignadoA.toLowerCase() !== quien.toLowerCase()) {
         console.log(`⚠ ${t.id} estaba asignada a "${t.asignadoA}" y la estás tomando como "${quien}".`);
@@ -282,6 +293,54 @@ function cmdClaim() {
     actualizarCabecera(t, { estado: "en_proceso", "asignado-a": quien, actualizado: ahora() });
     console.log(`🔄 ${t.id} en_proceso (${quien}).`);
 }
+
+function cmdClaim() {
+    tomar(buscar(posicional()), flag("--to") ?? "cline");
+}
+
+/**
+ * `take` = claim + expediente en UN solo paso. Antes el worker gastaba tres comandos
+ * (next, show, claim) y con ellos tres turnos de chat; aquí toma la suya (o la que le
+ * toca por prioridad si no se pasa id) y ya sale con todo lo necesario para trabajar.
+ */
+function cmdTake() {
+    const quien = flag("--to") ?? "cline";
+    const id = posicional();
+    let t: Task | undefined;
+
+    if (id) {
+        t = buscar(id);
+    } else {
+        const para = (flag("--para") ?? quien).toLowerCase();
+        t = todas()
+            .filter((x) => x.estado === "pendiente" && x.asignadoA.toLowerCase() === para)
+            .sort((a, b) => (ORDEN_PRIORIDAD[a.prioridad] ?? 9) - (ORDEN_PRIORIDAD[b.prioridad] ?? 9) || a.id.localeCompare(b.id))[0];
+        if (!t) {
+            console.log(`✅ No hay tareas pendientes para "${para}". Nada que tomar.`);
+            return;
+        }
+    }
+
+    tomar(t, quien);
+    imprimirDetalle(t);
+    console.log(`\n  ▶ Al terminar:  npm run tasks -- done ${t.id} --notas "qué hice y cómo lo verifiqué"`);
+    console.log("  ▶ Si es un hallazgo a medias:  npm run tasks -- note " + t.id + ' --notas "lo que encontré"');
+}
+
+/**
+ * `note` deja un hallazgo en el expediente SIN cambiar el estado ni cerrar la tarea:
+ * es el canal barato para que un agente le deje contexto al otro (o al usuario) sobre
+ * una tarea que sigue pendiente.
+ */
+function cmdNote() {
+    const t = buscar(posicional());
+    const notas = flag("--notas");
+    if (!notas) throw new Error('Falta --notas "qué encontraste". Ej: npm run tasks -- note T-0006 --notas "el fix es config"');
+    anexarNota(t, `nota de ${flag("--by") ?? "cline"}`, notas);
+    actualizarCabecera(t, { actualizado: ahora() });
+    console.log(`📝 Nota agregada a ${t.id} (sigue en estado ${t.estado}).`);
+}
+
 
 function cmdDone() {
     const t = buscar(posicional());
@@ -299,6 +358,19 @@ function cmdBlock() {
     console.log(`🚧 ${t.id} bloqueada: ${motivo}`);
 }
 
+/**
+ * `reopen` devuelve una tarea a pendiente. Existe porque una corrida del carril
+ * rápido puede cortarse a medias (o alguien puede reclamar por error) y sin esto la
+ * tarea quedaba atorada en en_proceso sin que nadie la pudiera volver a tomar.
+ */
+function cmdReopen() {
+    const t = buscar(posicional());
+    const motivo = flag("--motivo") ?? "(sin motivo)";
+    actualizarCabecera(t, { estado: "pendiente", actualizado: ahora() });
+    anexarNota(t, "reabierta", motivo);
+    console.log(`↩ ${t.id} vuelve a pendiente: ${motivo}`);
+}
+
 function cmdShow() {
     imprimirDetalle(buscar(posicional()));
 }
@@ -311,8 +383,11 @@ const COMANDOS: Record<string, () => void> = {
     assign: cmdAssign,
     add: cmdAssign,
     claim: cmdClaim,
+    take: cmdTake,
+    reopen: cmdReopen,
     done: cmdDone,
     block: cmdBlock,
+    note: cmdNote,
     show: cmdShow,
 };
 
@@ -320,7 +395,7 @@ function main() {
     const fn = COMANDOS[comando];
     if (!fn) {
         console.error(`\n⚠ Comando desconocido: "${comando}"`);
-        console.error("  Disponibles: list, next, assign, claim, done, block, show");
+        console.error("  Disponibles: list, next, assign, take, claim, reopen, note, done, block, show");
         process.exit(1);
     }
     fn();

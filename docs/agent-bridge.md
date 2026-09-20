@@ -220,7 +220,52 @@ interactiva del IDE (basta reiniciar el panel de Claude Code una vez para que la
 ya no pregunta por cada comando ni pide permiso para editar archivos.
 
 
+## Vía 7 — Carril rápido: que la máquina avance la cola
+
+La vía 5 repartía el trabajo, pero cada cambio seguía necesitando un turno de chat humano
+en medio (reclamar, esperar, validar, cerrar). Ahora la máquina puede avanzar la cola sola:
+
+```powershell
+npm.cmd run check                       # valida el cambio completo: tsc + prisma + eslint
+npm.cmd run queue:auto                  # dry-run: muestra qué haría, no toca nada
+npm.cmd run queue:auto -- --yes         # reclama, implementa con Claude Code headless,
+                                        # valida, commitea y cierra la tarea
+npm.cmd run queue:auto -- --yes --limite 3 --seguir   # varias, sin parar en el primer fallo
+```
+
+`queue:auto`, tarea por tarea:
+
+1. Verifica que siga `pendiente` y la reclama (así el otro agente la ve tomada).
+2. Le pasa a Claude Code headless el encargo de leer `docs/tasks/T-NNNN-*.md` e
+   implementarlo, con el preámbulo y los permisos de la Vía 6: no pregunta nada.
+3. Corre `npm run check`.
+4. **Solo si el check PASA** commitea —nada más los archivos que quedaron sucios durante
+   la tarea, nunca el trabajo del otro agente— y cierra la tarea con la respuesta de
+   Claude, el veredicto del check y el sha del commit como notas. Si el check falla, o si
+   no hubo cambios, deja la nota y la tarea queda `en_proceso`. Nunca push, nunca deploy.
+
+**Lo que salió mal la primera vez (y ya está corregido)**, porque es lección de Windows:
+
+- Con `shell: true` Node **no escapa los argumentos**: el mensaje del commit se partió y
+  git leyó `T-0008:` como pathspec, y una nota con paréntesis ni se ejecutó. Ahora `git`
+  va sin shell y todo texto libre pasa por un `cita()` propio.
+- El script cerraba la tarea aunque el commit hubiera fallado. Ahora sin commit no hay
+  cierre: queda `en_proceso` con la nota del fallo.
+- La sesión del IDE y el carril rápido trabajaron T-0008 al mismo tiempo. Ahora
+  `take`/`claim` rechazan una tarea que otro agente tiene `en_proceso` (salvo `--forzar`)
+  y `queue:auto` salta la tarea si ya no está `pendiente`.
+
+Evidencia del 20/09/2026: **T-0009** se cerró sola en el commit `e2eccab` (Claude Code
+documentó `docs/tasks/LEEME.md` en 63 s, `npm run check` dio PASA en 7 s, commit y cierre
+automáticos), y el guardián de coordinación se probó en vivo:
+
+```
+$ npm.cmd run tasks -- claim T-0009 --to claude-code
+Error: T-0009 ya la está trabajando "cline". Si de verdad la quieres, repite con --forzar.
+```
+
 ## Qué NO funciona
+
 
 
 - **Que YO me despierte solo.** Cline solo actúa cuando hay un turno tuyo en el

@@ -10,6 +10,8 @@
     "stripe:setup": "tsx scripts/stripe-setup.mts",
     "claude": "tsx scripts/claude-bridge.mts",
     "tasks": "tsx scripts/tasks.mts",
+    "check": "tsx scripts/check.mts",
+    "queue:auto": "tsx scripts/queue-auto.mts",
     "watch:claude": "tsx scripts/watch-claude.mts",
     "prisma": "dotenv -e .env.local -- prisma",
     "db:push": "dotenv -e .env.local -- prisma db push",

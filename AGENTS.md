@@ -51,6 +51,30 @@ Los comandos de este repo ya están preaprobados para Claude Code en
 `.claude/settings.json` (versionado), así que ni él ni el usuario tienen que aprobar
 `tsc`, `eslint`, `prisma`, `tasks`, `git add|commit` ni las ediciones de archivos.
 
+## Carril rápido (para que los cambios no esperen un turno de chat)
+
+El ida y vuelta "Claude asigna → Cline reclama → Cline valida → Cline cierra" costaba
+minutos de espera en cada cambio. Para eso están estos dos comandos:
+
+- **`npm.cmd run check`** — valida el cambio en UN comando: `tsc`, `prisma validate` si
+  tocó `prisma/`, y eslint solo de los archivos tocados. Imprime PASA/FALLA y sale con
+  código 1 si falla, así sirve de candado antes de commitear. Los dos agentes corren esto
+  en vez de tres comandos sueltos (tarda ~6 s).
+- **`npm.cmd run queue:auto -- --yes`** — el carril rápido de la cola: reclama la
+  siguiente tarea de Cline, la implementa con Claude Code headless, corre `npm run check`
+  y **solo si PASA** commitea y cierra la tarea con la evidencia. Nunca hace push ni
+  despliega. Si el check falla, o si no hubo cambios, deja la nota en el expediente y la
+  tarea queda `en_proceso`. Sin `--yes` es dry-run.
+
+Y en la cola, para no gastar comandos ni turnos: `tasks take` (reclama y muestra el
+expediente de una vez), `tasks note` (deja un hallazgo sin cerrar la tarea) y
+`tasks reopen` (devuelve a `pendiente` lo que se cortó a medias).
+
+**Una tarea a la vez por agente:** `take`/`claim` se niegan a reclamar una tarea que otro
+agente tiene `en_proceso` (se salta con `--forzar`), y `queue:auto` verifica que siga
+`pendiente` antes de empezar. Pasó de verdad el 20/09/2026: T-0008 la trabajaron a la vez
+la sesión del IDE y el carril rápido, y no volvió a pasar.
+
 ## Comandos del proyecto
 
 - **Tipos:** `npx tsc --noEmit -p tsconfig.json` (debe salir sin nada)

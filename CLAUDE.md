@@ -26,8 +26,10 @@ Antes de escribir cualquier pregunta, agota estos cuatro pasos **en orden**:
 
 1. **Búscalo en el repo.** `grep`/glob sobre `src/`, `prisma/`, `docs/`. Casi siempre la
    respuesta está en el código, en `docs/superpowers/specs/` o en `docs/superpowers/plans/`.
-2. **Corre el comando y mira el error real.** `npx tsc --noEmit`,
-   `npm.cmd run prisma -- validate`, `npx eslint .`, un `curl` contra el dev server.
+2. **Corre el comando y mira el error real.** Un solo comando valida todo lo que tocaste:
+   `npm.cmd run check` (`tsc` + `prisma validate` + `eslint` de lo cambiado, con veredicto
+   PASA/FALLA). Para algo puntual: `npx.cmd tsc --noEmit`,
+   `npm.cmd run prisma -- validate`, `npx.cmd eslint .`, un `curl` contra el dev server.
    Un dato real vale más que una suposición; y si la hipótesis falla, cambia de hipótesis.
 3. **Toma el default seguro y déjalo escrito.** Si hay dos caminos razonables, elige el
    que **no** borra datos, no gasta dinero y es reversible; explica en el commit y en tu
