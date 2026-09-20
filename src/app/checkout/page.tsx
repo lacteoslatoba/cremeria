@@ -11,12 +11,14 @@ import { consumePrefetchedStripeIntent } from "@/lib/stripe-prefetch";
 // Errores como { message } que devuelve Stripe.js (tipos del navegador no
 // están incluidos en el paquete `stripe` del servidor; se modela aquí solo la
 // superficie que el checkout usa, sin recurrir a `any`).
-type StripeErrorLike = { message?: string };
+type StripeErrorLike = { message?: string; code?: string };
 type StripeErrorEventPayload = { error?: StripeErrorLike };
+type StripeChangeEventPayload = { complete?: boolean; empty?: boolean };
 type StripePaymentElement = {
     mount(el: HTMLElement | null): void;
     on(event: "ready", handler: () => void): StripePaymentElement;
     on(event: "error", handler: (payload: StripeErrorEventPayload) => void): StripePaymentElement;
+    on(event: "change", handler: (payload: StripeChangeEventPayload) => void): StripePaymentElement;
 };
 type StripeElementsApi = {
     create(type: "payment", options: object): StripePaymentElement;
@@ -62,6 +64,14 @@ export default function CheckoutPage() {
     const [stripeSdkLoaded, setStripeSdkLoaded] = useState(false);
     const [stripeReady, setStripeReady] = useState(false);
     const [stripeSubmitting, setStripeSubmitting] = useState(false);
+    // El navegador (autocompletado de tarjeta guardada) a veces rellena el
+    // número visualmente sin disparar los eventos que el iframe de Stripe
+    // necesita para registrarlo -- se ve lleno pero Stripe lo sigue
+    // considerando incompleto. Escuchando el evento "change" (que Stripe sí
+    // dispara siempre, venga la entrada de teclado o de autocompletado) se
+    // sabe la verdad y se puede bloquear "Pagar" antes de que el cliente
+    // choque con un error después de esperar el viaje redondo del pago.
+    const [elementComplete, setElementComplete] = useState(false);
     const stripePublicKeyRef = useRef("");
     const stripeRef = useRef<StripeApi | null>(null); // instancia de window.Stripe(pk)
     const stripeElementsRef = useRef<StripeElementsApi | null>(null);
@@ -206,6 +216,7 @@ export default function CheckoutPage() {
 
         setStripeSubmitting(true);
         setError("");
+        setElementComplete(false);
         try {
             // La llave pública no cambia -- se guarda en localStorage para no
             // volver a pedirla en la próxima visita (ahorra una ida y vuelta
@@ -364,6 +375,9 @@ export default function CheckoutPage() {
                 setStripeReady(false);
                 setError(event?.error?.message || "El formulario de pago no pudo cargar. Revisa tu conexión y reintenta.");
             });
+            paymentElement.on("change", (event) => {
+                setElementComplete(!!event?.complete);
+            });
 
             mountPaymentAttemptRef.current = 1;
             try {
@@ -410,7 +424,16 @@ export default function CheckoutPage() {
             });
 
             if (confirmError) {
-                setError(confirmError.message || "Tu pago no pudo procesarse.");
+                // "incomplete_*" es Stripe diciendo que ese campo se ve lleno
+                // pero no registró la entrada completa -- el caso típico es el
+                // autocompletado del navegador/teléfono, que no siempre
+                // sincroniza con el iframe de Stripe. El mensaje default de
+                // Stripe no deja claro qué hacer; aquí sí.
+                const autofillHint = confirmError.code?.startsWith("incomplete_")
+                    ? " Borra ese campo y escribe los datos de la tarjeta a mano -- el autocompletado a veces no lo registra bien."
+                    : "";
+                setError((confirmError.message || "Tu pago no pudo procesarse.") + autofillHint);
+                setElementComplete(false);
                 setStripeSubmitting(false);
                 return;
             }
@@ -606,10 +629,20 @@ export default function CheckoutPage() {
                             (deja de estar atenuado) cuando el formulario ya está listo
                             para recibir el pago. */}
                         {!error && (
-                            <button onClick={handleStripePay} disabled={stripeSubmitting || !stripeReady}
+                            <button onClick={handleStripePay} disabled={stripeSubmitting || !stripeReady || !elementComplete}
                                 className="w-full py-4 rounded-2xl bg-violet-500 text-white font-bold text-lg shadow-lg shadow-violet-500/30 disabled:opacity-40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-1">
                                 {stripeSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Pagar ${total.toFixed(2)}</>}
                             </button>
+                        )}
+                        {/* Pistas de que el autocompletado del cel/navegador llenó el
+                            número visualmente pero Stripe todavía no lo registra --
+                            pasa seguido con el autocompletado de tarjetas guardadas en
+                            Android/Chrome, que no siempre dispara lo que el iframe de
+                            Stripe necesita para contarlo como escrito de verdad. */}
+                        {!error && stripeReady && !elementComplete && !stripeSubmitting && (
+                            <p className="text-center text-xs text-gray-500">
+                                Si tu teléfono llenó la tarjeta con autocompletado y no se activa &quot;Pagar&quot;, borra el campo y escribe los datos a mano.
+                            </p>
                         )}
 
                         {method === "CARD" && !stripeReady && error && (
