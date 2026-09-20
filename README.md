@@ -97,6 +97,29 @@ Abrir [http://localhost:3000](http://localhost:3000).
 | `npm run start`        | Sirve el build de producción                            |
 | `npm run lint`         | Ejecuta ESLint                                          |
 | `npm run stripe:setup` | Diagnostica/crea el webhook de Stripe (ver abajo)       |
+| `npm run tasks`        | Cola de tareas entre agentes (`docs/tasks/`): listar, asignar, tomar, cerrar |
+| `npm run claude`       | Puente de línea de comandos hacia Claude (API o CLI headless) |
+| `npm run check`        | Verifica en un solo comando lo que cambió: tsc, prisma validate y eslint; imprime PASA/FALLA |
+| `npm run queue:auto`   | Carril rápido: reclama la siguiente tarea de la cola, la implementa con Claude Code headless, corre `npm run check` y solo si PASA commitea y cierra la tarea (nunca hace push) |
+
+### Scripts de agentes (Claude Code + Cline)
+
+Este repo lo trabajan dos agentes que se coordinan por archivos en `docs/tasks/`
+en vez de por chat. Detalle completo en [`docs/agent-bridge.md`](docs/agent-bridge.md).
+
+```bash
+# Asignar una tarea a Cline
+npm run tasks -- assign "Titulo" --files "ruta/real.ts" --criterio "comprobable con un comando"
+
+# Ver la cola
+npm run tasks -- list
+
+# Verificar un cambio en un solo comando (tsc + prisma validate + eslint)
+npm run check
+
+# Avanzar la cola de forma automática (reclama, implementa, valida, commitea)
+npm run queue:auto -- --yes
+```
 
 ### Configurar el webhook de Stripe (automatizado)
 
