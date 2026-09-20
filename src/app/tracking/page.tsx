@@ -117,7 +117,7 @@ function TrackingContent() {
         return (
             <>
                 {paidBanner}
-                <div className="absolute inset-0 flex justify-center items-center bg-[#121212] z-20"><Loader2 className="animate-spin text-primary" size={40} /></div>
+                <div className="absolute inset-0 flex justify-center items-center bg-[#3a3a3c] z-20"><Loader2 className="animate-spin text-primary" size={40} /></div>
             </>
         );
     }
@@ -126,7 +126,7 @@ function TrackingContent() {
         return (
             <>
                 {paidBanner}
-                <div className="absolute inset-0 flex flex-col gap-3 justify-center items-center bg-[#121212] z-20 text-white">
+                <div className="absolute inset-0 flex flex-col gap-3 justify-center items-center bg-[#3a3a3c] z-20 text-white">
                     <Info size={40} className="text-gray-400" />
                     <p>Orden no encontrada o no seleccionada.</p>
                 </div>
@@ -157,7 +157,7 @@ function TrackingContent() {
             {/* Fondo de toda la pantalla -- cubre el hueco entre el mapa y la
                 tarjeta inferior, así el cambio oscuro/claro no deja restos del
                 tema contrario a la vista. */}
-            <div className={`absolute inset-0 z-0 ${isLive ? "bg-white" : "bg-[#121212]"}`} />
+            <div className={`absolute inset-0 z-0 ${isLive ? "bg-white" : "bg-[#3a3a3c]"}`} />
 
             {paidBanner}
 
@@ -169,7 +169,7 @@ function TrackingContent() {
                 tarjeta inferior -- ganaban ellos, así que el mapa se pintaba
                 encima de la tarjeta y la tapaba por completo en la franja
                 donde se superponen. */}
-            <div className={`absolute inset-0 top-0 h-[55%] w-full flex items-center justify-center isolate ${isLive ? "bg-white" : "bg-[#121212]"}`}>
+            <div className={`absolute inset-0 top-0 h-[55%] w-full flex items-center justify-center isolate ${isLive ? "bg-white" : "bg-[#3a3a3c]"}`}>
                 {isLive ? (
                     <LiveMap
                         lat={delivery!.currentLat!}
@@ -319,7 +319,7 @@ export default function TrackingPage() {
                 </Link>
             </header>
 
-            <Suspense fallback={<div className="absolute inset-0 flex justify-center items-center bg-[#121212] z-20"><Loader2 className="animate-spin text-primary" size={40} /></div>}>
+            <Suspense fallback={<div className="absolute inset-0 flex justify-center items-center bg-[#3a3a3c] z-20"><Loader2 className="animate-spin text-primary" size={40} /></div>}>
                 <TrackingContent />
             </Suspense>
 
