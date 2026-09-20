@@ -110,7 +110,7 @@ export default function LoginPage() {
             }
 
             // La cuenta todavía no se guardó -- falta capturar el código
-            // que se mandó por WhatsApp.
+            // que se mandó por SMS.
             setRegStep("code");
         } catch (err) {
             setError("Ocurrió un error inesperado al conectar.");
@@ -359,9 +359,9 @@ export default function LoginPage() {
                             </form>
                         ) : (
                             <form onSubmit={handleVerifyCode} className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
-                                <h2 className="text-xl font-bold text-[#2d2a28] mb-2 text-center">Verifica tu WhatsApp</h2>
+                                <h2 className="text-xl font-bold text-[#2d2a28] mb-2 text-center">Verifica tu teléfono</h2>
                                 <p className="text-sm text-gray-500 text-center -mt-2">
-                                    Te enviamos un código al {regPhone} por WhatsApp
+                                    Te enviamos un código al {regPhone} por SMS
                                 </p>
 
                                 <div className="space-y-1 text-left">

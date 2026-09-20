@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "@/lib/auth";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
-import { sendWhatsAppCode } from "@/lib/notify";
+import { sendSms } from "@/lib/notify";
 import type { Prisma, User } from "@prisma/client";
 
 // Serializa un usuario para responder, garantizando que NUNCA se expone el
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
         }
 
         // Registro público: todavía no se crea el User -- se manda un
-        // código de 6 dígitos por WhatsApp y solo se guarda la cuenta
+        // código de 6 dígitos por SMS y solo se guarda la cuenta
         // cuando se verifica (ver /api/auth/register/verify/route.ts).
         const ip = clientIp(request);
         const throttledIp = rateLimit(`register-req-ip:${ip}`, 8, 15 * 60 * 1000);
@@ -104,9 +104,9 @@ export async function POST(request: Request) {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const codeExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-        const sent = await sendWhatsAppCode(phone, code);
-        const twilioWhatsAppConfigured = !!(
-            process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_NUMBER
+        const sent = await sendSms(phone, `Cremeria del Rancho: tu codigo de verificacion es ${code}. Expira en 10 minutos.`);
+        const twilioSmsConfigured = !!(
+            process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER
         );
 
         // Si Twilio SÍ está configurado pero el envío real falló, no se
@@ -114,11 +114,11 @@ export async function POST(request: Request) {
         // dejarlo esperando un código que nunca va a llegar.
         // En producción, además, que Twilio NO esté configurado se trata
         // igual que un envío fallido -- si no, el registro "tendría éxito"
-        // en silencio sin que el código llegue nunca por WhatsApp, y caería
+        // en silencio sin que el código llegue nunca por SMS, y caería
         // al fallback simulado (que solo debe pisarse en dev/local).
-        if (!sent && (twilioWhatsAppConfigured || process.env.NODE_ENV === "production")) {
+        if (!sent && (twilioSmsConfigured || process.env.NODE_ENV === "production")) {
             return NextResponse.json(
-                { error: "No pudimos enviar el código por WhatsApp. Intenta de nuevo." },
+                { error: "No pudimos enviar el código por SMS. Intenta de nuevo." },
                 { status: 502 }
             );
         }
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
             ok: true,
             phone,
             // Solo fuera de producción, y solo si de verdad no se pudo
-            // enviar por WhatsApp (p. ej. Twilio sin configurar en local).
+            // enviar por SMS (p. ej. Twilio sin configurar en local).
             _dev_code: process.env.NODE_ENV === "production" ? undefined : (sent ? undefined : code),
         });
     } catch (error) {
