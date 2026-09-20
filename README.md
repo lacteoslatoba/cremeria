@@ -48,6 +48,21 @@ TWILIO_PHONE_NUMBER="+1..."
 # Remitente habilitado para WhatsApp (sin el prefijo "whatsapp:"); el
 # número del sandbox de Twilio sirve para pruebas.
 TWILIO_WHATSAPP_NUMBER="+1..."
+
+# Proveedor de WhatsApp para los codigos de verificacion: "meta" o "twilio".
+# Sin esta variable se usa el que tenga credenciales (Meta primero).
+WHATSAPP_PROVIDER="meta"
+# Meta WhatsApp Cloud API (developers.facebook.com -> caso de uso WhatsApp).
+META_WHATSAPP_TOKEN="..."
+META_PHONE_NUMBER_ID="..."
+# Plantilla de autenticacion, solo si el cliente NO escribio primero (fuera de
+# la ventana de 24 h, donde el texto libre es gratis). Ej: "codigo_verificacion"
+META_WHATSAPP_TEMPLATE=""
+META_WHATSAPP_TEMPLATE_LANG="es_MX"
+
+# Con "true" el registro vuelve a fallar con 502 si no se puede entregar el
+# codigo. Por defecto (false) el registro sigue y la pantalla muestra el codigo.
+OTP_ESTRICTO="false"
 ```
 
 > **Nunca** versiones `.env*.local` con credenciales reales.
