@@ -50,16 +50,82 @@ export async function sendSms(phone: string, body: string): Promise<boolean> {
     return false;
 }
 
-// Mismo patrón que sendSms pero por WhatsApp -- usa las credenciales de
-// Twilio ya configuradas más un remitente de WhatsApp aparte
-// (TWILIO_WHATSAPP_NUMBER, sin el prefijo "whatsapp:", p. ej. el número
-// del sandbox de Twilio mientras se aprueba el número de WhatsApp
-// Business para producción).
+// Proveedor de WhatsApp para los codigos de verificacion. Se elige con
+// WHATSAPP_PROVIDER (meta|twilio); sin la variable se usa el que tenga
+// credenciales, y Meta primero porque su numero de prueba NO caduca como el
+// sandbox de Twilio (que obliga al cliente a unirse cada 3 dias y ademas topa
+// en pocos mensajes al dia).
+function proveedorWhatsApp(): "meta" | "twilio" | "simulado" {
+    const forzado = (process.env.WHATSAPP_PROVIDER || "").toLowerCase();
+    if (forzado === "meta" || forzado === "twilio") return forzado;
+    if (process.env.META_WHATSAPP_TOKEN && process.env.META_PHONE_NUMBER_ID) return "meta";
+    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_NUMBER) return "twilio";
+    return "simulado";
+}
+
+/**
+ * Meta WhatsApp Cloud API (Graph). Dos caminos, en este orden:
+ *   1. texto libre -- GRATIS, pero Meta solo lo acepta dentro de la ventana de
+ *      24 h que abre el cliente al escribirnos (de ahi el boton wa.me).
+ *   2. plantilla -- funciona siempre, incluso fuera de la ventana, pero se cobra
+ *      por mensaje; se configura con META_WHATSAPP_TEMPLATE.
+ * Graph quiere el numero SIN el "+".
+ */
+async function enviarCodigoPorMeta(phone: string, body: string, code: string): Promise<boolean> {
+    const token = process.env.META_WHATSAPP_TOKEN;
+    const phoneId = process.env.META_PHONE_NUMBER_ID;
+    if (!token || !phoneId) return false;
+
+    const url = `https://graph.facebook.com/v23.0/${phoneId}/messages`;
+    const cabeceras = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+    const base = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: formatMxPhoneWhatsApp(phone).replace(/^\+/, ""),
+    };
+
+    const intentar = async (cuerpo: unknown, etiqueta: string): Promise<boolean> => {
+        try {
+            const res = await fetch(url, { method: "POST", headers: cabeceras, body: JSON.stringify(cuerpo) });
+            if (res.ok) return true;
+            // El detalle que devuelve Meta es lo unico que explica un rechazo
+            // (p. ej. "outside the 24 hour window" si no hay plantilla puesta).
+            console.warn(`[WHATSAPP META] ${etiqueta} rechazado:`, (await res.text()).slice(0, 300));
+            return false;
+        } catch (err) {
+            console.error(`[WHATSAPP META] ${etiqueta} fallo de red:`, err);
+            return false;
+        }
+    };
+
+    if (await intentar({ ...base, type: "text", text: { body } }, "texto libre")) return true;
+
+    const plantilla = process.env.META_WHATSAPP_TEMPLATE;
+    if (!plantilla) return false;
+    return intentar(
+        {
+            ...base,
+            type: "template",
+            template: {
+                name: plantilla,
+                language: { code: process.env.META_WHATSAPP_TEMPLATE_LANG || "es_MX" },
+                components: [{ type: "body", parameters: [{ type: "text", text: code }] }],
+            },
+        },
+        "plantilla"
+    );
+}
+
 export async function sendWhatsAppCode(phone: string, code: string): Promise<boolean> {
     if (!phone) return false;
     const body = `Cremeria del Rancho: tu codigo de verificacion es ${code}. Expira en 10 minutos.`;
+    const proveedor = proveedorWhatsApp();
 
-    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_NUMBER) {
+    if (proveedor === "meta") {
+        return enviarCodigoPorMeta(phone, body, code);
+    }
+
+    if (proveedor === "twilio") {
         try {
             // eslint-disable-next-line @typescript-eslint/no-require-imports
             const twilio = require("twilio");

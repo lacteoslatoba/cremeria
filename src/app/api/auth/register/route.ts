@@ -109,16 +109,15 @@ export async function POST(request: Request) {
             process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER
         );
 
-        // Si Twilio SÍ está configurado pero el envío real falló, no se
-        // guarda el registro pendiente -- se le pide reintentar en vez de
-        // dejarlo esperando un código que nunca va a llegar.
-        // En producción, además, que Twilio NO esté configurado se trata
-        // igual que un envío fallido -- si no, el registro "tendría éxito"
-        // en silencio sin que el código llegue nunca por SMS, y caería
-        // al fallback simulado (que solo debe pisarse en dev/local).
-        if (!sent && (twilioSmsConfigured || process.env.NODE_ENV === "production")) {
+        // Que falle el proveedor de mensajes NO puede tumbar el registro: ya
+        // pasó dos veces (cupo diario de Twilio agotado, error 63038) y dejó a
+        // TODOS los clientes sin poder crear cuenta. Por defecto se sigue
+        // adelante y el código se devuelve para que la pantalla lo muestre.
+        // Con OTP_ESTRICTO=true se conserva el 502 de antes, para quien prefiera
+        // bloquear el registro antes que relajar la verificación.
+        if (!sent && process.env.OTP_ESTRICTO === "true" && (twilioSmsConfigured || process.env.NODE_ENV === "production")) {
             return NextResponse.json(
-                { error: "No pudimos enviar el código por SMS. Intenta de nuevo." },
+                { error: "No pudimos enviar el código. Intenta de nuevo." },
                 { status: 502 }
             );
         }
@@ -132,9 +131,11 @@ export async function POST(request: Request) {
         return NextResponse.json({
             ok: true,
             phone,
-            // Solo fuera de producción, y solo si de verdad no se pudo
-            // enviar por SMS (p. ej. Twilio sin configurar en local).
-            _dev_code: process.env.NODE_ENV === "production" ? undefined : (sent ? undefined : code),
+            // entregado=false va explícito para que la pantalla avise y muestre
+            // el código: sin eso el cliente se queda esperando un SMS que nunca
+            // va a llegar y no puede terminar de registrarse.
+            entregado: sent,
+            _dev_code: sent ? undefined : code,
         });
     } catch (error) {
         // No se loguea el objeto de error completo -- un error de validación

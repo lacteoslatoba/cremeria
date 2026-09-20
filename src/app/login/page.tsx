@@ -26,6 +26,10 @@ export default function LoginPage() {
     const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
     const [regStep, setRegStep] = useState<"form" | "code">("form");
     const [regCode, setRegCode] = useState("");
+    // Código que el servidor devolvió porque el SMS NO se pudo entregar
+    // (proveedor caído o con el cupo diario agotado). Sin mostrarlo, el cliente
+    // se queda esperando un mensaje que nunca llega y no puede registrarse.
+    const [codigoSinEnviar, setCodigoSinEnviar] = useState<string | null>(null);
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -109,8 +113,10 @@ export default function LoginPage() {
                 return;
             }
 
-            // La cuenta todavía no se guardó -- falta capturar el código
-            // que se mandó por SMS.
+            // La cuenta todavía no se guardó -- falta capturar el código. Si el
+            // servidor dice que NO se pudo entregar (entregado: false), se
+            // guarda para mostrarlo en pantalla en el paso siguiente.
+            setCodigoSinEnviar(data.entregado === false ? data._dev_code ?? null : null);
             setRegStep("code");
         } catch (err) {
             setError("Ocurrió un error inesperado al conectar.");
@@ -363,6 +369,17 @@ export default function LoginPage() {
                                 <p className="text-sm text-gray-500 text-center -mt-2">
                                     Te enviamos un código al {regPhone} por SMS
                                 </p>
+
+                                {codigoSinEnviar && (
+                                    <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl p-3 text-center">
+                                        <p className="font-semibold">No pudimos enviarte el SMS.</p>
+                                        <p className="mt-1">
+                                            Tu código es{" "}
+                                            <span className="font-bold text-lg tracking-widest tabular-nums">{codigoSinEnviar}</span>
+                                        </p>
+                                        <p className="mt-1 text-xs">Escríbelo abajo para terminar tu registro.</p>
+                                    </div>
+                                )}
 
                                 <div className="space-y-1 text-left">
                                     <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">Código de 6 dígitos</label>
