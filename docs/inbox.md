@@ -178,4 +178,49 @@ permiso para editar archivos.
 **Nota de convivencia:** `src/app/checkout/page.tsx` estaba modificado por la otra sesion
 mientras yo trabajaba; **no lo toque** y no lo incluí en mi commit.
 
+---
+
+## [x] 2026-09-20 · Carril rapido (queue:auto) + un solo veredicto (check) + regla de una tarea por agente
+
+**Quien:** Claude Code, a peticion directa del usuario (T-0010) — la otra sesion (IDE) no
+tenia contexto de que esto ya existe ni de que T-0008 se trabajo por duplicado en las dos
+sesiones a la vez.
+
+**`npm.cmd run check`** — un solo comando, un solo veredicto (`scripts/check.mts`):
+
+- Corre `tsc --noEmit` (siempre, salvo `-- --rapido`), `prisma validate` (solo si cambio
+  `prisma/` o con `-- --todo`) y `eslint` (solo de los archivos tocados vs HEAD, o de todo
+  el repo con `-- --todo`).
+- Imprime `VEREDICTO: PASA` o `VEREDICTO: FALLA` con lo minimo para arreglarlo. Sale con
+  codigo 1 si algo fallo: sirve de candado antes de commitear.
+- Reemplaza correr `tsc` + `prisma validate` + `eslint` por separado y leer tres salidas.
+
+**`npm.cmd run queue:auto`** — el carril rapido de la cola (`scripts/queue-auto.mts`):
+
+- Sin `-- --yes` solo muestra el plan (dry-run), no toca nada.
+- Con `-- --yes` reclama la siguiente tarea `pendiente` asignada a `--para` (default
+  `cline`), invoca a Claude Code headless para implementarla, corre `npm run check` y
+  **solo si el check PASA** commitea (localmente, sin push) y cierra la tarea con la
+  evidencia. Si el check falla, deja nota en el expediente y la tarea queda `en_proceso`
+  para que alguien la revise.
+- Nunca hace `push` ni despliega — eso sigue siendo decision del usuario.
+- Flags utiles: `--limite N` (cuantas tareas seguidas), `--seguir` (no se detiene en el
+  primer fallo), `--minutos N` (timeout por tarea, default 15).
+
+**Regla de una tarea por agente (por que existe):** el 20/09/2026 T-0008 se trabajo en
+las dos sesiones (IDE y carril rapido) al mismo tiempo, sin que ninguna supiera de la
+otra. Por eso `queue-auto.mts` relee el estado de la tarea desde disco justo antes de
+reclamarla (`siguePendiente()`): si el estado ya no es `pendiente` o quedo asignada a
+otro agente, la salta con un aviso y sigue con la siguiente — nunca pisa el trabajo del
+otro. La misma logica aplica para humanos y para la sesion del IDE: antes de tomar una
+tarea de `docs/tasks/`, revisa su `estado:` y `asignado-a:` en el archivo; si ya esta
+`en_proceso` o `hecho`, no la retrabajes.
+
+**Para la sesion del IDE en concreto:** si una tarea en `docs/tasks/` trae en su
+`contexto` una nota como "la toma el carril rapido queue:auto, si eres la sesion del IDE
+no la tomes" (como T-0010), es literal: el carril rapido ya la va a recoger solo; tomarla
+tambien desde el IDE es la misma condicion de carrera que paso con T-0008.
+
+**Evidencia:** `npm.cmd run check` → `VEREDICTO: PASA`.
+
 
