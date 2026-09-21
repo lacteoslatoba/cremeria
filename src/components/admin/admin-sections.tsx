@@ -8,6 +8,7 @@ import { AssignDriver } from "@/components/admin/assign-driver";
 import { ProductActions } from "@/components/admin/product-actions";
 import { CustomerActions } from "@/components/admin/customer-actions";
 import { AdminDriversTable } from "@/components/admin/admin-drivers-table";
+import { AddDriverButton } from "@/components/admin/add-driver-button";
 import { ProductFormModal } from "@/components/admin/product-form-modal";
 import { SafeImage } from "@/components/ui/safe-image"; import type { Product, Order, User as DbUser } from "@prisma/client";
 
@@ -660,6 +661,12 @@ export function AdminCustomers({ users }: { users: (DbUser & { _count: { orders:
 export function AdminDrivers({ drivers }: { drivers: (DbUser & { _count?: { deliveryOrders: number } })[] }) {
     return (
         <div className="flex-1 flex flex-col w-full">
+            {/* No existía forma de dar de alta un repartidor desde el panel --
+                el componente ya estaba hecho (AddDriverButton, pega directo a
+                POST /api/users con role DELIVERY) pero nunca se montó aquí. */}
+            <div className="flex justify-end mb-6">
+                <AddDriverButton />
+            </div>
             <AdminDriversTable
                 drivers={drivers.map((d) => ({
                     id: d.id,
