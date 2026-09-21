@@ -6,7 +6,7 @@ prioridad: media
 asignado-por: cline
 asignado-a: usuario
 creado: 2026-09-18 20:14:18
-actualizado: 2026-09-21 13:55:12
+actualizado: 2026-09-21 14:23:57
 archivos: 
 criterio: carrito nuevo -> checkout -> pagar en Efectivo -> cae en /direccion/<id> -> confirmar pin -> /mis-pedidos?paid=cash con direccion real guardada; en admin ese pedido ya muestra el dropdown de repartidor; luego push a main y Vercel en Ready con 200 en / y /mis-pedidos
 contexto: Pasos 4 y 5 de la Task 9 del plan post-payment-address. Requiere navegador, un pedido pagado real y tu decision de desplegar. Ojo: hay que parar el dev server (PID 17752) antes de correr npm run build completo, porque prisma generate no puede renombrar el DLL con el server corriendo.
@@ -23,3 +23,7 @@ Se acorta lo manual a 5 pasos: 1 parar el dev server antes de building porque pr
 ### 2026-09-21 13:55:12 — nota de cline
 
 Paso 2 y 3 hechos sin parar el dev server: con la escotilla NEXT_DIST_DIR=.next-build agregada a next.config.ts, el build de produccion completo pasa con el server corriendo -0 errores, 49 rutas, PWA compilado- y el dev server siguio en HTTP 200. Ya no hay que parar el server. Quedan solo la prueba de navegador y el push, que son tu decision. Detalle en docs/inbox.md.
+
+### 2026-09-21 14:23:57 — nota de cline
+
+Deploy hecho y verificado el 21/09/2026: push de 657be9c a origin/main; el deployment en Vercel quedo Ready en 1 min -cremeria-6xmzts3ca...vercel.app, alias https://cremeriadelrancho.com-; HTTP 200 en /, /mis-pedidos y /login; y el ojito de la contrasena del login se probo con Playwright contra produccion -password a text a password, cero errores-. Del criterio de esta tarea solo queda la prueba manual de compra en navegador; el push ya esta hecho.
