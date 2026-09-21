@@ -2,29 +2,23 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
-import { Loader2, Eye, EyeOff, User, Bike, ShieldCheck, ChevronLeft } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
 type Portal = "cliente" | "repartidor" | "admin";
-
-const PORTALS: { id: Portal; label: string; desc: string; icon: typeof User }[] = [
-    { id: "cliente", label: "Cliente", desc: "Compra tus productos y da seguimiento a tus pedidos", icon: User },
-    { id: "repartidor", label: "Repartidor", desc: "Acepta y entrega pedidos con tu cuenta de repartidor", icon: Bike },
-    { id: "admin", label: "Admin", desc: "Administra productos, pedidos y repartidores", icon: ShieldCheck },
-];
 
 export default function LoginPage() {
     const { user, setUser } = useAuthStore();
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // Los 3 portales de la app (Cliente/Repartidor/Admin) -- cada uno exige su
-    // propia cuenta al entrar. Antes había un solo formulario genérico sin
-    // avisar a qué portal se está entrando; ahora se elige primero el portal
-    // y luego se ve el login correspondiente. El backend ya valida el rol al
-    // autenticar y redirige según corresponda, así que el portal elegido aquí
-    // es solo para orientar al usuario, no un control de acceso adicional.
-    const [portal, setPortal] = useState<Portal | null>(null);
+    // Los 3 portales (Cliente/Repartidor/Admin) ya se eligen desde el menú
+    // lateral de escritorio (SideNav) o desde los enlaces de /driver, /admin,
+    // etc. -- aquí ya no hace falta un selector propio, solo saber a cuál
+    // portal pertenece este login (por query param) para ajustar la etiqueta
+    // del campo y ocultar "crea tu cuenta" en Repartidor/Admin. El backend
+    // ya valida el rol al autenticar y redirige según corresponda.
+    const [portal, setPortal] = useState<Portal>("cliente");
 
     const [isRegistering, setIsRegistering] = useState(false);
 
@@ -56,14 +50,9 @@ export default function LoginPage() {
     const [error, setError] = useState("");
 
     const [mounted, setMounted] = useState(false);
-    // El selector de portal es cosa de escritorio: en la app del celular (que
-    // usan casi solo clientes) es un paso extra sin sentido -- ahí se entra
-    // directo al login de siempre, igual que antes de tener 3 portales.
-    const [isDesktop, setIsDesktop] = useState(false);
 
     useEffect(() => {
         setMounted(true);
-        setIsDesktop(window.matchMedia("(min-width: 768px)").matches);
         if (user && user.role !== "GUEST") {
             router.push(
                 user.role === "ADMIN" ? "/admin"
@@ -74,19 +63,15 @@ export default function LoginPage() {
     }, [user, router]);
 
     // Deep link directo a un portal (p. ej. /login?portal=repartidor cuando
-    // /driver redirige aquí por falta de sesión) -- evita que el repartidor
-    // o el admin tengan que elegir su portal a mano cada vez, en cualquier
-    // dispositivo. Sin ese parámetro: en celular se salta el selector y entra
-    // directo al portal Cliente; en escritorio se muestra el selector.
+    // /driver redirige aquí por falta de sesión) -- sin ese parámetro se
+    // asume Cliente, que es como llega la gran mayoría (celular, o
+    // escritorio entrando por el link "Cliente" del menú lateral).
     useEffect(() => {
-        if (!mounted) return;
         const requested = searchParams.get("portal");
         if (requested === "cliente" || requested === "repartidor" || requested === "admin") {
             setPortal(requested);
-        } else if (!isDesktop) {
-            setPortal("cliente");
         }
-    }, [searchParams, isDesktop, mounted]);
+    }, [searchParams]);
 
     // Auto title-case: capitalize first letter of each word
     const toTitleCase = (str: string) =>
@@ -239,50 +224,15 @@ export default function LoginPage() {
                         />
                     </div>
 
-                    {portal === null ? (
-                        <div className="flex flex-col w-full max-w-[480px] mx-auto gap-3 z-20 animate-in fade-in zoom-in-95 duration-300">
-                            <p className="text-center text-sm font-bold text-[#2d2a28]/70 uppercase tracking-wider mb-1">Elige tu portal</p>
-                            {PORTALS.map(({ id, label, desc, icon: Icon }) => (
-                                <button
-                                    key={id}
-                                    type="button"
-                                    onClick={() => setPortal(id)}
-                                    className="flex items-center gap-4 w-full bg-white/70 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.14)] hover:bg-white/90 transition-all text-left active:scale-[0.98]"
-                                >
-                                    <div className="w-12 h-12 shrink-0 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-                                        <Icon size={24} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="font-bold text-[#2d2a28]">{label}</p>
-                                        <p className="text-xs text-[#2d2a28]/60">{desc}</p>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    ) : (
                     <div className="flex flex-col w-full max-w-[480px] mx-auto gap-[clamp(0.75rem,2.5dvh,1.5rem)] sm:gap-6 z-20 bg-white/70 backdrop-blur-xl p-[clamp(0.75rem,3dvh,1.5rem)] sm:p-6 md:p-8 rounded-3xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-                        {isDesktop && (
-                            <>
-                                <button
-                                    type="button"
-                                    onClick={() => { setPortal(null); setIsRegistering(false); setError(""); }}
-                                    className="flex items-center gap-1 text-xs font-bold text-[#2d2a28]/60 hover:text-[#2d2a28] transition-colors self-start -mb-1"
-                                >
-                                    <ChevronLeft size={16} /> Elegir otro portal
-                                </button>
-                                <p className="text-center text-xs font-bold text-primary uppercase tracking-wider -mt-1">
-                                    Portal {PORTALS.find((p) => p.id === portal)?.label}
-                                </p>
-                            </>
-                        )}
                         {!isRegistering ? (
                             <form onSubmit={handleLogin} className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
                                 <div className="space-y-1 text-left">
-                                    <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">{!isDesktop ? "Usuario - Celular" : portal === "cliente" ? "Celular" : "Usuario"}</label>
+                                    <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">{portal === "cliente" ? "Usuario - Celular" : "Usuario"}</label>
                                     <input
                                         type="text"
                                         required
-                                        placeholder={!isDesktop ? "Ingresa tu usuario" : portal === "cliente" ? "Ingresa tu celular" : "Ingresa tu usuario"}
+                                        placeholder="Ingresa tu usuario"
                                         value={identifier}
                                         onChange={(e) => setIdentifier(e.target.value)}
                                         className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 sm:py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium"
@@ -505,7 +455,6 @@ export default function LoginPage() {
                             </form>
                         )}
                     </div>
-                    )}
                 </div>
 
                 <div className="fixed pointer-events-none inset-0 z-0">
