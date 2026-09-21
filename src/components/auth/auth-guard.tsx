@@ -37,12 +37,18 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        // Ya no hay compra de invitado: antes /checkout, /tracking y /direccion
-        // quedaban exentos para permitir pagar y confirmar entrega sin cuenta.
-        // Ahora cualquier ruta de cliente exige sesión real -- solo login,
-        // recuperar contraseña, y los paneles de admin/repartidor (que tienen
-        // su propio control de acceso) quedan fuera de este bloqueo.
-        if (!user && !isLogin && !isAdmin && !isDriver && !isForgotPassword) {
+        // Rutas que SÍ exigen sesión: el flujo de compra. Desde el 18/09 no hay
+        // compra de invitado, así que carrito→pago→seguimiento necesitan cuenta.
+        //
+        // La tienda (/) y las páginas públicas NO están en esta lista a propósito: antes
+        // se bloqueaba CUALQUIER ruta de cliente, así que un visitante sin cuenta no
+        // podía ni ver el catálogo -- el link que se comparte por WhatsApp caía en el
+        // login, y en escritorio el enlace "Cliente" del menú rebotaba al login en un
+        // callejón sin salida. Para comprar sí se pide cuenta; para mirar, no.
+        const RUTAS_CON_SESION = ["/cart", "/checkout", "/mis-pedidos", "/tracking", "/direccion"];
+        const pideSesion = RUTAS_CON_SESION.some((ruta) => pathname.startsWith(ruta));
+
+        if (!user && !isLogin && !isAdmin && !isDriver && !isForgotPassword && pideSesion) {
             router.push("/login?portal=cliente");
         }
     }, [user, pathname, router, initialized]);
