@@ -21,9 +21,14 @@ export default async function AdminDashboardPage() {
         // Inventario: todos los productos (incluye inactivos/sin stock)
         prisma.product.findMany({ orderBy: { createdAt: "desc" } }),
 
-        // Pedidos completos (para la pestaña de Pedidos)
+        // Pedidos completos (para la pestaña de Pedidos). El usuario se incluye solo
+        // con lo necesario para buscar por teléfono en el panel: el teléfono vive en
+        // User, no en Order, y sin esto "buscar por número" no encontraba nada.
         prisma.order.findMany({
-            include: { items: { include: { product: true } } },
+            include: {
+                items: { include: { product: true } },
+                user: { select: { id: true, name: true, phone: true } },
+            },
             orderBy: { createdAt: "desc" },
         }),
 

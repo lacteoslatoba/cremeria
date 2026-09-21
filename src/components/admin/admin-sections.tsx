@@ -10,6 +10,7 @@ import { CustomerActions } from "@/components/admin/customer-actions";
 import { AdminDriversTable } from "@/components/admin/admin-drivers-table";
 import { AddDriverButton } from "@/components/admin/add-driver-button";
 import { ProductFormModal } from "@/components/admin/product-form-modal";
+import { coincideBusqueda } from "@/lib/busqueda";
 import { SafeImage } from "@/components/ui/safe-image"; import type { Product, Order, User as DbUser } from "@prisma/client";
 
 // Un pedido listado en el panel puede venir con o sin sus relaciones cargadas
@@ -361,10 +362,9 @@ export function AdminOrders({ orders }: { orders: OrderRow[] }) {
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
     const filtered = orders.filter((o) => {
-        const matchesQuery =
-            o.id.slice(-6).toLowerCase().includes(query.toLowerCase()) ||
-            (o.customerName || "").toLowerCase().includes(query.toLowerCase()) ||
-            (o.address || "").toLowerCase().includes(query.toLowerCase());
+        // Incluye el teléfono del cliente (viene en o.user): es como el admin busca
+        // "el pedido de este número", y con el formato tolerado de coincideBusqueda.
+        const matchesQuery = coincideBusqueda([o.id.slice(-6), o.customerName, o.address, o.user?.phone], query);
         const matchesStatus = statusFilter === "ALL" || o.status === statusFilter;
         return matchesQuery && matchesStatus;
     });
@@ -469,7 +469,7 @@ export function AdminOrders({ orders }: { orders: OrderRow[] }) {
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Buscar por folio, cliente, dirección..."
+                        placeholder="Buscar por folio, cliente, dirección o teléfono..."
                         className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white"
                     />
                 </div>
@@ -571,11 +571,10 @@ export function AdminOrders({ orders }: { orders: OrderRow[] }) {
 
 export function AdminCustomers({ users }: { users: (DbUser & { _count: { orders: number } })[] }) {
     const [query, setQuery] = useState("");
-    const filtered = users.filter(
-        (u) =>
-            (u.name || "").toLowerCase().includes(query.toLowerCase()) ||
-            (u.email || "").toLowerCase().includes(query.toLowerCase())
-    );
+    // Se busca por nombre, correo, usuario y TELÉFONO: este último es el identificador
+    // con el que el cliente inicia sesión, así que es lo primero que se teclea aquí.
+    // `coincideBusqueda` tolera el formato (613-111-4801 vs 613 111 4801).
+    const filtered = users.filter((u) => coincideBusqueda([u.name, u.email, u.username, u.phone], query));
 
     return (
         <div className="flex-1 flex flex-col w-full">
@@ -587,7 +586,7 @@ export function AdminCustomers({ users }: { users: (DbUser & { _count: { orders:
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Buscar por nombre o correo electrónico..."
+                        placeholder="Buscar por nombre, correo, teléfono o usuario..."
                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white"
                     />
                 </div>
@@ -611,7 +610,11 @@ export function AdminCustomers({ users }: { users: (DbUser & { _count: { orders:
                         <tbody className="divide-y divide-gray-100 text-slate-700">
                             {filtered.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="text-center py-10 text-gray-400 italic">No hay clientes registrados aún.</td>
+                                    <td colSpan={7} className="text-center py-10 text-gray-400 italic">
+                                        {query.trim()
+                                            ? `Ningún cliente coincide con "${query.trim()}". Busca por nombre, correo, teléfono o usuario.`
+                                            : "No hay clientes registrados aún."}
+                                    </td>
                                 </tr>
                             ) : filtered.map((u) => (
                                 <tr key={u.id} className="hover:bg-gray-50/50 transition-colors group">
