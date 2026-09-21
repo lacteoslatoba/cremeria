@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { ShoppingCart, User, LogOut, Bike, ShieldCheck } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { useMounted } from "@/lib/use-mounted";
@@ -9,14 +9,19 @@ import { cn } from "@/lib/utils";
 
 export function SideNav() {
     const pathname = usePathname();
+    const router = useRouter();
     const { items } = useCartStore();
     const { user, logout } = useAuthStore();
     const mounted = useMounted();
     const cartCount = mounted ? items.reduce((a, i) => a + i.quantity, 0) : 0;
 
-    // El panel /admin trae su propia barra lateral completa (AdminLayout).
-    // Si dejamos esta también, en escritorio salen dos sidebars encimados.
-    if (pathname.startsWith("/admin")) return null;
+    // /admin ya no trae su propia barra lateral de escritorio (ver
+    // AdminLayout) -- los 3 portales viven en esta misma barra, así que
+    // ahora también se muestra ahí.
+    const handleLogout = async () => {
+        await logout();
+        router.push("/login");
+    };
 
     // Los 3 portales de la app -- cada uno exige su propio login al entrar
     // (Repartidor pide cuenta DELIVERY, Admin pide cuenta ADMIN), así que no
@@ -77,7 +82,7 @@ export function SideNav() {
                         <p className="text-xs text-gray-500">Conectado como</p>
                         <p className="text-sm font-bold text-white truncate">{user.name || user.email}</p>
                     </div>
-                    <button onClick={logout}
+                    <button onClick={handleLogout}
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all text-sm font-semibold">
                         <LogOut size={18} />
                         Cerrar sesión
