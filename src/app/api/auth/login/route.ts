@@ -32,7 +32,7 @@ export async function POST(request: Request) {
             );
         }
 
-        const { identifier, password } = await request.json();
+        const { identifier, password, remember } = await request.json();
 
         if (!identifier || !password) {
             return NextResponse.json({ error: "El usuario y contraseña son requeridos" }, { status: 400 });
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         // Firmar sesión y emitir una cookie HttpOnly.
         const token = await signSession({ id: user.id, role: user.role });
         const response = NextResponse.json(toSafeUser(user), { status: 200 });
-        setSessionCookie(response, token);
+        setSessionCookie(response, token, remember !== false);
 
         return response;
     } catch (error) {

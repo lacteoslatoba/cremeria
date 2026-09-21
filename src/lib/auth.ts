@@ -31,27 +31,31 @@ export async function signSession(user: SessionUser): Promise<string> {
 
 // Cookie config: HttpOnly + Secure (en prod) + SameSite=Lax.
 // El tipo de retorno restringe a claves/tipos aceptados por response.cookies.set.
-export function sessionCookieOptions(maxAgeSeconds: number): {
+// maxAgeSeconds es opcional: sin él, la cookie queda "de sesión" (el navegador
+// la borra solo al cerrarse) -- lo usa "Recordar sesión" del login.
+export function sessionCookieOptions(maxAgeSeconds?: number): {
     httpOnly: boolean;
     secure: boolean;
     sameSite: "lax";
     path: string;
-    maxAge: number;
+    maxAge?: number;
 } {
     return {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: maxAgeSeconds,
+        ...(maxAgeSeconds !== undefined ? { maxAge: maxAgeSeconds } : {}),
     };
 }
 
-export function setSessionCookie(response: NextResponse, token: string): void {
+// remember=false emite una cookie de sesión (sin maxAge) en vez de los 7 días
+// de siempre -- el checkbox "Recordar sesión" del portal Repartidor.
+export function setSessionCookie(response: NextResponse, token: string, remember: boolean = true): void {
     response.cookies.set(
         COOKIE_NAME,
         token,
-        sessionCookieOptions(7 * 24 * 60 * 60)
+        sessionCookieOptions(remember ? 7 * 24 * 60 * 60 : undefined)
     );
 }
 

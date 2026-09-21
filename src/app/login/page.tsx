@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, Bike, User as UserIcon, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 type Portal = "cliente" | "repartidor" | "admin";
@@ -29,6 +29,10 @@ export default function LoginPage() {
     // justo la que se escribe a diario desde el celular, con el teclado encima y sin
     // forma de revisar lo tecleado.
     const [showLoginPassword, setShowLoginPassword] = useState(false);
+    // Solo lo usa el portal Repartidor (checkbox "Recordar sesión") -- sin
+    // marcar, la cookie de sesión dura hasta que se cierre el navegador en
+    // vez de los 7 días de siempre.
+    const [remember, setRemember] = useState(true);
 
     // Register State -- simplificado: solo nombre, teléfono y contraseña.
     // El teléfono es el identificador para iniciar sesión (login ya hace
@@ -87,7 +91,7 @@ export default function LoginPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
-                body: JSON.stringify({ identifier, password })
+                body: JSON.stringify({ identifier, password, remember })
             });
 
             const data = await res.json();
@@ -180,6 +184,103 @@ export default function LoginPage() {
     };
 
     if (!mounted) return null;
+
+    // Portal Repartidor -- pantalla propia (tema oscuro), distinta a la de
+    // Cliente/Admin: sin registro ni cambio de tema, solo login. El resto de
+    // handleLogin/estado se comparte igual con el formulario de abajo.
+    if (portal === "repartidor") {
+        return (
+            <main className="min-h-[100dvh] w-full bg-[#0b0f19] flex items-center justify-center px-4 py-10">
+                <div className="w-full max-w-[420px] flex flex-col items-center gap-6">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_3px_rgba(52,211,153,0.55)] animate-pulse" />
+
+                    <div className="relative">
+                        <div className="w-24 h-24 rounded-3xl bg-[#141a29] border border-emerald-400/30 shadow-[0_0_30px_-6px_rgba(52,211,153,0.35)] flex items-center justify-center">
+                            <Bike size={40} className="text-primary" />
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary border-4 border-[#0b0f19]" />
+                    </div>
+
+                    <div className="text-center">
+                        <h1 className="text-2xl font-black text-white">Cremería del Rancho</h1>
+                        <p className="text-primary text-xs font-bold tracking-[0.2em] uppercase mt-1">Portal Repartidores</p>
+                    </div>
+
+                    <form onSubmit={handleLogin} className="w-full flex flex-col gap-4 bg-[#141a29] border border-white/5 rounded-3xl p-6 shadow-2xl">
+                        {error && (
+                            <div className="bg-red-500/10 text-red-400 text-sm font-medium p-3 rounded-xl text-center border border-red-500/20">
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="space-y-1.5 text-left">
+                            <label className="text-xs font-bold text-gray-300">Usuario</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="repartidor@correo.com o ID"
+                                    value={identifier}
+                                    onChange={(e) => setIdentifier(e.target.value)}
+                                    className="w-full bg-[#0f1522] border border-white/10 rounded-xl px-4 py-3 pr-10 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-white placeholder:text-gray-500 font-medium"
+                                />
+                                <UserIcon size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5 text-left">
+                            <div className="flex justify-between items-center">
+                                <label className="text-xs font-bold text-gray-300">Contraseña</label>
+                                <button
+                                    type="button"
+                                    onClick={() => router.push("/forgot-password")}
+                                    className="text-xs font-bold text-primary hover:text-primary-hover transition-colors"
+                                >
+                                    ¿Olvidaste tu contraseña?
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type={showLoginPassword ? "text" : "password"}
+                                    required
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full bg-[#0f1522] border border-white/10 rounded-xl px-4 py-3 pr-10 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-white placeholder:text-gray-500 font-medium tracking-widest"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                                    aria-label={showLoginPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                                >
+                                    {showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={remember}
+                                onChange={(e) => setRemember(e.target.checked)}
+                                className="w-4 h-4 rounded accent-primary"
+                            />
+                            <span className="text-sm text-gray-300 font-medium">Recordar sesión</span>
+                        </label>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-primary hover:bg-primary-hover text-white font-bold rounded-xl h-14 flex items-center justify-center gap-2 shadow-lg shadow-primary/30 transition-all active:scale-[0.98] mt-2"
+                        >
+                            {loading ? <Loader2 size={22} className="animate-spin" /> : <>INICIAR SESIÓN <ArrowRight size={18} /></>}
+                        </button>
+                    </form>
+                </div>
+            </main>
+        );
+    }
 
     return (
         <main className="font-sans antialiased overflow-y-auto overflow-x-hidden min-h-[100dvh] bg-white login-page">
