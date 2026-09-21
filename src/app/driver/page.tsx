@@ -171,7 +171,7 @@ export default function DriverPage() {
                 <Bike size={40} className="text-primary" />
                 <h1 className="text-xl font-bold">Zona de repartidores</h1>
                 <p className="text-gray-400 text-sm">Inicia sesión con tu cuenta de repartidor para ver tus pedidos.</p>
-                <Link href="/login" className="mt-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl shadow-lg shadow-primary/30">
+                <Link href="/login?portal=repartidor" className="mt-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl shadow-lg shadow-primary/30">
                     Iniciar sesión
                 </Link>
             </main>

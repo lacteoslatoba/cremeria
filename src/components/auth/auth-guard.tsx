@@ -39,7 +39,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         // recuperar contraseña, y los paneles de admin/repartidor (que tienen
         // su propio control de acceso) quedan fuera de este bloqueo.
         if (!user && !isLogin && !isAdmin && !isDriver && !isForgotPassword) {
-            router.push("/login");
+            router.push("/login?portal=cliente");
         }
     }, [user, pathname, router, initialized]);
 
