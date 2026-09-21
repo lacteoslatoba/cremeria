@@ -36,10 +36,10 @@ export function InstallPrompt() {
     const [platform, setPlatform] = useState<"android" | "ios" | null>(null);
 
     useEffect(() => {
-        // El panel /admin tiene su propio manifiesto (Cremería Admin, ver
-        // admin-manifest.json) y se instala en PC desde el propio ícono del
-        // navegador -- este banner es para el cliente en el celular, aquí
-        // mostraría el mensaje equivocado ("Pide más rápido...").
+        // Este banner ("Pide más rápido, como una app de verdad") es para el
+        // cliente comprando desde el celular -- en /admin sería el mensaje
+        // equivocado, así que se sigue ocultando ahí aunque ya no tenga un
+        // manifest propio (ver admin/layout.tsx).
         if (pathname?.startsWith("/admin")) return;
         if (isStandalone()) return; // ya la tiene instalada -- no molestar
         let dismissed = false;
