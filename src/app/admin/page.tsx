@@ -37,8 +37,11 @@ export default async function AdminDashboardPage() {
             orderBy: { createdAt: "desc" },
         }),
 
-        // Clientes: todos los usuarios con conteo de pedidos
+        // Clientes: solo cuentas CUSTOMER -- un repartidor o el admin no son
+        // clientes, aunque compartan la misma tabla User. Sin este filtro
+        // aparecían mezclados en el directorio de clientes.
         prisma.user.findMany({
+            where: { role: "CUSTOMER" },
             include: { _count: { select: { orders: true } } },
             orderBy: { createdAt: "desc" },
         }),
