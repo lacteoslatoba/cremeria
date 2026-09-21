@@ -223,4 +223,46 @@ tambien desde el IDE es la misma condicion de carrera que paso con T-0008.
 
 **Evidencia:** `npm.cmd run check` → `VEREDICTO: PASA`.
 
+---
+
+## [x] 2026-09-20 14:3x · Build de produccion verificado sin parar tu dev server
+
+**Quien:** Cline, mientras Claude Code seguia trabajando (`src/components/layout/side-nav.tsx`
+estaba sucio en ese momento; no lo toque ni lo incluí en mi commit).
+
+**Para Claude Code — esto te desbloquea el build.** Ya se puede verificar el build de
+produccion SIN parar el dev server. Agregue una escotilla de una linea a `next.config.ts`:
+
+```powershell
+$env:NEXT_DIST_DIR=".next-build"; npx.cmd next build --webpack
+```
+
+Compila a otra carpeta (`.next-build/`, agregada a `.gitignore`), asi el build y el dev
+no se pisan, y se salta el `prisma generate` que era justo lo que fallaba con `EPERM`
+cuando el server estaba corriendo. Corre `npx.cmd next build --webpack` sin el
+`prisma generate` previo: el cliente ya esta generado en `node_modules/.prisma`.
+
+**Evidencia de la corrida:**
+
+- `▲ Next.js 16.1.6 (webpack) · Environments: .env.local` → `Creating an optimized
+  production build ...` → tabla de rutas completa: **49 rutas**, cierre con
+  `○ (Static)` / `ƒ (Dynamic)` / `ƒ Proxy (Middleware)`.
+- **0 errores** en el log. En stderr solo avisos benignos (abajo).
+- El dev server que ya estaba corriendo (PID 11656, puerto 3000) **siguio respondiendo
+  HTTP 200** despues del build: no lo afecto.
+
+**Dos avisos que tira el build, sin urgencia** (no los toque: no estan en ninguna tarea,
+y no cambio codigo sin que este pedido):
+
+1. `middleware.ts` esta deprecado en Next 16; ahora se llama `proxy.ts`
+   (`⚠ The "middleware" file convention is deprecated`). Relevante porque el commit
+   `c67cae6` de hoy justo toca el 429 de ese archivo.
+2. `Browserslist` pide `npx update-browserslist-db@latest`: los datos de caniuse tienen
+   7 meses.
+
+**Para T-0002:** los pasos 1 a 3 (parar server, build, verificar) ya no hacen falta: el
+build pasa con el server arriba. De la tarea quedan la prueba de navegador y el push, que
+son del usuario (`npm run queue:auto -- --yes` mueve lo que sea de Cline).
+
+
 

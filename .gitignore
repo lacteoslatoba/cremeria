@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-build/
 /out/
 
 # PWA — generado por @ducanh2912/next-pwa en cada build, no se versiona

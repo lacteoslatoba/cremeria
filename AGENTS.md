@@ -82,7 +82,12 @@ la sesión del IDE y el carril rápido, y no volvió a pasar.
 - **Lint:** `npx eslint .` (0 errores; los warnings preexistentes se ignoran)
 - **Build:** `next build --webpack`. **Ojo:** `npm run build` completo falla con
   `EPERM` si el dev server está corriendo (le bloquea el DLL de Prisma al
-  `prisma generate`); hay que pararlo primero.
+  `prisma generate`).
+- **Verificar el build sin parar el dev server** (lo que hace falta antes de confiar en
+  un deploy): `$env:NEXT_DIST_DIR=".next-build"; npx.cmd next build --webpack`. Compila
+  a otra carpeta, así el build y el dev no se pisan, y se salta el `prisma generate` que
+  causaba el EPERM. Verificado el 20/09/2026: build completo OK y el dev server siguió
+  respondiendo 200 (`.next-build/` está en `.gitignore`).
 - **Preguntarle algo a Claude Code:** `npm run claude -- "pregunta" [--file ruta]`
 
 **Windows:** `npm` está bloqueado por la política de ejecución de PowerShell
