@@ -52,14 +52,21 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
         if (!success) {
             const retryAfter = Math.ceil((reset - Date.now()) / 1000);
-            return new NextResponse("Too Many Requests", {
-                status: 429,
-                headers: {
-                    "Content-Type": "text/plain",
-                    "Retry-After": String(Math.max(retryAfter, 1)),
-                    "X-RateLimit-Reset": String(reset),
-                },
-            });
+            // El cuerpo tiene que ser JSON -- todo el codigo cliente que llama
+            // a /api/* hace `await res.json()` sin condicion (login, registro,
+            // etc.). Con texto plano ese .json() truena y el catch generico
+            // muestra "error inesperado al conectar", escondiendo que en
+            // realidad fueron demasiados intentos.
+            return NextResponse.json(
+                { error: `Demasiados intentos. Espera ${Math.max(retryAfter, 1)}s e intenta de nuevo.` },
+                {
+                    status: 429,
+                    headers: {
+                        "Retry-After": String(Math.max(retryAfter, 1)),
+                        "X-RateLimit-Reset": String(reset),
+                    },
+                }
+            );
         }
     }
 
