@@ -14,6 +14,10 @@ export default function LoginPage() {
     // Login State
     const [identifier, setIdentifier] = useState("");
     const [password, setPassword] = useState("");
+    // El ojito del login: las contraseñas del registro ya lo tenían y esta no, y es
+    // justo la que se escribe a diario desde el celular, con el teclado encima y sin
+    // forma de revisar lo tecleado.
+    const [showLoginPassword, setShowLoginPassword] = useState(false);
 
     // Register State -- simplificado: solo nombre, teléfono y contraseña.
     // El teléfono es el identificador para iniciar sesión (login ya hace
@@ -215,14 +219,25 @@ export default function LoginPage() {
 
                                 <div className="space-y-1 text-left">
                                     <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">Contraseña</label>
-                                    <input
-                                        type="password"
-                                        required
-                                        placeholder="••••••••"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 sm:py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium tracking-widest"
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            type={showLoginPassword ? "text" : "password"}
+                                            required
+                                            placeholder="••••••••"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 sm:py-4 pr-12 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium tracking-widest"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowLoginPassword(!showLoginPassword)}
+                                            aria-label={showLoginPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                            title={showLoginPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 focus:outline-none"
+                                        >
+                                            {showLoginPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {error && (
