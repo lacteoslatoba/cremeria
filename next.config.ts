@@ -43,15 +43,15 @@ const nextConfig: NextConfig = {
   // Sin esto el build y el dev comparten .next y se pisan (y el `prisma generate`
   // del script completo falla con EPERM porque el server le bloquea el DLL).
   distDir: process.env.NEXT_DIST_DIR || ".next",
-  async redirects() {
-    // /main -- URL que el usuario quiere usar como acceso directo de la app
-    // instalada en la PC (selector de los 3 portales). No existía como ruta;
-    // se redirige a /login, que es donde vive ese selector en escritorio.
+  async rewrites() {
+    // /main -- URL fija para el acceso directo de la app instalada en la PC
+    // (selector de los 3 portales). Antes era un redirect y la barra de
+    // direcciones saltaba a /login; ahora es un rewrite: la URL se queda en
+    // /main pero sirve el mismo contenido de /login por dentro.
     return [
       {
         source: "/main",
         destination: "/login",
-        permanent: false,
       },
     ];
   },

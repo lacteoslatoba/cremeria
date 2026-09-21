@@ -19,7 +19,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (!initialized) return;
 
-        const isLogin = pathname === "/login";
+        // /main sirve el mismo contenido de /login por dentro (rewrite en
+        // next.config.ts) pero la URL visible se queda en /main -- sin este
+        // OR, un invitado entrando por /main se manda a sí mismo de vuelta
+        // a /login en un loop.
+        const isLogin = pathname === "/login" || pathname === "/main";
         const isForgotPassword = pathname === "/forgot-password";
         const isAdmin = pathname.startsWith("/admin");
         const isDriver = pathname.startsWith("/driver");
