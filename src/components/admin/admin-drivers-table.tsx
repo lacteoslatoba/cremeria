@@ -1,6 +1,7 @@
 "use client";
 
 import { Bike } from "lucide-react";
+import { DriverActions } from "@/components/admin/driver-actions";
 
 function isRecentlyOnline(updatedAt: string | null) {
     if (!updatedAt) return false;
@@ -28,12 +29,13 @@ export function AdminDriversTable({ drivers }: { drivers: DriverRow[] }) {
                             <th className="px-4 md:px-6 py-4 text-center">Entregas totales</th>
                             <th className="px-4 md:px-6 py-4 text-center">Última ubicación</th>
                             <th className="px-4 md:px-6 py-4 text-center">Estado</th>
+                            <th className="px-4 md:px-6 py-4 text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-slate-700">
                         {drivers.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="text-center py-10 text-gray-400 italic">
+                                <td colSpan={6} className="text-center py-10 text-gray-400 italic">
                                     No has dado de alta a ningún repartidor todavía.
                                 </td>
                             </tr>
@@ -67,6 +69,9 @@ export function AdminDriversTable({ drivers }: { drivers: DriverRow[] }) {
                                         <span className={`inline-block px-3 py-1.5 text-xs font-bold rounded-lg ${online ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                                             {online ? "EN LÍNEA" : "DESCONECTADO"}
                                         </span>
+                                    </td>
+                                    <td className="px-4 md:px-6 py-4">
+                                        <DriverActions driver={{ id: d.id, name: d.name, username: d.username, phone: d.phone }} />
                                     </td>
                                 </tr>
                             );
