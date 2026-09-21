@@ -56,9 +56,14 @@ export default function LoginPage() {
     const [error, setError] = useState("");
 
     const [mounted, setMounted] = useState(false);
+    // El selector de portal es cosa de escritorio: en la app del celular (que
+    // usan casi solo clientes) es un paso extra sin sentido -- ahí se entra
+    // directo al login de siempre, igual que antes de tener 3 portales.
+    const [isDesktop, setIsDesktop] = useState(false);
 
     useEffect(() => {
         setMounted(true);
+        setIsDesktop(window.matchMedia("(min-width: 768px)").matches);
         if (user && user.role !== "GUEST") {
             router.push(
                 user.role === "ADMIN" ? "/admin"
@@ -70,13 +75,18 @@ export default function LoginPage() {
 
     // Deep link directo a un portal (p. ej. /login?portal=repartidor cuando
     // /driver redirige aquí por falta de sesión) -- evita que el repartidor
-    // o el admin tengan que elegir su portal a mano cada vez.
+    // o el admin tengan que elegir su portal a mano cada vez, en cualquier
+    // dispositivo. Sin ese parámetro: en celular se salta el selector y entra
+    // directo al portal Cliente; en escritorio se muestra el selector.
     useEffect(() => {
+        if (!mounted) return;
         const requested = searchParams.get("portal");
         if (requested === "cliente" || requested === "repartidor" || requested === "admin") {
             setPortal(requested);
+        } else if (!isDesktop) {
+            setPortal("cliente");
         }
-    }, [searchParams]);
+    }, [searchParams, isDesktop, mounted]);
 
     // Auto title-case: capitalize first letter of each word
     const toTitleCase = (str: string) =>
@@ -251,24 +261,28 @@ export default function LoginPage() {
                         </div>
                     ) : (
                     <div className="flex flex-col w-full max-w-[480px] mx-auto gap-[clamp(0.75rem,2.5dvh,1.5rem)] sm:gap-6 z-20 bg-white/70 backdrop-blur-xl p-[clamp(0.75rem,3dvh,1.5rem)] sm:p-6 md:p-8 rounded-3xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-                        <button
-                            type="button"
-                            onClick={() => { setPortal(null); setIsRegistering(false); setError(""); }}
-                            className="flex items-center gap-1 text-xs font-bold text-[#2d2a28]/60 hover:text-[#2d2a28] transition-colors self-start -mb-1"
-                        >
-                            <ChevronLeft size={16} /> Elegir otro portal
-                        </button>
-                        <p className="text-center text-xs font-bold text-primary uppercase tracking-wider -mt-1">
-                            Portal {PORTALS.find((p) => p.id === portal)?.label}
-                        </p>
+                        {isDesktop && (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => { setPortal(null); setIsRegistering(false); setError(""); }}
+                                    className="flex items-center gap-1 text-xs font-bold text-[#2d2a28]/60 hover:text-[#2d2a28] transition-colors self-start -mb-1"
+                                >
+                                    <ChevronLeft size={16} /> Elegir otro portal
+                                </button>
+                                <p className="text-center text-xs font-bold text-primary uppercase tracking-wider -mt-1">
+                                    Portal {PORTALS.find((p) => p.id === portal)?.label}
+                                </p>
+                            </>
+                        )}
                         {!isRegistering ? (
                             <form onSubmit={handleLogin} className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
                                 <div className="space-y-1 text-left">
-                                    <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">{portal === "cliente" ? "Celular" : "Usuario"}</label>
+                                    <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">{!isDesktop ? "Usuario - Celular" : portal === "cliente" ? "Celular" : "Usuario"}</label>
                                     <input
                                         type="text"
                                         required
-                                        placeholder={portal === "cliente" ? "Ingresa tu celular" : "Ingresa tu usuario"}
+                                        placeholder={!isDesktop ? "Ingresa tu usuario" : portal === "cliente" ? "Ingresa tu celular" : "Ingresa tu usuario"}
                                         value={identifier}
                                         onChange={(e) => setIdentifier(e.target.value)}
                                         className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 sm:py-4 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium"
