@@ -28,12 +28,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         const isAdmin = pathname.startsWith("/admin");
         const isDriver = pathname.startsWith("/driver");
 
-        // Un ADMIN solo ve el panel de administración: cualquier otra ruta lo manda
-        // directamente a /admin (no entra a la tienda).
-        if (user?.role === "ADMIN") {
-            if (!isAdmin) {
-                router.push("/admin");
-            }
+        // Antes un ADMIN quedaba encerrado en /admin -- cualquier otra ruta lo
+        // mandaba de vuelta ahí mismo. Con los 3 portales en un solo menú
+        // (SideNav: Cliente/Repartidor/Admin) eso se sentía roto: le dabas
+        // clic a "Repartidor" y "no pasaba nada" (el guard te regresaba a
+        // Admin sin avisar). Ya no se fuerza: un admin puede navegar a
+        // cualquier portal como cualquier otro usuario -- cada pantalla ya
+        // filtra por su propio rol (p. ej. /driver exige cuenta DELIVERY).
+        if (user?.role === "ADMIN" && isAdmin) {
             return;
         }
 
