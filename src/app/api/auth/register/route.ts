@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, signSession, setSessionCookie } from "@/lib/auth";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
-import { sendWhatsAppCode, whatsappProviderConfigured } from "@/lib/notify";
 import type { Prisma, User } from "@prisma/client";
 
 // Serializa un usuario para responder, garantizando que NUNCA se expone el
@@ -26,9 +25,7 @@ export async function POST(request: Request) {
         // creando una cuenta con más detalle desde otro flujo) pero ya no
         // son obligatorios para el registro público del cliente.
         // OJO: `address` solo se usa en el path de ADMIN (abajo, al crear
-        // el User directo). En el path público con OTP se ignora en
-        // silencio -- PendingRegistration no tiene columna `address` y las
-        // cuentas creadas por ese flujo no piden dirección al registrarse.
+        // el User directo) -- el registro público no la pide.
         const username = body.username || phone;
         const email = body.email;
         const address = body.address;
@@ -73,8 +70,7 @@ export async function POST(request: Request) {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Un ADMIN creando una cuenta para alguien más (p. ej. un
-        // repartidor) no pasa por verificación de WhatsApp -- el admin es
-        // quien da de alta la cuenta, no el dueño del teléfono.
+        // repartidor) no inicia sesión con esa cuenta -- solo la crea.
         if (createdByAdmin) {
             const newUser = await prisma.user.create({
                 data: {
@@ -90,9 +86,13 @@ export async function POST(request: Request) {
             return NextResponse.json(toSafeUser(newUser), { status: 201 });
         }
 
-        // Registro público: todavía no se crea el User -- se manda un
-        // código de 6 dígitos por SMS y solo se guarda la cuenta
-        // cuando se verifica (ver /api/auth/register/verify/route.ts).
+        // Registro público: se crea la cuenta directo, sin verificación de
+        // telefono por codigo/WhatsApp -- se quito (ver PendingRegistration
+        // en el schema, que se quedo sin usar) porque en la practica
+        // dependia de cuentas trial de Twilio/Meta con restricciones que
+        // bloqueaban a clientes reales nuevos. El telefono se sigue usando
+        // como identificador de login; la confirmacion de que es real pasa
+        // en la primera entrega, cuando el repartidor lo contacta de verdad.
         const ip = clientIp(request);
         const throttledIp = rateLimit(`register-req-ip:${ip}`, 8, 15 * 60 * 1000);
         const throttledPhone = rateLimit(`register-req-phone:${phone}`, 3, 15 * 60 * 1000);
@@ -101,45 +101,21 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: `Demasiados intentos. Intenta en ${retry}s.` }, { status: 429 });
         }
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        const codeExpiry = new Date(Date.now() + 10 * 60 * 1000);
-
-        // Por WhatsApp, no SMS: el codigo de registro publico antes usaba
-        // sendSms (Twilio SMS, cuenta trial -- solo entrega a numeros que tu
-        // mismo verificaste a mano, error 21608 para cualquier cliente
-        // nuevo real). sendWhatsAppCode ya elige el proveedor configurado
-        // (WHATSAPP_PROVIDER: meta o twilio) y Meta no tiene esa limitante
-        // de cuenta trial.
-        const sent = await sendWhatsAppCode(phone, code);
-
-        // Que falle el proveedor de mensajes NO puede tumbar el registro: ya
-        // pasó dos veces (cupo diario de Twilio agotado, error 63038) y dejó a
-        // TODOS los clientes sin poder crear cuenta. Por defecto se sigue
-        // adelante y el código se devuelve para que la pantalla lo muestre.
-        // Con OTP_ESTRICTO=true se conserva el 502 de antes, para quien prefiera
-        // bloquear el registro antes que relajar la verificación.
-        if (!sent && process.env.OTP_ESTRICTO === "true" && (whatsappProviderConfigured() || process.env.NODE_ENV === "production")) {
-            return NextResponse.json(
-                { error: "No pudimos enviar el código. Intenta de nuevo." },
-                { status: 502 }
-            );
-        }
-
-        await prisma.pendingRegistration.upsert({
-            where: { phone },
-            create: { phone, name, username: cleanUser, email: cleanEmail, password: hashedPassword, code, codeExpiry, attempts: 0 },
-            update: { name, username: cleanUser, email: cleanEmail, password: hashedPassword, code, codeExpiry, attempts: 0 },
+        const newUser = await prisma.user.create({
+            data: {
+                name,
+                username: cleanUser,
+                phone,
+                email: cleanEmail,
+                password: hashedPassword,
+                role: safeRole,
+            },
         });
 
-        return NextResponse.json({
-            ok: true,
-            phone,
-            // entregado=false va explícito para que la pantalla avise y muestre
-            // el código: sin eso el cliente se queda esperando un SMS que nunca
-            // va a llegar y no puede terminar de registrarse.
-            entregado: sent,
-            _dev_code: sent ? undefined : code,
-        });
+        const token = await signSession({ id: newUser.id, role: newUser.role });
+        const response = NextResponse.json(toSafeUser(newUser), { status: 201 });
+        setSessionCookie(response, token);
+        return response;
     } catch (error) {
         // No se loguea el objeto de error completo -- un error de validación
         // de Prisma puede serializar los argumentos (p. ej. el hash de la
