@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "@/lib/auth";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
-import { sendSms } from "@/lib/notify";
+import { sendWhatsAppCode, whatsappProviderConfigured } from "@/lib/notify";
 import type { Prisma, User } from "@prisma/client";
 
 // Serializa un usuario para responder, garantizando que NUNCA se expone el
@@ -104,10 +104,13 @@ export async function POST(request: Request) {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const codeExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-        const sent = await sendSms(phone, `Cremeria del Rancho: tu codigo de verificacion es ${code}. Expira en 10 minutos.`);
-        const twilioSmsConfigured = !!(
-            process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER
-        );
+        // Por WhatsApp, no SMS: el codigo de registro publico antes usaba
+        // sendSms (Twilio SMS, cuenta trial -- solo entrega a numeros que tu
+        // mismo verificaste a mano, error 21608 para cualquier cliente
+        // nuevo real). sendWhatsAppCode ya elige el proveedor configurado
+        // (WHATSAPP_PROVIDER: meta o twilio) y Meta no tiene esa limitante
+        // de cuenta trial.
+        const sent = await sendWhatsAppCode(phone, code);
 
         // Que falle el proveedor de mensajes NO puede tumbar el registro: ya
         // pasó dos veces (cupo diario de Twilio agotado, error 63038) y dejó a
@@ -115,7 +118,7 @@ export async function POST(request: Request) {
         // adelante y el código se devuelve para que la pantalla lo muestre.
         // Con OTP_ESTRICTO=true se conserva el 502 de antes, para quien prefiera
         // bloquear el registro antes que relajar la verificación.
-        if (!sent && process.env.OTP_ESTRICTO === "true" && (twilioSmsConfigured || process.env.NODE_ENV === "production")) {
+        if (!sent && process.env.OTP_ESTRICTO === "true" && (whatsappProviderConfigured() || process.env.NODE_ENV === "production")) {
             return NextResponse.json(
                 { error: "No pudimos enviar el código. Intenta de nuevo." },
                 { status: 502 }

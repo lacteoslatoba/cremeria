@@ -63,6 +63,13 @@ function proveedorWhatsApp(): "meta" | "twilio" | "simulado" {
     return "simulado";
 }
 
+// Para que quien llama a sendWhatsAppCode sepa si el envio es real o va a
+// quedar en modo simulado (sin proveedor configurado) -- lo usa el registro
+// publico para decidir si vale la pena exigir OTP_ESTRICTO.
+export function whatsappProviderConfigured(): boolean {
+    return proveedorWhatsApp() !== "simulado";
+}
+
 /**
  * Meta WhatsApp Cloud API (Graph). Dos caminos, en este orden:
  *   1. texto libre -- GRATIS, pero Meta solo lo acepta dentro de la ventana de
