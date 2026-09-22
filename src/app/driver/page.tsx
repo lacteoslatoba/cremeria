@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
+import { DriverLoginForm } from "@/components/auth/driver-login-form";
 import { Bike, MapPin, Package, LogOut, Loader2, Navigation, CheckCircle2, Radio } from "lucide-react";
 
 type OrderItem = { id: string; quantity: number; product: { name: string } };
@@ -164,16 +164,27 @@ export default function DriverPage() {
 
     if (!mounted) return null;
 
-    // Not logged in, or logged in as something other than a driver.
+    // Sin sesión de reparto: el login sale AQUÍ mismo, directo al abrir la zona
+    // de repartidores. Antes esta pantalla era un cartel ("Zona de
+    // repartidores" + botón "Iniciar sesión") que había que picar para recién
+    // llegar al formulario -- un paso de más, y peor en la calle con una sola
+    // mano.
     if (!user || user.role !== "DELIVERY") {
         return (
-            <main className="min-h-[100dvh] bg-[#121212] text-white flex flex-col items-center justify-center gap-4 px-6 text-center">
-                <Bike size={40} className="text-primary" />
-                <h1 className="text-xl font-bold">Zona de repartidores</h1>
-                <p className="text-gray-400 text-sm">Inicia sesión con tu cuenta de repartidor para ver tus pedidos.</p>
-                <Link href="/login?portal=repartidor" className="mt-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl shadow-lg shadow-primary/30">
-                    Iniciar sesión
-                </Link>
+            <main className="min-h-[100dvh] bg-[#0b0f19] flex flex-col items-center justify-center gap-5 px-4 py-10">
+                <DriverLoginForm />
+                {/* Si ya hay sesión pero no es de reparto (p. ej. un cliente que
+                    entró por el menú), se avisa: si no, el formulario se ve
+                    igual y no se entiende por qué su cuenta no entra aquí. */}
+                {user && (
+                    <p className="max-w-[420px] text-center text-xs text-gray-400">
+                        Estás conectado como {user.name || user.email || "otra cuenta"}.{" "}
+                        <button onClick={() => logout()} className="text-primary font-bold hover:underline">
+                            Cerrar sesión
+                        </button>{" "}
+                        para entrar con tu cuenta de repartidor.
+                    </p>
+                )}
             </main>
         );
     }

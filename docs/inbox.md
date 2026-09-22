@@ -320,3 +320,40 @@ el criterio queda cubierto sin necesidad de la sesion de admin.
 
 **Sobre T-0006 (Twilio a 5 msj/dia):** sigue igual, es decision de cuenta/dinero del
 usuario -- no hay nada que un agente pueda ejecutar ahi.
+
+
+---
+
+## [x] 2026-09-22 · El login del repartidor sale directo al abrir /driver (sin picar "Iniciar sesión")
+
+**Peticion (chat, usuario):** "ocupo que pongas en login el driver al inicio no se ocupa
+eso de picar iniciar sesion".
+
+**Como lo entendi (y por que):** el unico lugar del repo que pide picar literalmente
+"Iniciar sesión" es el cartel de `/driver` cuando no hay sesion
+(`<Link href="/login?portal=repartidor">Iniciar sesión</Link>`). Ahora esa pantalla
+pinta el formulario del portal Repartidor ahi mismo, de entrada.
+
+**Cambio:**
+- Nuevo `src/components/auth/driver-login-form.tsx`: el login del portal Repartidor
+  (tema oscuro, Usuario/Contraseña, ojito, "Recordar sesión") en un solo componente.
+- `src/app/driver/page.tsx`: sin sesion DELIVERY -> se muestra ese formulario directo
+  (antes: cartel + boton). Si hay sesion con otro rol (p. ej. un cliente que entro por
+  el menu), se agrega un aviso con "Cerrar sesión" para que se entienda por que su
+  cuenta no entra aqui.
+- `src/app/login/page.tsx`: el bloque `portal === "repartidor"` usa el mismo componente
+  (antes tenia su propia copia del markup). El formulario de Cliente/Admin no se toco.
+
+**Verificado:**
+- `npm.cmd run check` -> PASA (tsc + eslint de los 3 archivos tocados).
+- Playwright (390x844, dev server en :3000): `/driver` y `/login?portal=repartidor`
+  muestran campo Usuario, boton INICIAR SESION y checkbox "Recordar sesión"; el cartel
+  viejo "Zona de repartidores" y su enlace ya no existen (0). El formulario postea a
+  `/api/auth/login` y pinta el error del servidor (401 "Usuario o contraseña
+  incorrectos" con credenciales malas). Captura: `scripts/_tmp-driver-login.png`.
+- Falta la prueba de punta a punta con una cuenta real de repartidor y en el celular
+  (necesita credenciales) -> queda para el usuario, junto con el deploy.
+
+**Si en realidad querias otra cosa** (p. ej. que la app instalada abra en el login en
+vez de la tienda -- eso seria `start_url` del `manifest.json`), se ajusta en un minuto;
+pero "picar Iniciar sesión" solo existia en /driver.
