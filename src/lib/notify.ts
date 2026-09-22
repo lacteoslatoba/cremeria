@@ -77,6 +77,13 @@ export function whatsappProviderConfigured(): boolean {
  *   2. plantilla -- funciona siempre, incluso fuera de la ventana, pero se cobra
  *      por mensaje; se configura con META_WHATSAPP_TEMPLATE.
  * Graph quiere el numero SIN el "+".
+ *
+ * OJO: a diferencia de Twilio, el Graph API de Meta para moviles mexicanos
+ * quiere el formato de SMS (+52 + 10 digitos), NO el "1" extra de
+ * formatMxPhoneWhatsApp -- ese "1" es una particularidad de Twilio.
+ * Confirmado contra la API real: con el "1" responde 131030 "Recipient
+ * phone number not in allowed list" (aunque el numero SI estaba en la
+ * lista); sin el "1" el mensaje se entrega.
  */
 async function enviarCodigoPorMeta(phone: string, body: string, code: string): Promise<boolean> {
     const token = process.env.META_WHATSAPP_TOKEN;
@@ -88,7 +95,7 @@ async function enviarCodigoPorMeta(phone: string, body: string, code: string): P
     const base = {
         messaging_product: "whatsapp",
         recipient_type: "individual",
-        to: formatMxPhoneWhatsApp(phone).replace(/^\+/, ""),
+        to: formatMxPhone(phone).replace(/^\+/, ""),
     };
 
     const intentar = async (cuerpo: unknown, etiqueta: string): Promise<boolean> => {
