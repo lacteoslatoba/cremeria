@@ -29,13 +29,20 @@ export function DriverActions({ driver }: { driver: Driver }) {
         try {
             const res = await fetch(`/api/users/${driver.id}`, { method: "DELETE" });
             if (res.ok) {
-                router.refresh();
+                // router.refresh() por sí solo dejaba la fila visible: la
+                // petición RSC que dispara puede quedar cancelada
+                // (net::ERR_ABORTED, confirmado reproduciendo el clic real) y
+                // entonces la tabla nunca se actualiza aunque el borrado en
+                // la base ya haya terminado -- parece que "no elimina" sin
+                // ningún error. Recargar la página entera es la única forma
+                // de garantizar que se vea el estado real.
+                window.location.reload();
             } else {
                 alert("Ocurrió un error al eliminar al repartidor.");
+                setIsDeleting(false);
             }
         } catch (error) {
             console.error(error);
-        } finally {
             setIsDeleting(false);
         }
     };
