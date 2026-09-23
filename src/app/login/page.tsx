@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
 import { DriverLoginForm } from "@/components/auth/driver-login-form";
+import { AdminLoginForm } from "@/components/auth/admin-login-form";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
@@ -155,6 +156,18 @@ export default function LoginPage() {
         return (
             <main className="min-h-[100dvh] w-full bg-[#0b0f19] flex items-center justify-center px-4 py-10">
                 <DriverLoginForm />
+            </main>
+        );
+    }
+
+    // Portal Control Panel: mismo patrón que Repartidor -- formulario propio,
+    // sin registro (la cuenta ADMIN no se auto-crea), pedido con un diseño
+    // oscuro distinto al de Cliente/Repartidor para que se sienta como una
+    // pantalla de acceso restringido.
+    if (portal === "admin") {
+        return (
+            <main className="min-h-[100dvh] w-full bg-black flex items-center justify-center px-4 py-10">
+                <AdminLoginForm />
             </main>
         );
     }
