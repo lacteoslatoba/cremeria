@@ -127,6 +127,17 @@ body:has(.login-page) .app-wrapper {
   background-color: #ffffff;
 }
 
+/* ── LOGIN Control Panel: pantalla de acceso aislada, sin el menú lateral
+   de los 3 portales -- se ve como una app aparte "de seguridad", no como
+   una página más de la tienda. El sidebar es fixed (no ocupa flujo), así
+   que basta con ocultarlo y quitarle el margen reservado al contenido. ── */
+body:has(.admin-login-page) aside {
+  display: none;
+}
+body:has(.admin-login-page) .app-wrapper {
+  margin-left: 0;
+}
+
 /* Pantallas de celular bajas (p. ej. 320x568, 360x640): el logo grande
    (30dvh + márgenes) + formulario exceden 100dvh y generan scroll vertical.
    Se acota solo en esta franja (móvil low-height, ancho <= 480px) el logo y el

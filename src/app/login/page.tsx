@@ -166,7 +166,7 @@ export default function LoginPage() {
     // pantalla de acceso restringido.
     if (portal === "admin") {
         return (
-            <main className="min-h-[100dvh] w-full bg-black flex items-center justify-center px-4 py-10">
+            <main className="admin-login-page min-h-[100dvh] w-full bg-black flex items-center justify-center px-4 py-10">
                 <AdminLoginForm />
             </main>
         );
