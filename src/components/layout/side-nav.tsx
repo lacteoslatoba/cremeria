@@ -65,7 +65,7 @@ export function SideNav() {
                             className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all",
                                 active
-                                    ? "bg-primary/15 text-primary border border-primary/20"
+                                    ? "bg-primary text-white shadow-lg shadow-primary/30"
                                     : "text-gray-400 hover:text-white hover:bg-white/5"
                             )}>
                             <Icon size={20} />
