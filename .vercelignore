@@ -1,0 +1,12 @@
+# Archivos que el CLI de Vercel NO debe subir en `vercel --prod`.
+#
+# POR QUE existe este archivo: el CLI sube todo lo que no este ignorado, y
+# /.next-build/ (el build de verificacion local documentado en AGENTS.md) se le
+# colo en el primer intento del 23/09/2026 -- 412 MB de subida que abortaron el
+# deployment con "AbortError: This operation was aborted". Con esto, correr
+# `npm run check`, compilar a .next-build y desplegar ya no choca.
+# El build de Next para produccion lo hace Vercel en su maquina, no hace falta
+# subir ningun artefacto local.
+.next-build/
+.next/
+node_modules/
