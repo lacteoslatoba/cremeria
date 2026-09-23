@@ -21,20 +21,14 @@ export default async function AdminDashboardPage() {
     // le mandaba pedidos/clientes/ventas reales a CUALQUIERA que entrara a
     // /admin sin cuenta (confirmado con curl sin cookie: la respuesta traía
     // nombres de clientes reales). El filtro tiene que vivir aquí, del lado
-    // del servidor, antes de consultar la BD -- no alcanza con esconder el
-    // botón en el menú.
-    const session = await readSession({ headers: await headers() } as unknown as Request);
-    const authUser = await loadAuthUser(session);
-    if (!authUser || authUser.role !== "ADMIN") {
-        redirect("/login?portal=admin");
-    }
-
-    // Las 5 consultas son independientes entre sí (no hay ninguna que
-    // necesite el resultado de otra) -- antes se pedían una tras otra en
-    // serie, sumando su tiempo; en paralelo el panel carga (y cada
-    // router.refresh() después de guardar algo) en lo que tarda la más
-    // lenta de las 5, no en la suma de las 5.
-    const [products, orders, salesRows, customers, drivers, business] = await Promise.all([
+    // del servidor, antes de RESPONDER -- no antes de consultar: la revisión
+    // de sesión corre en el mismo Promise.all que las 5 consultas (no antes,
+    // en serie) para no sumarle una vuelta más a la BD al tiempo de carga.
+    // Si no es admin, los datos ya traídos simplemente no se usan --
+    // redirect() corta antes de que el JSX (y por lo tanto el HTML/RSC que
+    // sí llega al navegador) los toque.
+    const [authUser, products, orders, salesRows, customers, drivers, business] = await Promise.all([
+        readSession({ headers: await headers() } as unknown as Request).then(loadAuthUser),
         // Inventario: todos los productos (incluye inactivos/sin stock)
         prisma.product.findMany({ orderBy: { createdAt: "desc" } }),
 
@@ -78,6 +72,10 @@ export default async function AdminDashboardPage() {
         // Perfil del negocio (fila única, id fijo "default")
         prisma.business.findUnique({ where: { id: "default" } }),
     ]);
+
+    if (!authUser || authUser.role !== "ADMIN") {
+        redirect("/login?portal=admin");
+    }
 
     // SalesHistory (cliente) espera ISO strings; los pedidos en Prisma llegan
     // como objeto Date -- Next las serializa a ISO en el cable igual, pero la
