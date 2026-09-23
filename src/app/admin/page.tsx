@@ -21,14 +21,23 @@ export default async function AdminDashboardPage() {
     // le mandaba pedidos/clientes/ventas reales a CUALQUIERA que entrara a
     // /admin sin cuenta (confirmado con curl sin cookie: la respuesta traía
     // nombres de clientes reales). El filtro tiene que vivir aquí, del lado
-    // del servidor, antes de RESPONDER -- no antes de consultar: la revisión
-    // de sesión corre en el mismo Promise.all que las 5 consultas (no antes,
-    // en serie) para no sumarle una vuelta más a la BD al tiempo de carga.
-    // Si no es admin, los datos ya traídos simplemente no se usan --
-    // redirect() corta antes de que el JSX (y por lo tanto el HTML/RSC que
-    // sí llega al navegador) los toque.
-    const [authUser, products, orders, salesRows, customers, drivers, business] = await Promise.all([
-        readSession({ headers: await headers() } as unknown as Request).then(loadAuthUser),
+    // del servidor, antes de consultar.
+    //
+    // OJO: esto va ANTES del Promise.all de las 5 consultas a propósito (no
+    // junto, como un intento anterior) -- corrí las 5 en paralelo con el
+    // check de sesión para no sumarle una vuelta más al admin ya logueado,
+    // pero eso hacía que alguien SIN sesión (p. ej. al picar "Control Panel"
+    // en el menú sin estar logueado) esperara las 5 consultas completas
+    // (pedidos, clientes, ventas...) antes de mandarlo al login -- ~1-1.5s
+    // de nada, reproducido en vivo: el usuario picaba Control Panel y el
+    // login tardaba en aparecer. El camino sin sesión debe ser el más
+    // rápido de los dos, no el más lento.
+    const authUser = await loadAuthUser(await readSession({ headers: await headers() } as unknown as Request));
+    if (!authUser || authUser.role !== "ADMIN") {
+        redirect("/login?portal=admin");
+    }
+
+    const [products, orders, salesRows, customers, drivers, business] = await Promise.all([
         // Inventario: todos los productos (incluye inactivos/sin stock)
         prisma.product.findMany({ orderBy: { createdAt: "desc" } }),
 
@@ -72,10 +81,6 @@ export default async function AdminDashboardPage() {
         // Perfil del negocio (fila única, id fijo "default")
         prisma.business.findUnique({ where: { id: "default" } }),
     ]);
-
-    if (!authUser || authUser.role !== "ADMIN") {
-        redirect("/login?portal=admin");
-    }
 
     // SalesHistory (cliente) espera ISO strings; los pedidos en Prisma llegan
     // como objeto Date -- Next las serializa a ISO en el cable igual, pero la
