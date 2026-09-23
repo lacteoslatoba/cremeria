@@ -7,9 +7,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const { logout } = useAuthStore();
 
+    // Este botón solo existe en el panel de admin -- siempre vuelve al
+    // login oscuro de Control Panel (ver el mismo criterio en SideNav).
     const handleLogout = async () => {
         await logout();
-        router.push("/login");
+        router.push("/login?portal=admin");
     };
 
     return (

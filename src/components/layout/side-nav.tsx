@@ -18,9 +18,16 @@ export function SideNav() {
     // /admin ya no trae su propia barra lateral de escritorio (ver
     // AdminLayout) -- los 3 portales viven en esta misma barra, así que
     // ahora también se muestra ahí.
+    //
+    // El rol se lee ANTES de logout() (que limpia `user`) para saber a qué
+    // login volver: un admin cerrando sesión debe quedarse en el login
+    // oscuro de Control Panel, no caer en el genérico de Cliente -- se
+    // sentía como "la app quedó expuesta otra vez" al ver el blanco normal
+    // justo después de cerrar el panel de seguridad.
     const handleLogout = async () => {
+        const eraAdmin = user?.role === "ADMIN";
         await logout();
-        router.push("/login");
+        router.push(eraAdmin ? "/login?portal=admin" : "/login");
     };
 
     // Los 3 portales de la app -- cada uno exige su propio login al entrar
