@@ -11,7 +11,7 @@ import { Loader2, Eye, EyeOff, ShieldCheck, User as UserIcon, Lock, ArrowRight }
 // componentes/colores que ya existen en el proyecto (lucide-react en vez
 // de Material Symbols, sin Tailwind CDN) en vez de copiar el HTML suelto.
 export function AdminLoginForm() {
-    const { setUser } = useAuthStore();
+    const { user, setUser, logout } = useAuthStore();
     const router = useRouter();
 
     const [identifier, setIdentifier] = useState("");
@@ -132,6 +132,21 @@ export function AdminLoginForm() {
                     {loading ? <Loader2 size={22} className="animate-spin" /> : <>INICIAR SESIÓN <ArrowRight size={18} /></>}
                 </button>
             </form>
+
+            {/* Los 3 portales comparten una sola cookie de sesión -- si ya hay
+                una sesión de Cliente/Repartidor abierta, hace falta cerrarla
+                antes de poder entrar como admin. Sin este aviso, entrar aquí
+                con otra sesión activa "no hacía nada" (rebotaba en silencio
+                a la tienda) y parecía un bug. */}
+            {user && user.role !== "ADMIN" && (
+                <p className="max-w-[380px] text-center text-xs text-zinc-500">
+                    Estás conectado como {user.name || user.email || "otra cuenta"}.{" "}
+                    <button onClick={() => logout()} className="text-primary font-bold hover:underline">
+                        Cerrar sesión
+                    </button>{" "}
+                    para entrar con tu cuenta de administrador.
+                </p>
+            )}
 
             <footer className="flex flex-col items-center gap-2 text-center">
                 <div className="flex items-center gap-2 text-zinc-500 text-xs font-mono">

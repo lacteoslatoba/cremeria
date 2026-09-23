@@ -52,14 +52,24 @@ export default function LoginPage() {
 
     useEffect(() => {
         setMounted(true);
-        if (user && user.role !== "GUEST") {
-            router.push(
-                user.role === "ADMIN" ? "/admin"
-                : user.role === "DELIVERY" ? "/driver"
-                : "/"
-            );
-        }
-    }, [user, router]);
+        if (!user || user.role === "GUEST") return;
+
+        // Caso especial: alguien con sesión de Cliente/Repartidor entra a
+        // /login?portal=admin para meter credenciales de administrador
+        // (los 3 portales comparten una sola cookie de sesión, así que no
+        // hay forma de estar logueado en dos a la vez). Antes esto lo
+        // mandaba de vuelta a su portal en silencio, sin explicar por qué
+        // "no pasaba nada" al picar el link de Control Panel -- ahora se
+        // deja ver el formulario de admin con el aviso de "cierra sesión
+        // primero" (mismo patrón que ya usa DriverLoginForm).
+        if (searchParams.get("portal") === "admin" && user.role !== "ADMIN") return;
+
+        router.push(
+            user.role === "ADMIN" ? "/admin"
+            : user.role === "DELIVERY" ? "/driver"
+            : "/"
+        );
+    }, [user, router, searchParams]);
 
     // Deep link directo a un portal (p. ej. /login?portal=repartidor cuando
     // /driver redirige aquí por falta de sesión) -- sin ese parámetro se
