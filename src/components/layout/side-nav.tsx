@@ -29,7 +29,7 @@ export function SideNav() {
     const links = [
         { href: "/", icon: User, label: "Cliente" },
         { href: "/driver", icon: Bike, label: "Repartidor" },
-        { href: "/admin", icon: ShieldCheck, label: "Admin" },
+        { href: "/admin", icon: ShieldCheck, label: "Control Panel" },
     ];
 
     return (
