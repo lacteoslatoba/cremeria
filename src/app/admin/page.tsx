@@ -1,4 +1,7 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { readSession, loadAuthUser } from "@/lib/auth";
 import { SingleScreenAdmin } from "@/components/admin/single-screen-admin";
 
 // Esta página no lee cookies/headers ni nada que Next detecte como
@@ -12,6 +15,20 @@ import { SingleScreenAdmin } from "@/components/admin/single-screen-admin";
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
+    // El AuthGuard del cliente (src/components/auth/auth-guard.tsx) deja
+    // navegar /admin libremente para no encerrar a un admin fuera de ahí --
+    // pero eso significaba que ESTE Server Component, al no revisar sesión,
+    // le mandaba pedidos/clientes/ventas reales a CUALQUIERA que entrara a
+    // /admin sin cuenta (confirmado con curl sin cookie: la respuesta traía
+    // nombres de clientes reales). El filtro tiene que vivir aquí, del lado
+    // del servidor, antes de consultar la BD -- no alcanza con esconder el
+    // botón en el menú.
+    const session = await readSession({ headers: await headers() } as unknown as Request);
+    const authUser = await loadAuthUser(session);
+    if (!authUser || authUser.role !== "ADMIN") {
+        redirect("/login?portal=admin");
+    }
+
     // Las 5 consultas son independientes entre sí (no hay ninguna que
     // necesite el resultado de otra) -- antes se pedían una tras otra en
     // serie, sumando su tiempo; en paralelo el panel carga (y cada
