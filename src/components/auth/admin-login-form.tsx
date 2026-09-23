@@ -96,16 +96,12 @@ export function AdminLoginForm() {
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                    <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold text-zinc-400">Contraseña</label>
-                        <button
-                            type="button"
-                            onClick={() => router.push("/forgot-password")}
-                            className="text-xs font-bold text-primary hover:text-primary-hover transition-colors"
-                        >
-                            ¿Olvidaste tu contraseña?
-                        </button>
-                    </div>
+                    {/* Sin "olvidaste tu contraseña" a propósito: las cuentas
+                        ADMIN no se recuperan por código -- el dueño del
+                        negocio resetea la contraseña directo en la base de
+                        datos cuando hace falta (igual que se creó esta
+                        cuenta), no por un flujo público de recuperación. */}
+                    <label className="text-xs font-bold text-zinc-400">Contraseña</label>
                     <div className="relative">
                         <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
                         <input
