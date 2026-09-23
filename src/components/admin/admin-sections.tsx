@@ -360,6 +360,10 @@ export function AdminOrders({ orders }: { orders: OrderRow[] }) {
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    // La confirmacion del borrado en lote vive en la pantalla (no en
+    // window.confirm) para que no dependa de que el navegador muestre dialogos.
+    const [confirmingBulk, setConfirmingBulk] = useState(false);
+    const [bulkError, setBulkError] = useState("");
 
     const filtered = orders.filter((o) => {
         // Incluye el teléfono del cliente (viene en o.user): es como el admin busca
@@ -441,17 +445,27 @@ export function AdminOrders({ orders }: { orders: OrderRow[] }) {
     const handleBulkDelete = async () => {
         const ids = Array.from(selected);
         if (ids.length === 0) return;
-        if (!confirm(`¿Eliminar ${ids.length} pedido${ids.length > 1 ? "s" : ""}? Esta acción no se puede deshacer.`)) return;
 
         setIsBulkDeleting(true);
+        setBulkError("");
         try {
             const results = await Promise.allSettled(
                 ids.map((id) => fetch(`/api/orders/${id}`, { method: "DELETE" }))
             );
             const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok));
             if (failed.length > 0) {
-                alert(`No se pudieron eliminar ${failed.length} de ${ids.length} pedidos. Intenta de nuevo.`);
+                // Sin alert(): si el navegador tiene suprimidos los dialogos
+                // (el mismo caso que rompia el borrado de un solo pedido),
+                // el error se perderia en silencio.
+                const firstStatus = results.find((r) => r.status === "fulfilled" && !r.value.ok);
+                const status = firstStatus?.status === "fulfilled" ? firstStatus.value.status : 0;
+                setBulkError(
+                    status === 401
+                        ? "Tu sesión ya no es válida. Vuelve a entrar al Control Panel."
+                        : `No se pudieron eliminar ${failed.length} de ${ids.length} pedidos. Intenta de nuevo.`
+                );
             }
+            setConfirmingBulk(false);
             setSelected(new Set());
             router.refresh();
         } finally {
@@ -516,22 +530,48 @@ export function AdminOrders({ orders }: { orders: OrderRow[] }) {
                         )}
                     </label>
                     <div className="flex items-center gap-3">
+                        {bulkError && <span className="text-xs font-semibold text-red-500 max-w-[260px]">{bulkError}</span>}
                         <button
                             type="button"
-                            onClick={() => setSelected(new Set())}
+                            onClick={() => { setSelected(new Set()); setConfirmingBulk(false); setBulkError(""); }}
                             className="text-sm font-semibold text-gray-500 hover:text-gray-700"
                         >
                             Cancelar
                         </button>
-                        <button
-                            type="button"
-                            onClick={handleBulkDelete}
-                            disabled={isBulkDeleting}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold text-sm shadow-sm transition-colors disabled:opacity-60"
-                        >
-                            {isBulkDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                            Eliminar seleccionados
-                        </button>
+                        {confirmingBulk ? (
+                            <>
+                                <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                                    ¿Eliminar {selected.size}?
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={handleBulkDelete}
+                                    disabled={isBulkDeleting}
+                                    className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold text-sm shadow-sm transition-colors disabled:opacity-60"
+                                >
+                                    {isBulkDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                                    Sí, eliminar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setConfirmingBulk(false)}
+                                    disabled={isBulkDeleting}
+                                    className="text-sm font-semibold text-gray-500 hover:text-gray-700 disabled:opacity-60"
+                                >
+                                    No
+                                </button>
+                            </>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => { setConfirmingBulk(true); setBulkError(""); }}
+                                className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold text-sm shadow-sm transition-colors"
+                                title="Eliminar los pedidos seleccionados"
+                            >
+                                <Trash2 size={16} />
+                                Eliminar seleccionados
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
