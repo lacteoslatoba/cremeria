@@ -86,6 +86,7 @@ export function AdminLoginForm() {
                             type="text"
                             required
                             autoComplete="off"
+                            name="cp-usuario"
                             placeholder="Ingresa tu usuario"
                             value={identifier}
                             onChange={(e) => setIdentifier(e.target.value)}
