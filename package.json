@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "stripe:setup": "tsx scripts/stripe-setup.mts",
+    "whatsapp:plantilla": "dotenv -e .env.local -- tsx scripts/whatsapp-plantilla.mts",
+    "whatsapp:prueba": "dotenv -e .env.local -- tsx scripts/whatsapp-prueba.mts",
     "claude": "tsx scripts/claude-bridge.mts",
     "tasks": "tsx scripts/tasks.mts",
     "check": "tsx scripts/check.mts",

@@ -357,3 +357,63 @@ pinta el formulario del portal Repartidor ahi mismo, de entrada.
 **Si en realidad querias otra cosa** (p. ej. que la app instalada abra en el login en
 vez de la tienda -- eso seria `start_url` del `manifest.json`), se ajusta en un minuto;
 pero "picar Iniciar sesión" solo existia en /driver.
+
+---
+
+## [x] 2026-09-23 · OTP por WhatsApp: plantilla de autenticación con botón "Copiar código" (payload + herramientas)
+
+**Quien:** Cline, a peticion directa del usuario (me explico el flujo de la WhatsApp Business
+API: plantilla preaprobada de categoria "Authentication" con boton que copia/autocompleta el
+codigo).
+
+**Punto de partida (para que el otro agente no lo investigue de nuevo):** `sendWhatsAppCode`
+quedo **sin llamadores** desde `cfaedce` (el registro ya no pide codigo), y el backend de Meta
+tenia la mitad del flujo: intentaba **texto libre primero** y, si acaso, una plantilla **sin
+boton**. Con eso el OTP solo podia pasar el dia que el cliente nos hubiera escrito primero.
+
+**Lo que quedo (sin cambio visible al cliente, todo detras de variables de entorno):**
+
+- `src/lib/notify.ts`: la plantilla de autenticacion va **primero** y el texto libre queda de
+  respaldo (el OTP lo inicia el negocio, asi que la ventana de 24 h casi nunca esta abierta).
+  El payload lleva el codigo **dos veces**: `body` (`{{1}}`) y `button` (`sub_type url`,
+  `index "0"`) -- el boton se crea como `otp`/`copy_code` y WhatsApp lo convierte en boton URL
+  al aprobarlo, por eso el segundo parametro es obligatorio. Con
+  `META_WHATSAPP_TEMPLATE_BOTON=ninguno` se omite (plantillas zero-tap).
+  Ademas `enviarCodigoWhatsApp()` devuelve `{proveedor, entregado, detalle}` con el texto crudo
+  de Meta/Twilio, y `planesCodigoMeta()` arma los payloads sin mandarlos.
+- `npm run whatsapp:plantilla` (`scripts/whatsapp-plantilla.mts`): crea/revisa la plantilla
+  `authentication` en la WABA (idempotente; `--seco` imprime el payload y no llama a Meta).
+- `npm run whatsapp:prueba -- <telefono>` (`scripts/whatsapp-prueba.mts`): manda el codigo con
+  la MISMA funcion que la app, imprime la respuesta cruda del proveedor y sale con codigo 1 si
+  no se entrego (`--seco` imprime los payloads).
+- README: variables `META_WABA_ID` y `META_WHATSAPP_TEMPLATE_BOTON`, seccion nueva y comandos.
+
+**Hallazgos que salieron de correr las herramientas (lo importante para el usuario):**
+
+1. `META_WHATSAPP_TOKEN` del `.env.local` esta **expirado**: Meta respondio `error 190 ·
+   Session has expired on Tuesday, 22-Sep-26 18:00:00 PDT`. Hasta regenerarlo no se puede crear
+   la plantilla ni mandar nada real (los tokens de la consola de prueba duran 24 h).
+2. Falta `META_WABA_ID` (el id de la WhatsApp Business Account, NO el del numero) y falta la
+   plantilla: sin `META_WHATSAPP_TEMPLATE` la app solo puede intentar texto libre.
+3. Lo que si se pudo verificar sin credenciales nuevas: el payload exacto con `--seco` (codigo
+   en el body y en el boton `index "0"`, mas la variante sin boton).
+
+**Evidencia:**
+
+- `npm.cmd run check` -> `VEREDICTO: PASA` (tsc + eslint).
+- `npm.cmd run whatsapp:plantilla -- --seco` -> imprime el payload `authentication` con
+  `add_security_recommendation`, `code_expiration_minutes: 10` y `otp_type: copy_code`.
+- `npm.cmd run whatsapp:prueba -- 6131414210 --seco --codigo 123456` -> payload con
+  `components: [body({{1}}=123456), button(index "0"=123456)]` + el respaldo de texto libre.
+- Con `META_WHATSAPP_TEMPLATE_BOTON=ninguno` el boton desaparece del payload (verificado).
+- `npm.cmd run whatsapp:plantilla -- --waba 1234567890` -> imprime el error 190 de Meta y sale
+  con codigo 1 (asi se comprobo el manejo de errores, y de paso el token vencido).
+
+**Tareas:** T-0018 (nueva, al usuario: crear la plantilla + regenerar token y correr la prueba
+real) y nota en T-0016 (numero de produccion + metodo de pago).
+
+**Decision que dejo escrita, no tomada:** volver a pedir el codigo en el registro publico es un
+cambio visible al cliente y el usuario lo quito a proposito hoy (`cfaedce`). No lo toque; el
+envio ya queda listo por si lo quiere de vuelta (seria re-habilitar `PendingRegistration` +
+`sendWhatsAppCode`, en una tarea aparte).
+

@@ -70,13 +70,93 @@ export function whatsappProviderConfigured(): boolean {
     return proveedorWhatsApp() !== "simulado";
 }
 
+type ParametroTexto = { type: "text"; text: string };
+type ComponentePlantilla =
+    | { type: "body"; parameters: ParametroTexto[] }
+    | { type: "button"; sub_type: "url"; index: string; parameters: ParametroTexto[] };
+
+type ResultadoMeta = { ok: boolean; detalle: string };
+
 /**
- * Meta WhatsApp Cloud API (Graph). Dos caminos, en este orden:
- *   1. texto libre -- GRATIS, pero Meta solo lo acepta dentro de la ventana de
- *      24 h que abre el cliente al escribirnos (de ahi el boton wa.me).
- *   2. plantilla -- funciona siempre, incluso fuera de la ventana, pero se cobra
- *      por mensaje; se configura con META_WHATSAPP_TEMPLATE.
+ * Plantilla de AUTENTICACION (categoria "authentication" de Meta), con el
+ * boton "Copiar codigo".
+ *
+ * Por que plantilla y no texto libre: Meta SOLO acepta texto libre dentro de la
+ * ventana de 24 h que abre el cliente al escribirnos, y un OTP siempre lo inicia
+ * el negocio (el cliente apenas se esta registrando, todavia no nos escribio).
+ * Fuera de esa ventana el unico mensaje permitido es una plantilla preaprobada
+ * -- por eso el codigo de verificacion va con plantilla, y el texto libre queda
+ * solo como respaldo.
+ *
+ * El boton "Copiar codigo" se CREA como type "otp" + otp_type "copy_code", pero
+ * WhatsApp lo convierte a un boton URL cuando aprueba la plantilla (lo dice la
+ * doc oficial). Consecuencia practica: el codigo tiene que ir DOS veces en el
+ * payload, una en el cuerpo ({{1}}) y otra en el parametro del boton (index 0);
+ * si falta la segunda, Meta rechaza el envio por parametros incompletos.
+ *
+ * Con META_WHATSAPP_TEMPLATE_BOTON=ninguno se omite el boton: para plantillas
+ * creadas sin boton (zero-tap), mandar el parametro del boton tambien las hace
+ * fallar.
+ */
+function componentesPlantilla(code: string): ComponentePlantilla[] {
+    const componentes: ComponentePlantilla[] = [
+        { type: "body", parameters: [{ type: "text", text: code }] },
+    ];
+    if ((process.env.META_WHATSAPP_TEMPLATE_BOTON || "copiar").toLowerCase() !== "ninguno") {
+        componentes.push({
+            type: "button",
+            sub_type: "url",
+            index: "0",
+            parameters: [{ type: "text", text: code }],
+        });
+    }
+    return componentes;
+}
+
+type PlanEnvioMeta = { etiqueta: string; cuerpo: Record<string, unknown> };
+
+/**
+ * Arma -- sin mandarlos -- los payloads que se intentarian con Graph para un
+ * codigo: primero la plantilla de autenticacion (si esta configurada), despues
+ * el texto libre de respaldo. Esta separado del envio para que
+ * `npm run whatsapp:prueba -- --seco` pueda imprimir exactamente lo que saldria
+ * (incluido el codigo repetido del boton) sin gastar un mensaje.
  * Graph quiere el numero SIN el "+".
+ */
+export function planesCodigoMeta(phone: string, code: string, body: string): PlanEnvioMeta[] {
+    const base = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: formatMxPhone(phone).replace(/^\+/, ""),
+    };
+    const planes: PlanEnvioMeta[] = [];
+    const plantilla = process.env.META_WHATSAPP_TEMPLATE;
+
+    // La plantilla va PRIMERO: el OTP lo inicia el negocio, asi que la ventana de
+    // 24 h casi nunca esta abierta y el texto libre fallaria siempre.
+    if (plantilla) {
+        planes.push({
+            etiqueta: "plantilla de autenticacion",
+            cuerpo: {
+                ...base,
+                type: "template",
+                template: {
+                    name: plantilla,
+                    language: { code: process.env.META_WHATSAPP_TEMPLATE_LANG || "es_MX" },
+                    components: componentesPlantilla(code),
+                },
+            },
+        });
+    }
+
+    planes.push({ etiqueta: "texto libre", cuerpo: { ...base, type: "text", text: { body } } });
+
+    return planes;
+}
+
+/**
+ * Meta WhatsApp Cloud API (Graph) para el codigo de verificacion (los caminos y
+ * su orden estan explicados en planesCodigoMeta).
  *
  * OJO: a diferencia de Twilio, el Graph API de Meta para moviles mexicanos
  * quiere el formato de SMS (+52 + 10 digitos), NO el "1" extra de
@@ -85,58 +165,63 @@ export function whatsappProviderConfigured(): boolean {
  * phone number not in allowed list" (aunque el numero SI estaba en la
  * lista); sin el "1" el mensaje se entrega.
  */
-async function enviarCodigoPorMeta(phone: string, body: string, code: string): Promise<boolean> {
+async function enviarCodigoPorMeta(phone: string, body: string, code: string): Promise<ResultadoMeta> {
     const token = process.env.META_WHATSAPP_TOKEN;
     const phoneId = process.env.META_PHONE_NUMBER_ID;
-    if (!token || !phoneId) return false;
+    if (!token || !phoneId) {
+        return { ok: false, detalle: "Meta sin configurar: faltan META_WHATSAPP_TOKEN o META_PHONE_NUMBER_ID" };
+    }
 
     const url = `https://graph.facebook.com/v23.0/${phoneId}/messages`;
     const cabeceras = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
-    const base = {
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to: formatMxPhone(phone).replace(/^\+/, ""),
-    };
+    const fallos: string[] = [];
 
-    const intentar = async (cuerpo: unknown, etiqueta: string): Promise<boolean> => {
+    for (const plan of planesCodigoMeta(phone, code, body)) {
         try {
-            const res = await fetch(url, { method: "POST", headers: cabeceras, body: JSON.stringify(cuerpo) });
-            if (res.ok) return true;
+            const res = await fetch(url, { method: "POST", headers: cabeceras, body: JSON.stringify(plan.cuerpo) });
+            if (res.ok) return { ok: true, detalle: `${plan.etiqueta}: aceptado por Meta` };
             // El detalle que devuelve Meta es lo unico que explica un rechazo
-            // (p. ej. "outside the 24 hour window" si no hay plantilla puesta).
-            console.warn(`[WHATSAPP META] ${etiqueta} rechazado:`, (await res.text()).slice(0, 300));
-            return false;
+            // (p. ej. "outside the 24 hour window" o "template not found").
+            const detalle = `[WHATSAPP META] ${plan.etiqueta} rechazado: ${(await res.text()).slice(0, 300)}`;
+            console.warn(detalle);
+            fallos.push(detalle);
         } catch (err) {
-            console.error(`[WHATSAPP META] ${etiqueta} fallo de red:`, err);
-            return false;
+            console.error(`[WHATSAPP META] ${plan.etiqueta} fallo de red:`, err);
+            fallos.push(`${plan.etiqueta}: fallo de red`);
         }
-    };
+    }
 
-    if (await intentar({ ...base, type: "text", text: { body } }, "texto libre")) return true;
-
-    const plantilla = process.env.META_WHATSAPP_TEMPLATE;
-    if (!plantilla) return false;
-    return intentar(
-        {
-            ...base,
-            type: "template",
-            template: {
-                name: plantilla,
-                language: { code: process.env.META_WHATSAPP_TEMPLATE_LANG || "es_MX" },
-                components: [{ type: "body", parameters: [{ type: "text", text: code }] }],
-            },
-        },
-        "plantilla"
-    );
+    return { ok: false, detalle: fallos.join(" | ") };
 }
 
-export async function sendWhatsAppCode(phone: string, code: string): Promise<boolean> {
-    if (!phone) return false;
-    const body = `Cremeria del Rancho: tu codigo de verificacion es ${code}. Expira en 10 minutos.`;
+/** Resultado del envio, con el detalle del proveedor para poder diagnosticarlo. */
+export type ResultadoEnvioWhatsApp = {
+    proveedor: "meta" | "twilio" | "simulado";
+    entregado: boolean;
+    detalle: string;
+};
+
+/** Texto del mensaje (sirve para el camino de texto libre y como referencia). */
+export function textoCodigoWhatsApp(code: string): string {
+    return `Cremeria del Rancho: tu codigo de verificacion es ${code}. Expira en 10 minutos.`;
+}
+
+/**
+ * Manda un codigo de verificacion por WhatsApp y dice POR QUE fallo si fallo.
+ * El detalle existe para `npm run whatsapp:prueba`: cuando Meta rechaza un
+ * envio, el texto de su respuesta es lo unico que distingue si el problema es la
+ * plantilla (no aprobada), el formato del numero o que el destinatario no esta
+ * en la lista de permitidos de una cuenta de prueba.
+ */
+export async function enviarCodigoWhatsApp(phone: string, code: string): Promise<ResultadoEnvioWhatsApp> {
+    const body = textoCodigoWhatsApp(code);
+    if (!phone) return { proveedor: "simulado", entregado: false, detalle: "sin telefono" };
+
     const proveedor = proveedorWhatsApp();
 
     if (proveedor === "meta") {
-        return enviarCodigoPorMeta(phone, body, code);
+        const meta = await enviarCodigoPorMeta(phone, body, code);
+        return { proveedor: "meta", entregado: meta.ok, detalle: meta.detalle };
     }
 
     if (proveedor === "twilio") {
@@ -149,15 +234,20 @@ export async function sendWhatsAppCode(phone: string, code: string): Promise<boo
                 from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
                 to: `whatsapp:${formatMxPhoneWhatsApp(phone)}`,
             });
-            return true;
+            return { proveedor: "twilio", entregado: true, detalle: "aceptado por Twilio" };
         } catch (err) {
             console.error("[WHATSAPP ERROR]", err);
-            return false;
+            return { proveedor: "twilio", entregado: false, detalle: err instanceof Error ? err.message : "error de Twilio" };
         }
     }
 
     console.log(`[SIMULATED WHATSAPP] to ${phone}: ${body}`);
-    return false;
+    return { proveedor: "simulado", entregado: false, detalle: "sin proveedor configurado (modo simulado)" };
+}
+
+export async function sendWhatsAppCode(phone: string, code: string): Promise<boolean> {
+    const resultado = await enviarCodigoWhatsApp(phone, code);
+    return resultado.entregado;
 }
 
 const STATUS_MESSAGES: Record<string, string> = {
