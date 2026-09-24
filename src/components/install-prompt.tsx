@@ -21,6 +21,21 @@ function isIOS() {
     return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
 
+// 3 apps instalables independientes (Cliente/Repartidor/Admin, ver
+// side-nav.tsx). Este banner es solo para Cliente -- en /admin y /driver
+// seria el mensaje equivocado, y en sus logins (/login?portal=admin,
+// /login?portal=repartidor) instalar desde aqui meteria el manifest de
+// Cliente por error (esas rutas no estan en el scope de cada app).
+function esRutaNoCliente(pathname: string | null): boolean {
+    if (!pathname) return false;
+    if (pathname.startsWith("/admin") || pathname.startsWith("/driver")) return true;
+    if (pathname === "/login" && typeof window !== "undefined") {
+        const portal = new URLSearchParams(window.location.search).get("portal");
+        return portal === "admin" || portal === "repartidor";
+    }
+    return false;
+}
+
 // El navegador no incluye un tipo para beforeinstallprompt en su lib DOM
 // (es un evento ad-hoc del estándar de instalación de PWA). Se declara la
 // forma que en realidad usamos para no caer en `any`.
@@ -36,15 +51,7 @@ export function InstallPrompt() {
     const [platform, setPlatform] = useState<"android" | "ios" | null>(null);
 
     useEffect(() => {
-        // Este banner ("Pide más rápido, como una app de verdad") es para el
-        // cliente comprando desde el celular -- en /admin sería el mensaje
-        // equivocado, así que se sigue ocultando ahí aunque ya no tenga un
-        // manifest propio (ver admin/layout.tsx). El login de Admin vive en
-        // /login?portal=admin (no /admin), y ahí instalar desde este banner
-        // instalaría el manifest de Cliente por error -- /login no está en
-        // el scope de admin-manifest.json. Se ocultan ambos casos.
-        const esLoginAdmin = pathname === "/login" && new URLSearchParams(window.location.search).get("portal") === "admin";
-        if (pathname?.startsWith("/admin") || esLoginAdmin) return;
+        if (esRutaNoCliente(pathname)) return;
         if (isStandalone()) return; // ya la tiene instalada -- no molestar
         let dismissed = false;
         try { dismissed = !!window.localStorage.getItem("installPromptDismissed"); } catch { /* modo privado, etc. */ }
@@ -88,11 +95,9 @@ export function InstallPrompt() {
     };
 
     // Chequeo también al renderizar (no solo en el efecto): si ya se había
-    // mostrado el banner en otra ruta y de ahí se navega a /admin (o al
-    // login de Admin) sin recargar, no debe quedarse pegado en pantalla.
-    const esLoginAdminAhora = typeof window !== "undefined" && pathname === "/login"
-        && new URLSearchParams(window.location.search).get("portal") === "admin";
-    if (pathname?.startsWith("/admin") || esLoginAdminAhora) return null;
+    // mostrado el banner en otra ruta y de ahí se navega a una no-Cliente
+    // sin recargar, no debe quedarse pegado en pantalla.
+    if (esRutaNoCliente(pathname)) return null;
     if (!show || !platform) return null;
 
     return (

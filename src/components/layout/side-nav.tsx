@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShoppingCart, User, LogOut, Bike, ShieldCheck } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -7,15 +8,15 @@ import { useAuthStore } from "@/lib/auth-store";
 import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
 
-// Nota (23/09): dentro de la app INSTALADA de Control Panel, tocar Cliente,
-// Repartidor o el carrito saca al navegador del scope del manifest
-// ("/admin" en public/admin-manifest.json) y Chrome/Edge ponen arriba su
-// propia barra con la URL y el título -- eso es lo que se ve feo. Esa barra
-// es UI del navegador (el aviso neutro de "saliste del scope"): no se puede
-// tapar con CSS ni recolorear, es a propósito para que ningún sitio pueda
-// camuflarla. Se probaron 3 caminos: ocultar los enlaces, abrirlos en
-// ventana nueva, o dejarlos navegando en la misma ventana -- Mike eligio
-// esta ultima (23/09): se queda la barra chica, es el precio aceptado.
+// Nota (23/09): 3 apps instalables independientes -- Cliente ("/", scope
+// "/"), Repartidor ("/driver", scope "/driver" en driver-manifest.json) y
+// Admin ("/admin", scope "/admin" en admin-manifest.json). Dentro de una ya
+// instalada, tocar un link de OTRO portal sale de su scope y Chrome/Edge
+// ponen su propia barra con la URL -- UI del navegador, no se puede tapar
+// ni recolorear. La solucion: en modo standalone, cada app solo muestra su
+// propio portal en el menu (nunca los otros 2). En una pestaña normal de
+// navegador se ven los 3, para poder cambiar de portal libremente.
+const SCOPES = ["/driver", "/admin"]; // "/" no entra: cualquier ruta empieza con "/"
 
 export function SideNav() {
     const pathname = usePathname();
@@ -24,6 +25,19 @@ export function SideNav() {
     const { user, logout } = useAuthStore();
     const mounted = useMounted();
     const cartCount = mounted ? items.reduce((a, i) => a + i.quantity, 0) : 0;
+
+    const [scopeActual, setScopeActual] = useState<string | null>(null);
+    useEffect(() => {
+        // Se difiere un tick para no hacer setState *síncrono* dentro del
+        // cuerpo del effect (regla react-hooks/set-state-in-effect).
+        const id = window.setTimeout(() => {
+            const standalone = window.matchMedia("(display-mode: standalone)").matches
+                || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+            if (!standalone) { setScopeActual(null); return; }
+            setScopeActual(SCOPES.find((s) => pathname.startsWith(s)) ?? "/");
+        }, 0);
+        return () => window.clearTimeout(id);
+    }, [pathname]);
 
     // Un visitante sin cuenta (catalogo abierto por WhatsApp, sin login) no
     // debe ver el switcher de portales -- "Control Panel" ahi es exactamente
@@ -56,19 +70,23 @@ export function SideNav() {
 
     // Los 3 portales de la app -- cada uno exige su propio login al entrar
     // (Repartidor pide cuenta DELIVERY, Admin pide cuenta ADMIN), así que no
-    // se expone nada por mostrarlos siempre. Se quedan los 3 (ver nota arriba).
+    // se expone nada por mostrarlos siempre en pestaña normal. Dentro de una
+    // app instalada (scopeActual != null), solo se queda el link del scope
+    // en el que ya estamos.
     const links = [
         { href: "/", icon: User, label: "Cliente" },
         { href: "/driver", icon: Bike, label: "Repartidor" },
         { href: "/admin", icon: ShieldCheck, label: "Control Panel" },
-    ];
+    ].filter((link) => scopeActual === null || link.href === scopeActual);
 
     return (
         <aside className="hidden md:flex flex-col fixed left-0 top-0 h-full w-64 bg-[#1a1a1a] border-r border-white/10 z-50 shadow-2xl">
             {/* Logo -- el carrito ya no es uno de los 3 portales (Cliente/
                 Repartidor/Admin) de la nav de abajo, pero el cliente
                 comprando no debe perder el acceso rápido mientras navega
-                la tienda: se deja aquí, aparte, como icono chico. */}
+                la tienda: se deja aquí, aparte, como icono chico. Dentro de
+                Repartidor/Admin instalados no tiene sentido (no son scope
+                de Cliente), asi que tambien se filtra por scopeActual. */}
             <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
                 <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/40">
                     <span className="text-white font-black text-lg">C</span>
@@ -77,17 +95,19 @@ export function SideNav() {
                     <p className="font-black text-white text-sm leading-tight">Cremería</p>
                     <p className="text-gray-500 text-xs">del Rancho</p>
                 </div>
-                <Link href="/cart" className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Carrito">
-                    <ShoppingCart size={18} />
-                    {cartCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-primary text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full">
-                            {cartCount > 9 ? "9+" : cartCount}
-                        </span>
-                    )}
-                </Link>
+                {(scopeActual === null || scopeActual === "/") && (
+                    <Link href="/cart" className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Carrito">
+                        <ShoppingCart size={18} />
+                        {cartCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-primary text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full">
+                                {cartCount > 9 ? "9+" : cartCount}
+                            </span>
+                        )}
+                    </Link>
+                )}
             </div>
 
-            {/* Nav links -- los 3 portales */}
+            {/* Nav links -- portales visibles segun el contexto (ver arriba) */}
             <nav className="flex-1 py-6 px-3 flex flex-col gap-1">
                 {links.map(({ href, icon: Icon, label }) => {
                     const active = pathname === href || (href !== "/" && pathname.startsWith(href));
