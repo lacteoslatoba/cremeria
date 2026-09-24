@@ -39,8 +39,12 @@ export function InstallPrompt() {
         // Este banner ("Pide más rápido, como una app de verdad") es para el
         // cliente comprando desde el celular -- en /admin sería el mensaje
         // equivocado, así que se sigue ocultando ahí aunque ya no tenga un
-        // manifest propio (ver admin/layout.tsx).
-        if (pathname?.startsWith("/admin")) return;
+        // manifest propio (ver admin/layout.tsx). El login de Admin vive en
+        // /login?portal=admin (no /admin), y ahí instalar desde este banner
+        // instalaría el manifest de Cliente por error -- /login no está en
+        // el scope de admin-manifest.json. Se ocultan ambos casos.
+        const esLoginAdmin = pathname === "/login" && new URLSearchParams(window.location.search).get("portal") === "admin";
+        if (pathname?.startsWith("/admin") || esLoginAdmin) return;
         if (isStandalone()) return; // ya la tiene instalada -- no molestar
         let dismissed = false;
         try { dismissed = !!window.localStorage.getItem("installPromptDismissed"); } catch { /* modo privado, etc. */ }
@@ -84,9 +88,11 @@ export function InstallPrompt() {
     };
 
     // Chequeo también al renderizar (no solo en el efecto): si ya se había
-    // mostrado el banner en otra ruta y de ahí se navega a /admin sin
-    // recargar, no debe quedarse pegado en pantalla.
-    if (pathname?.startsWith("/admin")) return null;
+    // mostrado el banner en otra ruta y de ahí se navega a /admin (o al
+    // login de Admin) sin recargar, no debe quedarse pegado en pantalla.
+    const esLoginAdminAhora = typeof window !== "undefined" && pathname === "/login"
+        && new URLSearchParams(window.location.search).get("portal") === "admin";
+    if (pathname?.startsWith("/admin") || esLoginAdminAhora) return null;
     if (!show || !platform) return null;
 
     return (
