@@ -1,0 +1,414 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador Android</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:radial-gradient(ellipse at top,#1a1a2e 0%,#0d0d0d 100%);
+  min-height:100vh;
+  display:flex;flex-direction:row;
+  align-items:center;justify-content:center;
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  gap:22px;padding:16px;
+  animation:bodyIn .5s ease;
+  position:relative;overflow:hidden;
+}
+@keyframes bodyIn{from{opacity:0}to{opacity:1}}
+.glow{position:fixed;border-radius:50%;filter:blur(70px);pointer-events:none;z-index:0;opacity:.5}
+.glow-a{width:420px;height:420px;background:radial-gradient(circle,rgba(76,175,80,.16),transparent 70%);top:-8%;left:8%}
+.glow-b{width:480px;height:480px;background:radial-gradient(circle,rgba(33,150,243,.14),transparent 70%);bottom:-10%;right:6%}
+.bar,.stage{position:relative;z-index:1}
+.bar{
+  display:flex;flex-direction:column;align-items:stretch;gap:10px;
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.03));
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;padding:16px 12px;
+  width:150px;flex-shrink:0;
+  backdrop-filter:blur(12px);
+  box-shadow:0 10px 30px -12px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);
+}
+.bar-label{color:#888;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;text-align:center}
+.bar-sep{height:1px;width:100%;background:rgba(255,255,255,.1);margin:2px 0}
+.bar-group{display:flex;flex-direction:column;gap:6px}
+.bar-row{display:flex;gap:6px}
+.bar-row .sz,.bar-row .btn-font{flex:1}
+.sz{
+  background:transparent;border:1.5px solid rgba(255,255,255,.15);color:#888;
+  font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;
+  padding:5px 13px;border-radius:10px;cursor:pointer;transition:all .15s;
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+}
+.sz small{font-size:8.5px;font-weight:600;color:#555;letter-spacing:.03em}
+.sz:hover{border-color:rgba(255,255,255,.3);color:#ccc}
+.sz:active{transform:scale(.93)}
+.sz.on{background:linear-gradient(180deg,#5cc75f,#43a047);border-color:#4CAF50;color:#fff;box-shadow:0 3px 10px -2px rgba(76,175,80,.5)}
+.sz.on small{color:rgba(255,255,255,.85)}
+.btn-font{
+  background:transparent;border:1.5px solid rgba(255,255,255,.15);color:#888;
+  font-size:11px;font-weight:700;
+  padding:6px 12px;border-radius:10px;cursor:pointer;transition:all .15s;
+}
+.btn-font:hover{border-color:rgba(255,255,255,.3);color:#ccc}
+.btn-font:active{transform:scale(.93)}
+.btn-font.on{background:linear-gradient(180deg,#42a5f5,#2196F3);border-color:#2196F3;color:#fff;box-shadow:0 3px 10px -2px rgba(33,150,243,.5)}
+.app-btn{
+  background:transparent;border:1.5px solid rgba(255,255,255,.15);color:#888;
+  font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+  padding:8px 10px;border-radius:10px;cursor:pointer;transition:all .15s;width:100%;text-align:left;
+}
+.app-btn:hover{border-color:rgba(255,255,255,.3);color:#ccc}
+.app-btn:active{transform:scale(.97)}
+.app-btn.on{background:linear-gradient(180deg,#5cc75f,#43a047);border-color:#4CAF50;color:#fff;box-shadow:0 3px 10px -2px rgba(76,175,80,.5)}
+.url-wrap{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(0,0,0,.4);border:1.5px solid rgba(255,255,255,.1);
+  border-radius:10px;padding:6px 8px;
+}
+#urlInput{background:transparent;border:none;outline:none;color:#aaa;font-size:10px;width:100%;min-width:0}
+#urlInput::placeholder{color:#555}
+.ico-row{display:flex;gap:6px}
+.ico{
+  background:transparent;border:1.5px solid rgba(255,255,255,.15);color:#888;
+  flex:1;height:30px;border-radius:10px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.ico svg{stroke:currentColor;transition:transform .2s}
+.ico:hover{border-color:rgba(255,255,255,.3);color:#ccc}
+.ico:active svg{transform:scale(.85)}
+#btnReload.spinning svg{animation:spin .5s linear}
+#statusDot{width:8px;height:8px;border-radius:50%;background:#555;transition:background .3s;flex-shrink:0}
+#statusDot.up{background:#4CAF50;box-shadow:0 0 6px #4CAF5088}
+#statusDot.down{background:#f44336;box-shadow:0 0 6px #f4433688}
+#statusDot.checking{background:#FFC107;animation:pulse .8s infinite alternate}
+@keyframes pulse{from{opacity:.4}to{opacity:1}}
+.stage{display:flex;flex-direction:column;align-items:center;gap:6px;transform-origin:top center;perspective:1000px}
+.floor-shadow{width:70%;height:28px;border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.55) 0%,rgba(0,0,0,0) 72%);margin-top:-10px;filter:blur(2px)}
+.dname{color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.15em}
+.dim{color:#444;font-size:10px;font-weight:700;letter-spacing:.05em;margin-top:2px}
+.phone{
+  background:linear-gradient(160deg,#242424 0%,#131313 45%,#080808 100%);
+  border-radius:52px;border:1px solid #333;
+  box-shadow:0 0 0 1px #050505,0 0 0 9px #17181a,0 0 0 10px #1e1f21,inset 0 0 0 1px #3a3a3a,inset 0 1px 1px rgba(255,255,255,.08),0 40px 60px -20px rgba(0,0,0,.9),0 90px 100px -30px rgba(0,0,0,.85),0 0 80px rgba(80,140,255,.05);
+  position:relative;padding:16px 12px 14px;transition:all .35s cubic-bezier(.4,0,.2,1);
+}
+.phone::after{
+  content:'';position:absolute;left:6%;right:52%;top:2%;bottom:88%;
+  border-radius:52px 52px 0 0;background:linear-gradient(120deg,rgba(255,255,255,.10),rgba(255,255,255,0) 70%);
+  pointer-events:none;
+}
+.btn-vol{position:absolute;left:-4px;top:120px;display:flex;flex-direction:column;gap:10px}
+.btn-vol div{width:4px;background:linear-gradient(90deg,#0c0c0c,#2b2b2b 40%,#0c0c0c);border-radius:2px 0 0 2px;border:1px solid #333;border-right:none}
+.btn-pwr{position:absolute;right:-4px;top:150px;width:4px;height:68px;background:linear-gradient(270deg,#0c0c0c,#2b2b2b 40%,#0c0c0c);border-radius:0 2px 2px 0;border:1px solid #333;border-left:none}
+.screen{background:#000;border-radius:40px;overflow:hidden;position:relative;transition:all .35s cubic-bezier(.4,0,.2,1)}
+.glass-sheen{position:absolute;inset:0;z-index:30;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.06) 0%,rgba(255,255,255,0) 18%,rgba(255,255,255,0) 82%,rgba(255,255,255,.03) 100%)}
+.sbar{position:absolute;top:0;left:0;right:0;height:32px;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:linear-gradient(to bottom,rgba(0,0,0,.6),transparent);pointer-events:none}
+.sbar-time{color:#fff;font-size:12px;font-weight:600;letter-spacing:.03em}
+.sbar-r{display:flex;align-items:center;gap:5px}
+.batt-pct{color:#fff;font-size:11px;font-weight:600;opacity:.9}
+.punch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:13px;height:13px;background:radial-gradient(circle at 35% 35%,#1a2a3a,#000 70%);border-radius:50%;z-index:25;box-shadow:0 0 0 1.5px #111,0 0 0 2.5px rgba(80,140,255,.12)}
+.navbar{position:absolute;bottom:0;left:0;right:0;height:44px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:space-around;z-index:20;padding:0 30px 6px;border-top:1px solid rgba(255,255,255,.6)}
+.navbar .nav-btn svg{fill:#8a8a8a;transition:fill .15s}
+.navbar .nav-btn:hover svg{fill:#555}
+.nav-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;cursor:pointer;opacity:.7;transition:opacity .15s,transform .1s;border-radius:50%}
+.nav-btn:hover{opacity:1;background:rgba(255,255,255,.08)}
+.nav-btn:active{transform:scale(.85);background:rgba(255,255,255,.14)}
+.nav-btn svg{fill:#fff}
+iframe{display:block;border:none;background:#fff}
+.overlay{position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;border-radius:40px;pointer-events:all}
+#loadingOverlay{background:rgba(0,0,0,.85);display:flex}
+#loadingOverlay .spinner{width:36px;height:36px;border-radius:50%;margin-bottom:8px;
+  background:conic-gradient(from 0deg,#4CAF50,#2196F3,transparent 60%);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));
+  animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loadingOverlay .l-msg{color:#888;font-size:11px}
+#errOverlay{background:rgba(0,0,0,.93);display:none}
+.e-icon{margin-bottom:4px;filter:drop-shadow(0 0 8px rgba(255,82,82,.35))}
+.e-title{color:#ff5252;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.1em}
+.e-msg{color:#888;font-size:11px;line-height:1.6;max-width:260px}
+.e-cmd{background:#111;border:1px solid #333;color:#4CAF50;font-family:monospace;font-size:11px;padding:6px 14px;border-radius:8px}
+.e-retry{margin-top:4px;background:linear-gradient(180deg,#5cc75f,#43a047);border:none;color:#fff;font-size:11px;font-weight:700;padding:7px 20px;border-radius:9px;cursor:pointer;text-transform:uppercase;letter-spacing:.08em;transition:all .15s;box-shadow:0 4px 14px -4px rgba(76,175,80,.55)}
+.e-retry:hover{transform:translateY(-1px);box-shadow:0 6px 18px -4px rgba(76,175,80,.7)}
+.e-retry:active{transform:translateY(0) scale(.96)}
+.e-counter{color:#555;font-size:10px;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="glow glow-a"></div>
+<div class="glow glow-b"></div>
+<div class="bar">
+  <div class="bar-group">
+    <span class="bar-label">Pantalla</span>
+    <button class="sz" data-s="s">S<small id="szL-s">1800x4000</small></button>
+    <button class="sz on" data-s="m">M<small id="szL-m">1965x4255</small></button>
+    <button class="sz" data-s="l">L<small id="szL-l">2060x4575</small></button>
+    <button class="sz" data-s="xl">XL<small id="szL-xl">2400x4900</small></button>
+  </div>
+  <div class="bar-sep"></div>
+  <div class="bar-group">
+    <span class="bar-label">Fuente</span>
+    <div class="bar-row">
+      <button class="btn-font" data-f="14px">A-</button>
+      <button class="btn-font on" data-f="16px">A</button>
+      <button class="btn-font" data-f="20px">A+</button>
+    </div>
+  </div>
+  <div class="bar-sep"></div>
+  <div class="bar-group">
+    <span class="bar-label">App</span>
+    <div class="bar-group" style="gap:6px">
+      <button class="app-btn on" data-path="/">Cliente</button>
+      <button class="app-btn" data-path="/driver">Repartidor</button>
+      <button class="app-btn" data-path="/admin">Admin</button>
+    </div>
+  </div>
+  <div class="bar-sep"></div>
+  <div class="bar-group">
+    <div class="url-wrap">
+      <div id="statusDot" title="Estado del servidor"></div>
+      <input id="urlInput" value="/" placeholder="puerto (5173) o URL"/>
+    </div>
+    <div class="ico-row">
+      <button class="ico" id="btnReload" title="Recargar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+      <button class="ico" id="btnTab" title="Abrir en pestana nueva"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg></button>
+    </div>
+  </div>
+</div>
+<div class="stage" id="stage">
+  <div class="dname" id="dname">Android M - Estandar</div>
+  <div class="phone" id="phone">
+    <div class="btn-vol"><div style="height:36px"></div><div style="height:56px"></div></div>
+    <div class="btn-pwr"></div>
+    <div class="screen" id="screen">
+      <div class="sbar">
+        <span class="sbar-time" id="clk">9:41</span>
+        <div class="sbar-r">
+          <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="7" width="2.5" height="5" rx=".8" fill="white" opacity=".4"/><rect x="4" y="5" width="2.5" height="7" rx=".8" fill="white" opacity=".6"/><rect x="8" y="2.5" width="2.5" height="9.5" rx=".8" fill="white" opacity=".8"/><rect x="12" y="0" width="2.5" height="12" rx=".8" fill="white"/></svg>
+          <svg width="15" height="12" viewBox="0 0 15 12"><circle cx="7.5" cy="11" r="1.4" fill="white"/><path d="M4.5 8C5.4 7.1 6.4 6.6 7.5 6.6s2.1.5 3 1.4" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".7"/><path d="M2 5.3C3.6 3.7 5.5 2.8 7.5 2.8s3.9.9 5.5 2.5" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".4"/></svg>
+          <span class="batt-pct">100%</span>
+          <svg width="25" height="12" viewBox="0 0 25 12"><rect x=".5" y=".5" width="20" height="11" rx="2.5" stroke="rgba(255,255,255,.4)" stroke-width="1" fill="none"/><rect x="21" y="3.5" width="2.5" height="5" rx="1.2" fill="rgba(255,255,255,.4)"/><rect x="2" y="2" width="15" height="8" rx="1.5" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="punch"></div>
+      <div class="glass-sheen"></div>
+      <iframe id="fr" src="about:blank" allow="bluetooth; camera; microphone; autoplay"></iframe>
+      <div class="overlay" id="idleOverlay" style="background:rgba(0,0,0,.9);display:none">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="6.5" y1="6.5" x2="17.5" y2="17.5"/></svg>
+        <div class="e-title" style="color:#aaa">Sin app conectada</div>
+        <div class="e-msg">Escribe el puerto o la URL de tu app<br>arriba a la izquierda y presiona Enter</div>
+      </div>
+      <div class="overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="l-msg">Conectando con el servidor...</div>
+      </div>
+      <div class="overlay" id="errOverlay">
+        <div class="e-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#ff5252" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></div>
+        <div class="e-title">Servidor apagado</div>
+        <div class="e-msg">Abre una terminal en la carpeta del proyecto y ejecuta:</div>
+        <div class="e-cmd">npm run dev</div>
+        <div class="e-msg" style="margin-top:6px">El simulador se reconectara automaticamente.</div>
+        <button class="e-retry" id="btnRetry">Reintentar ahora</button>
+        <div class="e-counter" id="counter"></div>
+      </div>
+      <div class="navbar">
+        <div class="nav-btn" id="btnBack" title="Atras"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></div>
+        <div class="nav-btn" id="btnHome" title="Inicio"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></div>
+        <div class="nav-btn" title="Recientes"><svg width="18" height="18" viewBox="0 0 24 24"><rect x="4" y="7" width="11" height="14" rx="1.5" stroke="white" stroke-width="1.6" fill="none"/><rect x="7" y="4" width="11" height="14" rx="1.5" stroke="white" stroke-width="1.6" fill="none" opacity=".5"/></svg></div>
+      </div>
+    </div>
+  </div>
+  <div class="floor-shadow"></div>
+  <div class="dim" id="dim">1965 x 4255 px</div>
+</div>
+<script>
+var SIZES={
+  s:{w:360,h:800,name:'S - Compacto',nw:360*5,nh:800*5},
+  m:{w:393,h:851,name:'M - Estandar',nw:393*5,nh:851*5},
+  l:{w:412,h:915,name:'L - Grande',nw:412*5,nh:915*5},
+  xl:{w:480,h:980,name:'XL - App',nw:480*5,nh:980*5}
+};
+var STATUS_H=32,NAV_H=44,POLL_MS=2500;
+var IFRAME_LOAD_TIMEOUT_MS=9000;
+var baseUrl='',pollTimer=null,cdTimer=null,loadTimer=null,cd=0;
+var loadArmed=false,frMade=null,frLoads=0;
+// Puerto por defecto que el simulador precarga AL ABRIRSE como archivo
+// local (file://) cuando no viene ?port=?app en la URL. Facil de cambiar:
+// pon '' para volver al comportamiento "idle hasta que escribas el puerto".
+// 3000 = dev server de Cremeria (el proyecto que se esta desarrollando).
+var FILE_DEFAULT_PORT='3000';
+var fr=document.getElementById('fr'),urlInput=document.getElementById('urlInput');
+var loadingOverlay=document.getElementById('loadingOverlay'),errOverlay=document.getElementById('errOverlay');
+var idleOverlay=document.getElementById('idleOverlay');
+var statusDot=document.getElementById('statusDot'),counterEl=document.getElementById('counter');
+
+// El iframe carga el dev server de la app que se este probando (Vite, CRA,
+// etc.) y esta pagina es file:// -> son origenes distintos, por lo que NO
+// se puede tocar su DOM interno (fr.contentDocument tira SecurityError,
+// silenciada por el try/catch).
+// Se probo compensar con CSS zoom sobre el iframe, pero combinado con el
+// escalado de pantalla de Windows genera distorsion visual real en el
+// contenido interno -> se descarto. Los botones A-/A/A+ quedan como
+// preferencia visual (marcan cual esta activo) sin alterar el render.
+//
+// Este simulador es generico: sirve para cualquier app con dev server
+// local, y no asume ni prioriza ninguna app en particular. La URL/puerto
+// se fija por query string (?app=... o ?port=...) o escribiendola en el
+// campo de URL; sin esa indicacion explicita NO se conecta solo a nada
+// (evita "adivinar" y terminar mostrando el ultimo proyecto que se le
+// ocurra en vez del que estas probando ahora).
+var currentSizeKey='xl';
+
+function normalizeUrl(v){
+  v=(v||'').trim();
+  if(!v)return '';
+  if(/^\d{2,5}$/.test(v))return 'http://127.0.0.1:'+v+'/';
+  if(!/^https?:\/\//i.test(v))v='http://'+v;
+  // Se usa el parser nativo de URL en vez de forzar un "/" final a mano:
+  // un host solo (http://127.0.0.1:8000) queda con "/" (raiz), pero una
+  // URL que ya apunta a un archivo (http://127.0.0.1:8000/app.html) se
+  // respeta tal cual -- forzar el "/" ahi rompia esa ruta (404).
+  try{return new URL(v).href}catch(e){return v}
+}
+function setBaseUrl(v){
+  var n=normalizeUrl(v);
+  if(!n)return;
+  baseUrl=n;
+  urlInput.value=baseUrl;
+}
+
+function layoutFrame(w,h){
+  fr.style.width=w+'px';
+  fr.style.height=(h-STATUS_H-NAV_H)+'px';
+  fr.style.marginTop=STATUS_H+'px';
+}
+// Antes, cuando el telefono no cabia en la altura de la ventana, se le
+// aplicaba `transform:scale()` a TODO el stage (marco + iframe) para
+// achicarlo -- eso hace que el navegador dibuje el contenido a tamaño
+// completo y LUEGO lo encoja visualmente, lo cual difumina texto e iconos
+// (mismo problema que agrandar una foto). Ahora, si no cabe, se le pide
+// directo al iframe que renderice a un tamaño de pantalla más chico (los
+// px CSS reales, sin transform) -- el navegador lo dibuja nitido a ese
+// tamaño desde el inicio, sin encogido posterior. `nw`/`nh` en el rotulo
+// siguen mostrando la resolucion real del dispositivo (no la del display
+// achicado), para no perder esa referencia.
+function applySize(k){
+  currentSizeKey=k;
+  var s=SIZES[k],sc=document.getElementById('screen'),stage=document.getElementById('stage');
+  var avail=window.innerHeight-50,need=s.h+60;
+  var factor=need>avail?avail/need:1;
+  var w=Math.round(s.w*factor),h=Math.round(s.h*factor);
+  sc.style.width=w+'px';sc.style.height=h+'px';
+  layoutFrame(w,h);
+  document.getElementById('dname').textContent='Android '+s.name;
+  document.getElementById('dim').textContent=s.nw+' x '+s.nh+' px';
+  document.querySelectorAll('.sz').forEach(function(b){b.classList.toggle('on',b.dataset.s===k)});
+  stage.style.transform='translate3d(0,0,0)';
+}
+function applyFont(size,btn){
+  document.querySelectorAll('.btn-font').forEach(function(b){b.classList.remove('on')});
+  if(btn)btn.classList.add('on');
+}
+// --- Carga del iframe ------------------------------------------------
+// Un `<iframe>` SI puede pedir http desde una pagina file:// (no pasa por la
+// restriccion de `fetch` que el navegador impone a documentos file://), asi
+// que la senal real de que la app respondio es su evento `load`. `frMade`
+// guarda la URL que le pedimos para ignorar los 'load' de about:blank.
+fr.addEventListener('load',function(){
+  if(!frMade)return;            // carga inicial / about:blank
+  cleanMarkers();
+  hideAll();setStatus('up');
+});
+var CHECK_TIMEOUT_MS=3000;
+function stopLoadTimer(){if(loadTimer){clearTimeout(loadTimer);loadTimer=null}}
+function startLoadTimer(){
+  stopLoadTimer();
+  loadTimer=setTimeout(function(){loadTimer=null;onIframeHang()},IFRAME_LOAD_TIMEOUT_MS);
+}
+function cleanMarkers(){stopPolling();stopLoadTimer();frMade=fr.src}
+function onIframeHang(){
+  // El iframe pidio cargar la URL pero nunca disparo `load` en el plazo dado:
+  // la app no responde (server apagado o ruta muerta). Bajar a error+reintento.
+  setStatus('down');showError();startPolling();
+}
+// Comprobacion del servidor por fetch. En una pagina file:// el navegador NO
+// deja ejecutar fetch http (bloqueo de plataforma) aun cuando la app esta
+// viva, por lo que un fallo de fetch NO significa "server apagado". Entonces:
+//   * Si no podemos hacer fetch de forma fiable (file://), devolvemos true
+//     igual y dejamos que el guard de timeout del iframe sea el que detecte
+//     un server realmente apagado (carga sin load).
+//   * Si el fetch corre (pagina servida por http), funciona como antes y
+//     solo marcamos down ante un rechazo real de conexion.
+function checkServer(cb){
+  setStatus('checking');
+  if(typeof fetch==='undefined'||location.protocol==='file:'){
+    cb(true);return;
+  }
+  var settled=false;
+  var done=function(up){if(settled)return;settled=true;clearTimeout(timer);cb(up)};
+  var controller=(typeof AbortController!=='undefined')?new AbortController():null;
+  var timer=setTimeout(function(){if(controller)controller.abort();done(false)},CHECK_TIMEOUT_MS);
+  try{
+    fetch(baseUrl,{mode:'no-cors',cache:'no-store',signal:controller?controller.signal:undefined})
+      .then(function(){done(true)})
+      .catch(function(){done(false)});
+  }catch(e){done(false)}
+}
+function startPolling(){stopPolling();pollTimer=setInterval(function(){checkServer(function(up){if(up){stopPolling();loadApp()}else startCD()})},POLL_MS)}
+function stopPolling(){clearInterval(pollTimer);pollTimer=null}
+function setStatus(s){statusDot.className=s}
+function showIdle(){idleOverlay.style.display='flex';loadingOverlay.style.display='none';errOverlay.style.display='none';stopCD();stopLoadTimer()}
+function showLoading(){idleOverlay.style.display='none';loadingOverlay.style.display='flex';errOverlay.style.display='none';stopCD();stopLoadTimer()}
+function showError(){idleOverlay.style.display='none';loadingOverlay.style.display='none';errOverlay.style.display='flex';startCD();stopLoadTimer()}
+function hideAll(){idleOverlay.style.display='none';loadingOverlay.style.display='none';errOverlay.style.display='none';stopCD();stopLoadTimer()}
+function startCD(){stopCD();cd=Math.round(POLL_MS/1000);counterEl.textContent='Reintentando en '+cd+'s...';cdTimer=setInterval(function(){cd--;counterEl.textContent=cd<=0?'Comprobando...':'Reintentando en '+cd+'s...'},1000)}
+function stopCD(){clearInterval(cdTimer);cdTimer=null;counterEl.textContent=''}
+function loadApp(){showLoading();setStatus('checking');checkServer(function(up){setStatus(up?'up':'down');if(up){frMade=baseUrl;startLoadTimer();fr.src=baseUrl}else{showError();startPolling()}})}
+(function init(){
+  var q=new URLSearchParams(location.search),app=q.get('app'),port=q.get('port');
+  // Si el usuario dio una app/puerto explicito en la URL, se respeta tal
+  // cual (intencion clara) y se conecta directo.
+  if(app){setBaseUrl(app);loadApp();return}
+  if(port&&/^\d{2,5}$/.test(port)){setBaseUrl(port);loadApp();return}
+  if(location.protocol!=='file:'){setBaseUrl(location.origin+'/');loadApp();return}
+  // Al abrirse como archivo local (file://) con FILE_DEFAULT_PORT definido se
+  // conecta a ese puerto directo (para que "abrir el archivo" ya funcione).
+  // Si el puerto por defecto no esta definido (''), queda en el estado idle
+  // y espera a que escribas el puerto/URL y presiones Enter.
+  if(FILE_DEFAULT_PORT&&/^\d{2,5}$/.test(FILE_DEFAULT_PORT)){
+    setBaseUrl(FILE_DEFAULT_PORT);loadApp();return;
+  }
+  urlInput.value='';
+  showIdle();
+})();
+document.getElementById('btnReload').addEventListener('click',function(){this.classList.remove('spinning');void this.offsetWidth;this.classList.add('spinning');loadApp()});
+document.getElementById('btnTab').addEventListener('click',function(){window.open(baseUrl,'_blank')});
+document.getElementById('btnRetry').addEventListener('click',function(){stopPolling();loadApp()});
+document.getElementById('btnBack').addEventListener('click',function(){try{fr.contentWindow.history.back()}catch(e){}});
+document.getElementById('btnHome').addEventListener('click',function(){loadApp()});
+urlInput.addEventListener('keydown',function(e){if(e.key==='Enter'){setBaseUrl(urlInput.value);loadApp()}});
+urlInput.addEventListener('change',function(){setBaseUrl(urlInput.value);loadApp()});
+document.querySelectorAll('.sz').forEach(function(b){b.addEventListener('click',function(){applySize(b.dataset.s)})});
+// Botones de app -- Cliente/Repartidor/Admin de Cremeria. Cambian solo la
+// ruta, conservando el host:puerto que ya este en uso (normalmente el
+// default de este archivo, 127.0.0.1:3000). Si aun no hay baseUrl (idle),
+// usan el puerto por defecto de este simulador.
+document.querySelectorAll('.app-btn').forEach(function(b){
+  b.addEventListener('click',function(){
+    var base=baseUrl||('http://127.0.0.1:'+(FILE_DEFAULT_PORT||'3000')+'/');
+    var destino;
+    try{destino=new URL(b.dataset.path,base).href}catch(e){destino=b.dataset.path}
+    document.querySelectorAll('.app-btn').forEach(function(x){x.classList.toggle('on',x===b)});
+    setBaseUrl(destino);loadApp();
+  });
+});
+document.querySelectorAll('.btn-font').forEach(function(b){b.addEventListener('click',function(){applyFont(b.dataset.f,b)})});
+(function tick(){var n=new Date();document.getElementById('clk').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');setTimeout(tick,10000)})();
+window.addEventListener('resize',function(){var on=document.querySelector('.sz.on');if(on)applySize(on.dataset.s)});
+applySize('xl');
+</script>
+</body>
+</html>
