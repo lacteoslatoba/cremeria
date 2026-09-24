@@ -417,3 +417,194 @@ cambio visible al cliente y el usuario lo quito a proposito hoy (`cfaedce`). No 
 envio ya queda listo por si lo quiere de vuelta (seria re-habilitar `PendingRegistration` +
 `sendWhatsAppCode`, en una tarea aparte).
 
+---
+
+## [ ] 2026-09-23 · T-0018: por donde ibas se atoro, hay otra pestaña que si sirve
+
+**Quien:** Claude Code, a peticion del usuario ("mira que le pasa a Cline, no puede ver que
+le pasa"). Revise las 3 ventanas de Chrome de depuracion (puertos 9222/9223/9224) SOLO LECTURA
+(no clique nada, para no cruzarme contigo si seguias ahi).
+
+**El atoro:** en el puerto 9223 hay una pestaña en
+`business.facebook.com/latest/settings/wa_accounts?business_id=1107277848388968` que dice
+*"Unable to access Meta Business Suite with this account. Your account, **Francisco Castro**,
+does not have access to any Facebook Pages..."* -- esa cuenta de FB no tiene una Pagina
+vinculada, y Business Suite (Business Settings -> System users, el PASO 2 de tu nota) la exige.
+Es un callejon sin salida mientras no haya una Pagina de Facebook en esa cuenta; no es algo que
+se arregle con otro clic ahi.
+
+**La que si sirve (misma ventana 9223, otra pestaña):**
+`business.facebook.com/latest/whatsapp_manager/message_templates?...&asset_id=2110963232841425`
+-- esta YA esta a la mitad de crear la plantilla `codigo_verificacion_cremeria` (Authentication /
+One-Time Passcode), parada en "Code delivery setup" eligiendo entre Zero-tap / One-tap / Copy
+code. Nuestro codigo (`notify.ts`, `whatsapp-plantilla.mts`) ya arma el payload con
+`otp_type: copy_code`, asi que ahi hay que elegir **"Copy code"** y darle **Submit for review**.
+Esto NO pasa por Business Suite ni necesita el usuario de sistema -- es la WABA directo.
+
+**Dato que ya no hay que volver a verificar:** el `META_WHATSAPP_TOKEN` que ya esta en
+`.env.local` (lo corri contra la Graph API, `npx.cmd dotenv -e .env.local -- npx.cmd tsx
+scripts/_tmp-meta-token-check.mts --wabas`) funciona y apunta exactamente a esa misma WABA
+(`2110963232841425`, "Test WhatsApp Business Account"). En cuanto la plantilla quede APPROVED
+no hace falta esperar el usuario de sistema para probar -- `npm.cmd run whatsapp:prueba` deberia
+jalar ya con ese token. El usuario de sistema (PASO 2) solo hace falta para un token que no
+expire cada ~24h; es mejora, no bloqueante para cerrar el criterio de T-0018.
+
+**No toque nada mas.** Si ya resolviste esto por tu cuenta, ignora esta nota.
+
+**Actualizacion 21:40:** ya no es un atoro de clics. Termine el formulario (Authentication /
+One-time Passcode / Copy code / Spanish (MEX)) y le di Submit en las dos WABA -- las dos
+devuelven `code 10 / error_subcode 2388185 · "This WhatsApp business account does not have
+permission to create message template"`, por UI y por API. Es el Business Verification sin
+hacer (Step 3), que pide documentos reales del negocio. Detalle completo en T-0018. Esto ya no
+es para un agente -- le avise al usuario, se junta con T-0016.
+
+---
+
+## [ ] 2026-09-23 · "En Pedidos no me permite eliminar un pedido y soy admin" — reproducido y arreglado (falta desplegar)
+
+**Quien:** Cline, a peticion del usuario. Dev server local (mismo `DATABASE_URL` que produccion).
+
+**Lo que medí, no lo que creo:**
+
+- El endpoint `DELETE /api/orders/[orderId]` **si funciona**: pedido temporal creado por mi
+  (no real) borrado con sesion de admin -> **HTTP 200** en dev y **HTTP 200** en
+  `https://cremeriadelrancho.com` (mismo problema no es de produccion por si solo).
+- Por UI real (Playwright, cookie de sesion del admin real): borrado un pedido normal, uno
+  de tarjeta abandonado (`PENDING`/`STRIPE`) y uno `COMPLETED` con repartidor asignado. Los
+  tres: 200 y la fila desaparece del panel.
+- Barrido de los **3 pedidos reales** de la BD replicando la logica del DELETE dentro de una
+  transaccion revertida (no borra nada): **0 fallas**. No hay pedido que el servidor rechace
+  por llaves foraneas ni por estado.
+- `https://cremeriadelrancho.com/admin` responde **200 sin cookie** y su HTML no trae ni
+  "Control Panel" ni "Inventario" -> **produccion corre el build del 21/09**: le falta el
+  chequeo de sesion de `/admin` que ya esta en `main` local (commit `6b04978`). O sea: en
+  produccion el panel se ve aunque la cookie de sesion este vencida, y a partir de ahi
+  **cualquier accion falla con 401 "No autorizado"**, que era exactamente lo que el usuario
+  veia como "no me permite eliminar".
+
+**Causa (dos cosas, las dos arregladas):**
+
+1. El boton de basura usaba `window.confirm()`. Si en ese Chrome se marco *"no volver a
+   mostrar mas dialogos"*, `confirm()` devuelve `false` para siempre y el boton **no hace
+   nada, sin ningun mensaje**. Igual con `alert()`: el error se perdia en silencio.
+2. El error 401 (sesion vencida) se mostraba como "Ocurrio un error al eliminar el pedido"
+   generico, sin decir que habia que volver a entrar.
+
+**Cambios (commiteados, `npm run check` PASA):**
+
+- `src/components/admin/order-delete-button.tsx`: confirmacion en pantalla "¿Eliminar? Si / No"
+  (mismo patron que `OrderCard` en `src/app/mis-pedidos/page.tsx`) y mensaje en rojo debajo del
+  boton, especifico por codigo: 401 -> "Tu sesion ya no es valida, vuelve a entrar al Control
+  Panel", 403 -> "solo un administrador", 429 -> rate limit.
+- `src/components/admin/admin-sections.tsx`: el borrado en lote ("Eliminar seleccionados")
+  tenia el mismo `confirm()`/`alert()`; ahora es "¿Eliminar N? Si, eliminar / No" y el error se
+  pinta en la barra de seleccion.
+
+**Verificado con** (scripts temporales, ya borrados): `npm run check` PASA; por UI el borrado
+simple y el de lote dan 200 y la fila desaparece; y con un 401 interceptado aparece el mensaje
+"Tu sesion ya no es valida" en pantalla.
+
+**Lo que falta y no puedo hacer yo:** desplegar (produccion esta 2 dias atras) y confirmarlo en
+el navegador. Tarea **T-0019** asignada a `usuario`. Mientras tanto, si el usuario ve el panel
+y ninguna accion funciona, el primer intento es **cerrar sesion y volver a entrar** en el
+Control Panel.
+
+**Actualizacion (desplegado y verificado en produccion, 23/09 17:00 local):**
+
+- Produccion ya tiene el codigo nuevo: el push de `9218a65` (commit de 15:16, pusheado ~16:38)
+  lo desplego la integracion de Git de Vercel sola -- deployment `cremeria-63jf1wezi`, creado
+  **16:38:32**, Ready en 55s, aliasado a `cremeriadelrancho.com`.
+- Encima, `vercel.cmd --prod --yes` desde esta maquina (CLI 59.7.0, sesion
+  `lacteoslatoba-3416`) genero el deployment `cremeria-7gea6wljm`, creado **16:47:36**, Ready en
+  2m, que es el que quedo como produccion actual. Es el mismo codigo (arbol de trabajo == HEAD).
+- **Leccion 1 (importante, me equivoque):** "produccion sirve el build viejo" **no** se puede
+  concluir mirando el HTML del home ni el status de `/admin`. El home trae las etiquetas de la
+  nav solo del lado del cliente (no aparecen en el HTML) y `/admin` responde **200 sin sesion
+  incluso con el codigo nuevo** (Next manda el `redirect()` dentro del stream RSC, no como 307).
+  La señal que **si** sirve: bajar los chunks `/_next/static/...js` que sirve el dominio y
+  buscar una cadena nueva (p.ej. `Ingresa tu usuario`, del login oscuro). Al hacerlo, el build
+  viejo y el nuevo se distinguen sin ambiguedad.
+- **Leccion 2:** el primer `vercel --prod` aborto con `AbortError: This operation was aborted`
+  porque el CLI quiso subir **431 MB** (412 MB eran de `.next-build/`, el build de verificacion
+  de AGENTS.md, que `.gitignore` ignora pero el CLI no). Se agrego **`.vercelignore`** con
+  `.next-build/`, `.next/` y `node_modules/` para que no vuelva a pasar: compilar a
+  `.next-build` para verificar y desplegar ya no chocan.
+- **Verificado en el dominio real** (Playwright con sesion del admin `mike` sobre un pedido de
+  prueba mio, ya limpiado): en Pedidos el basurero muestra **"¿Eliminar?" en pantalla** (cero
+  dialogos nativos en toda la prueba), `DELETE /api/orders/[id]` -> **200**, la fila desaparece
+  del panel y el pedido ya no esta en la BD. Antes de eso se comprobo que los chunks que sirve
+  `cremeriadelrancho.com` son identicos a los del deployment nuevo.
+- Pendiente para el usuario: entrar a `https://cremeriadelrancho.com/admin` y probar el borrado
+  con **su** sesion (si el panel no carga o no deja borrar, ahora el aviso en rojo dice si es
+  sesion vencida). T-0019 queda cerrada con esta evidencia.
+
+
+---
+
+## [ ] 2026-09-23 · La barra con la URL en la PWA instalada de Admin (T-0020): causa, arreglo y lo que NO se puede
+
+**Quien:** Cline, a petición del usuario (mandó captura: barra con "https://cremeriadelrancho.com"
+y "Cremeria del Rancho" que sale en Cliente y Repartidor y no en Control Panel).
+
+**Causa verificada:** esa barra la dibuja el **navegador**, no nosotros. La app instalada de
+Control Panel declara `scope: "/admin"` (`public/admin-manifest.json`). Cuando la app instalada
+navega a una ruta fuera de su scope (`/`, `/driver`, `/cart`), Chrome/Edge muestra arriba la URL
+y el título de la página: es su aviso de "ya no estás en la app" (anti-spoofing). Por eso en
+Control Panel no aparece y en Cliente/Repartidor sí. No es un bug de la app, es el límite del
+scope, y no se puede tapar con CSS ni z-index: es UI del navegador.
+
+**Arreglo (commit `8fdff53`, desplegado):** en la app **instalada** de Control Panel la nav ya no
+ofrece enlaces que salgan de su scope. `src/components/layout/side-nav.tsx`: si
+`display-mode: standalone` y la ruta es `/admin`, solo se muestra "Control Panel" (y se oculta el
+icono del carrito, que va a `/cart`, también fuera de scope). En el navegador normal se siguen
+viendo los 3 portales, y en la app instalada de Cliente (scope `/`) no cambia nada.
+
+Verificado con Playwright (el modo instalado no se puede activar de verdad desde el navegador
+automatizado, así que se simuló con el stub de `matchMedia`): normal `/admin` -> 3 portales +
+carrito; instalada `/admin` -> solo Control Panel sin carrito; instalada `/` (cliente) -> 3
+portales sin cambios. Mismo resultado por HTTPS contra el dominio de producción.
+
+**Sobre la pista de T-0020 (`display_override: window-controls-overlay`): no sirve para esto y NO
+lo activé.**
+
+- Documentación (MDN *display_override* y web.dev *Customize the window controls overlay of your
+  PWA's title bar*): WCO solo cambia la barra de título por un overlay que **la app** tiene que
+  dibujar (`env(titlebar-area-*)`, `app-region`, `navigator.windowControlsOverlay`), es
+  desktop-only, y no documenta ninguna forma de quitar el indicador de origen/sitio: ese
+  indicador es UI de seguridad del navegador y se mantiene.
+- Costo real de activarlo: la barra del navegador deja de existir y los controles de ventana
+  (minimizar/maximizar/cerrar) quedan **encima** del contenido; habría que rehacer el
+  topbar/sidebar con esos env vars para que no tapen nada, a cambio de nada (el popup seguiría).
+- Resultado (válido según el criterio de T-0020): **no se puede ocultar**. Lo único que sí se
+  controla es no salir del scope, y eso ya quedó.
+
+**Queda del lado del usuario:** cerrar y volver a abrir la app instalada (en /admin puede salir el
+aviso "Hay una versión nueva — Actualizar"; también basta cerrarla y abrirla) y confirmar que ya
+no aparece en Cliente/Repartidor. Si pica la flechita junto al nombre en la barra de título
+**estando en Control Panel** y también sale el popup, ese es el indicador nativo y no hay forma
+de quitarlo.
+
+**Nota aparte (mismo origen, no pedido todavía):** "Cerrar sesión" en la app instalada navega a
+`/login?portal=admin`, que también está fuera del scope `/admin`, así que ahí la barra puede
+volver a aparecer. Si molesta, la salida limpia es cerrar la ventana de la app al cerrar sesión
+(`window.close()` cuando corre instalada); no lo hice porque cambia el flujo de salida y no es lo
+que se pidió.
+
+**Corrección (mismo día, después de la captura del usuario):** ocultar Cliente/Repartidor de la
+app instalada **estaba mal** — el usuario aclaró que los 3 portales son parte del panel de admin
+y no pidió que se quitaran; lo que pidió es que no salga la barra. Revertido en el commit
+`f3fb4c2` (los 3 portales y el carrito vuelven a la nav en todos los casos) y desplegado. Lo que
+sí queda de esta investigación, y es lo importante:
+
+- La barra **no se puede tapar** (es UI del navegador por salir del scope) mientras la app de
+  admin tenga su propio manifest con scope `/admin`.
+- Las dos formas reales de que no aparezca, para que elija el usuario:
+  1. **Abrir Cliente / Repartidor / carrito en otra ventana** desde la app instalada
+     (`window.open(..., "_blank")`): la ventana del panel se queda limpia y el otro portal se
+     abre en una pestaña normal del navegador (o en la app de Cliente si está instalada).
+  2. **Una sola app instalada** (quitar el manifest aparte de `/admin` y dejar un scope `/`):
+     los 3 portales se navegan en la misma ventana sin barra nunca, a cambio de que haya un solo
+     ícono instalado — se pierde la instalación separada "Cremería Admin" que se pidió hoy.
+
+Ninguna de las dos está implementada: se le presentaron al usuario para que elija.
+
