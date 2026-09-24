@@ -15,6 +15,16 @@ export function SideNav() {
     const mounted = useMounted();
     const cartCount = mounted ? items.reduce((a, i) => a + i.quantity, 0) : 0;
 
+    // Un visitante sin cuenta (catalogo abierto por WhatsApp, sin login) no
+    // debe ver el switcher de portales -- "Control Panel" ahi es exactamente
+    // la exposicion publica que se corrigio en /admin, solo que en la nav.
+    // Se muestra unicamente con sesion real (Cliente/Repartidor/Admin ya
+    // logueados); el catalogo en si sigue siendo navegable sin cuenta.
+    // (AuthGuard, el padre, ya no monta nada hasta initialized=true, asi
+    // que aqui `user` nunca es un null "todavia no sabemos" -- no hay
+    // parpadeo de la barra apareciendo/desapareciendo.)
+    if (!user) return null;
+
     // /admin ya no trae su propia barra lateral de escritorio (ver
     // AdminLayout) -- los 3 portales viven en esta misma barra, así que
     // ahora también se muestra ahí.

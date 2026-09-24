@@ -64,6 +64,13 @@ body {
     min-height: 100dvh;
   }
 
+  /* SideNav no se monta para un visitante sin cuenta (ve el catalogo pero
+     no el switcher de portales) -- sin este reset el app-wrapper se queda
+     con el hueco de 256px aunque no haya <aside> que lo ocupe. */
+  body:not(:has(aside)) .app-wrapper {
+    margin-left: 0;
+  }
+
   /* Productos en grid de 3 columnas en desktop */
   .products-grid {
     display: grid !important;
