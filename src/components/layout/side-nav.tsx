@@ -1,5 +1,4 @@
 "use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShoppingCart, User, LogOut, Bike, ShieldCheck } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -11,12 +10,12 @@ import { cn } from "@/lib/utils";
 // Nota (23/09): dentro de la app INSTALADA de Control Panel, tocar Cliente,
 // Repartidor o el carrito saca al navegador del scope del manifest
 // ("/admin" en public/admin-manifest.json) y Chrome/Edge ponen arriba su
-// propia barra con la URL y el título -- eso es lo que se veía feo. Esa barra
+// propia barra con la URL y el título -- eso es lo que se ve feo. Esa barra
 // es UI del navegador (el aviso neutro de "saliste del scope"): no se puede
 // tapar con CSS ni recolorear, es a propósito para que ningún sitio pueda
-// camuflarla. Se resuelve no navegando fuera del scope: dentro de la app
-// instalada de Admin ya no se muestran los enlaces a Cliente/Repartidor
-// (esos viven en la OTRA app instalada, la de Cliente) -- ver isStandaloneAdmin.
+// camuflarla. Se probo ocultar Cliente/Repartidor dentro de esa app para
+// evitarla, pero Mike los quiere siempre visibles (23/09: "esos no los
+// quites") -- se revierte, el precio es que clicarlos ahi muestra esa barra.
 
 export function SideNav() {
     const pathname = usePathname();
@@ -25,22 +24,6 @@ export function SideNav() {
     const { user, logout } = useAuthStore();
     const mounted = useMounted();
     const cartCount = mounted ? items.reduce((a, i) => a + i.quantity, 0) : 0;
-
-    // Standalone (app instalada, no pestaña normal de navegador) + dentro de
-    // /admin == es la app dedicada de Admin (scope "/admin" en
-    // admin-manifest.json). Ahi Cliente/Repartidor no tienen a donde
-    // navegar sin salirse del scope, asi que no se ofrecen.
-    const [isStandaloneAdmin, setIsStandaloneAdmin] = useState(false);
-    useEffect(() => {
-        // Se difiere un tick para no hacer setState *síncrono* dentro del
-        // cuerpo del effect (regla react-hooks/set-state-in-effect).
-        const id = window.setTimeout(() => {
-            const standalone = window.matchMedia("(display-mode: standalone)").matches
-                || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-            setIsStandaloneAdmin(standalone && pathname.startsWith("/admin"));
-        }, 0);
-        return () => window.clearTimeout(id);
-    }, [pathname]);
 
     // Un visitante sin cuenta (catalogo abierto por WhatsApp, sin login) no
     // debe ver el switcher de portales -- "Control Panel" ahi es exactamente
@@ -69,14 +52,12 @@ export function SideNav() {
 
     // Los 3 portales de la app -- cada uno exige su propio login al entrar
     // (Repartidor pide cuenta DELIVERY, Admin pide cuenta ADMIN), así que no
-    // se expone nada por mostrarlos siempre. En la app instalada de Admin
-    // (isStandaloneAdmin) solo queda Control Panel -- Cliente/Repartidor
-    // salen del scope y disparan la barra de navegador fea (ver nota arriba).
+    // se expone nada por mostrarlos siempre. Se quedan los 3 (ver nota arriba).
     const links = [
         { href: "/", icon: User, label: "Cliente" },
         { href: "/driver", icon: Bike, label: "Repartidor" },
         { href: "/admin", icon: ShieldCheck, label: "Control Panel" },
-    ].filter((link) => !isStandaloneAdmin || link.href === "/admin");
+    ];
 
     return (
         <aside className="hidden md:flex flex-col fixed left-0 top-0 h-full w-64 bg-[#1a1a1a] border-r border-white/10 z-50 shadow-2xl">
@@ -92,7 +73,6 @@ export function SideNav() {
                     <p className="font-black text-white text-sm leading-tight">Cremería</p>
                     <p className="text-gray-500 text-xs">del Rancho</p>
                 </div>
-                {!isStandaloneAdmin && (
                 <Link href="/cart" className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Carrito">
                     <ShoppingCart size={18} />
                     {cartCount > 0 && (
@@ -101,7 +81,6 @@ export function SideNav() {
                         </span>
                     )}
                 </Link>
-                )}
             </div>
 
             {/* Nav links -- los 3 portales */}
