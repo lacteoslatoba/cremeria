@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShoppingCart, User, LogOut, Bike, ShieldCheck } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -13,9 +14,10 @@ import { cn } from "@/lib/utils";
 // propia barra con la URL y el título -- eso es lo que se ve feo. Esa barra
 // es UI del navegador (el aviso neutro de "saliste del scope"): no se puede
 // tapar con CSS ni recolorear, es a propósito para que ningún sitio pueda
-// camuflarla. Se probo ocultar Cliente/Repartidor dentro de esa app para
-// evitarla, pero Mike los quiere siempre visibles (23/09: "esos no los
-// quites") -- se revierte, el precio es que clicarlos ahi muestra esa barra.
+// camuflarla. Mike quiere los 3 enlaces siempre visibles (23/09: "esos no
+// los quites"), así que en vez de ocultarlos, dentro de esa app instalada
+// Cliente/Repartidor/carrito abren en una ventana nueva del navegador
+// (target=_blank) -- la app de Admin se queda como está, sin esa barra.
 
 export function SideNav() {
     const pathname = usePathname();
@@ -24,6 +26,18 @@ export function SideNav() {
     const { user, logout } = useAuthStore();
     const mounted = useMounted();
     const cartCount = mounted ? items.reduce((a, i) => a + i.quantity, 0) : 0;
+
+    const [isStandaloneAdmin, setIsStandaloneAdmin] = useState(false);
+    useEffect(() => {
+        // Se difiere un tick para no hacer setState *síncrono* dentro del
+        // cuerpo del effect (regla react-hooks/set-state-in-effect).
+        const id = window.setTimeout(() => {
+            const standalone = window.matchMedia("(display-mode: standalone)").matches
+                || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+            setIsStandaloneAdmin(standalone && pathname.startsWith("/admin"));
+        }, 0);
+        return () => window.clearTimeout(id);
+    }, [pathname]);
 
     // Un visitante sin cuenta (catalogo abierto por WhatsApp, sin login) no
     // debe ver el switcher de portales -- "Control Panel" ahi es exactamente
@@ -73,7 +87,7 @@ export function SideNav() {
                     <p className="font-black text-white text-sm leading-tight">Cremería</p>
                     <p className="text-gray-500 text-xs">del Rancho</p>
                 </div>
-                <Link href="/cart" className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Carrito">
+                <Link href="/cart" target={isStandaloneAdmin ? "_blank" : undefined} rel={isStandaloneAdmin ? "noopener noreferrer" : undefined} className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Carrito">
                     <ShoppingCart size={18} />
                     {cartCount > 0 && (
                         <span className="absolute -top-1 -right-1 bg-primary text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full">
@@ -87,8 +101,13 @@ export function SideNav() {
             <nav className="flex-1 py-6 px-3 flex flex-col gap-1">
                 {links.map(({ href, icon: Icon, label }) => {
                     const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+                    // Control Panel (/admin) se queda en la misma ventana --
+                    // sigue dentro del scope de la app instalada de Admin.
+                    const abrirAparte = isStandaloneAdmin && href !== "/admin";
                     return (
                         <Link key={label} href={href}
+                            target={abrirAparte ? "_blank" : undefined}
+                            rel={abrirAparte ? "noopener noreferrer" : undefined}
                             className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all",
                                 active
