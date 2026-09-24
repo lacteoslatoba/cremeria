@@ -38,6 +38,10 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   turbopack: {},
+  // El botón/indicador "N" de Next.js dev (esquina inferior) es solo del
+  // modo desarrollo -- no existe en build de producción -- pero estorbaba
+  // en el simulador de telefono (simu.html) tapando la UI real.
+  devIndicators: false,
   // Escotilla para verificar el build de produccion SIN detener el dev server:
   //   $env:NEXT_DIST_DIR=".next-build"; npx next build --webpack
   // Sin esto el build y el dev comparten .next y se pisan (y el `prisma generate`
