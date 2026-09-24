@@ -1,14 +1,16 @@
 ﻿import type { Metadata } from "next";
 import { AdminLayout } from "@/components/layout/admin-layout";
 
-// Antes /admin tenía su propio manifest.json (scope "/admin", su propia app
-// "Cremería Admin" instalable aparte) -- eso hacía que Chrome abriera una
-// ventana nueva al entrar aquí desde el menú Cliente/Repartidor/Admin de la
-// app ya instalada, en vez de quedarse en la misma ventana como los otros
-// 2 portales. Ahora /admin usa el mismo manifest.json del resto del sitio
-// (heredado del layout raíz) para que los 3 portales vivan en una sola app.
+// /admin vuelve a tener su propio manifest.json (scope "/admin", app
+// instalable aparte) -- instruccion directa de Mike (23/09): quiere una
+// instalacion separada para el Admin, no compartir la misma app que abre en
+// el login de Cliente. El unico costo (documentado antes) es que si entras
+// aqui desde el menu Cliente/Repartidor de la app principal YA instalada,
+// Chrome abre una ventana nueva en vez de navegar en la misma -- aceptable
+// ahora porque la intencion es tener 2 apps separadas, no una sola.
 export const metadata: Metadata = {
     title: "Cremería Admin",
+    manifest: "/admin-manifest.json",
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
