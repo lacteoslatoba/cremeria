@@ -7,6 +7,20 @@ import { useAuthStore } from "@/lib/auth-store";
 import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
 
+// Una PWA instalada vive dentro del "scope" de su manifest: la app de
+// Control Panel declara scope "/admin" (public/admin-manifest.json). Cuando el
+// usuario sale de ese scope (Cliente, Repartidor o el carrito), el navegador
+// pone SU PROPIA barra arriba con la URL ("https://cremeriadelrancho.com") y el
+// título de la página -- es lo que se veía feo en la app instalada de admin
+// (reportado el 23/09). Esa barra es UI del navegador, no HTML nuestro: no se
+// puede ocultar con CSS ni con z-index. La única forma de que no aparezca es no
+// ofrecer esos enlaces cuando la app corre instalada.
+function correInstalada() {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(display-mode: standalone)").matches
+        || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+}
+
 export function SideNav() {
     const pathname = usePathname();
     const router = useRouter();
@@ -43,18 +57,30 @@ export function SideNav() {
     // Los 3 portales de la app -- cada uno exige su propio login al entrar
     // (Repartidor pide cuenta DELIVERY, Admin pide cuenta ADMIN), así que no
     // se expone nada por mostrarlos siempre.
-    const links = [
+    //
+    // Excepción (23/09): dentro de la app INSTALADA de Control Panel solo se
+    // muestra Control Panel. Es la única manera de que no salga la barra del
+    // navegador con la URL al cambiar de portal (ver correInstalada arriba).
+    // En el navegador normal se siguen viendo los 3, y en la app instalada de
+    // Cliente (scope "/") tampoco cambia nada: ahí Cliente y Repartidor sí
+    // pertenecen a esa app.
+    const portales = [
         { href: "/", icon: User, label: "Cliente" },
         { href: "/driver", icon: Bike, label: "Repartidor" },
         { href: "/admin", icon: ShieldCheck, label: "Control Panel" },
     ];
+    const soloPanel = mounted && correInstalada() && pathname.startsWith("/admin");
+    const links = soloPanel ? portales.filter((l) => l.href === "/admin") : portales;
 
     return (
         <aside className="hidden md:flex flex-col fixed left-0 top-0 h-full w-64 bg-[#1a1a1a] border-r border-white/10 z-50 shadow-2xl">
             {/* Logo -- el carrito ya no es uno de los 3 portales (Cliente/
                 Repartidor/Admin) de la nav de abajo, pero el cliente
                 comprando no debe perder el acceso rápido mientras navega
-                la tienda: se deja aquí, aparte, como icono chico. */}
+                la tienda: se deja aquí, aparte, como icono chico. En la app
+                instalada de Control Panel se oculta: /cart está fuera de su
+                scope y sacaría la barra del navegador (igual que los portales
+                de arriba). */}
             <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
                 <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/40">
                     <span className="text-white font-black text-lg">C</span>
@@ -63,17 +89,20 @@ export function SideNav() {
                     <p className="font-black text-white text-sm leading-tight">Cremería</p>
                     <p className="text-gray-500 text-xs">del Rancho</p>
                 </div>
-                <Link href="/cart" className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Carrito">
-                    <ShoppingCart size={18} />
-                    {cartCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-primary text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full">
-                            {cartCount > 9 ? "9+" : cartCount}
-                        </span>
-                    )}
-                </Link>
+                {!soloPanel && (
+                    <Link href="/cart" className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Carrito">
+                        <ShoppingCart size={18} />
+                        {cartCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-primary text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full">
+                                {cartCount > 9 ? "9+" : cartCount}
+                            </span>
+                        )}
+                    </Link>
+                )}
             </div>
 
-            {/* Nav links -- los 3 portales */}
+            {/* Nav links -- los 3 portales (en la app instalada de admin, solo
+                el de Control Panel: ver soloPanel arriba) */}
             <nav className="flex-1 py-6 px-3 flex flex-col gap-1">
                 {links.map(({ href, icon: Icon, label }) => {
                     const active = pathname === href || (href !== "/" && pathname.startsWith(href));
