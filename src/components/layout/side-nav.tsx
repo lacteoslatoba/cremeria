@@ -43,11 +43,15 @@ export function SideNav() {
     // login volver: un admin cerrando sesión debe quedarse en el login
     // oscuro de Control Panel, no caer en el genérico de Cliente -- se
     // sentía como "la app quedó expuesta otra vez" al ver el blanco normal
-    // justo después de cerrar el panel de seguridad.
+    // justo después de cerrar el panel de seguridad. Mismo caso para
+    // Repartidor (23/09): "no me saque a otra ventana" -- /driver ya
+    // muestra su propio login en cuanto `user` queda en null.
     const handleLogout = async () => {
-        const eraAdmin = user?.role === "ADMIN";
+        const rol = user?.role;
         await logout();
-        router.push(eraAdmin ? "/login?portal=admin" : "/login");
+        if (rol === "ADMIN") router.push("/login?portal=admin");
+        else if (rol === "DELIVERY") router.push("/driver");
+        else router.push("/login");
     };
 
     // Los 3 portales de la app -- cada uno exige su propio login al entrar

@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
 import { DriverLoginForm } from "@/components/auth/driver-login-form";
 import { Bike, MapPin, Package, LogOut, Loader2, Navigation, CheckCircle2, Radio } from "lucide-react";
@@ -47,7 +46,6 @@ function OrderCard({ order, action }: { order: DriverOrder; action: React.ReactN
 
 export default function DriverPage() {
     const { user, logout } = useAuthStore();
-    const router = useRouter();
 
     const [available, setAvailable] = useState<DriverOrder[]>([]);
     const [mine, setMine] = useState<DriverOrder[]>([]);
@@ -202,7 +200,7 @@ export default function DriverPage() {
                         {gpsActive ? "GPS activo" : "GPS inactivo"}
                     </div>
                     <button
-                        onClick={() => { logout(); router.push("/login"); }}
+                        onClick={() => logout()}
                         className="p-2.5 rounded-full bg-white/5 text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
                         title="Salir"
                     >
