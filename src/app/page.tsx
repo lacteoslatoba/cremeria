@@ -11,9 +11,6 @@ import styles from "./landing.module.css";
 // auth-guard.tsx) para que cargue igual para un visitante sin cuenta, un
 // buscador o una preview de WhatsApp/redes.
 //
-// Fotos pendientes: Mike mando 4 imagenes (hero/quesos/cremas/comidas) por
-// chat pero no llegaron como archivo a este equipo -- mientras tanto usan
-// el placeholder "Sin foto" que ya existe para productos sin imagen.
 export const metadata: Metadata = {
     title: "Cremeria del Rancho — Quesos, cremas y comidas diarias",
     description: "Cremeria del Rancho: quesos frescos y artesanales, cremas y comidas diarias hechas en casa. Descarga nuestra app y pide desde tu celular.",
@@ -84,7 +81,7 @@ export default function LandingPage() {
                             </div>
                         </div>
                         <div className={styles.heroImageWrap}>
-                            <img className={styles.heroImage} src="/product-placeholder.svg" alt="Quesos, cremas y comidas de Cremería del Rancho" width={1024} height={1024} />
+                            <img className={styles.heroImage} src="/landing/hero.jpg" alt="Quesos, cremas y comidas de Cremería del Rancho" width={1024} height={1024} />
                             <div className={styles.heroCard}>
                                 <strong>Comidas del día</strong>
                                 <span>Pregunta el menú por WhatsApp</span>
@@ -99,7 +96,7 @@ export default function LandingPage() {
                         <p className={styles.sectionSub}>Elaborados con leche fresca y el toque de siempre. Pide por pieza, por kilo o por encargo.</p>
                         <div className={styles.productsGrid}>
                             <article className={styles.productCard}>
-                                <img src="/product-placeholder.svg" alt="Tablero de quesos artesanales" width={1024} height={768} />
+                                <img src="/landing/quesos.jpg" alt="Tablero de quesos artesanales" width={1024} height={1024} />
                                 <div className={styles.productCardBody}>
                                     <h3>Quesos</h3>
                                     <ul className={styles.productTags}>
@@ -108,7 +105,7 @@ export default function LandingPage() {
                                 </div>
                             </article>
                             <article className={styles.productCard}>
-                                <img src="/product-placeholder.svg" alt="Crema fresca, jocoque, mantequilla y leche" width={1024} height={768} />
+                                <img src="/landing/cremas.jpg" alt="Crema fresca, jocoque, mantequilla y leche" width={1024} height={1024} />
                                 <div className={styles.productCardBody}>
                                     <h3>Cremas y lácteos</h3>
                                     <ul className={styles.productTags}>
@@ -135,7 +132,7 @@ export default function LandingPage() {
                             <a href={WHATSAPP_NEGOCIO} className={`${styles.btn} ${styles.btnGreen}`}>Pregunta el menú de hoy</a>
                         </div>
                         <div className={styles.comidasImage}>
-                            <img src="/product-placeholder.svg" alt="Comidas diarias caseras: tamales, quesadillas y salsas" width={1024} height={1024} />
+                            <img src="/landing/comidas.jpg" alt="Comidas diarias caseras: tamales, quesadillas y salsas" width={1024} height={1024} />
                         </div>
                     </div>
                 </section>
