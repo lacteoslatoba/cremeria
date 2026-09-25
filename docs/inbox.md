@@ -608,3 +608,37 @@ sí queda de esta investigación, y es lo importante:
 
 Ninguna de las dos está implementada: se le presentaron al usuario para que elija.
 
+
+---
+
+## [ ] 2026-09-23 · "Quise entrar en modo admin y parpadea el simu" — causa y arreglo (el simulador de teléfono)
+
+**Quien:** Cline, a peticion del usuario. "El simu" = `tools/simu.html` (el simulador de celular).
+
+**Causa (medida, no supuesta):** abierto **como archivo** (`file:///.../tools/simu.html`) el
+iframe que carga la app queda en **contexto de terceros** (el sitio del padre es `file://`, el
+del hijo `http://localhost:3000`), y ahí el navegador **no manda la cookie de sesión**
+(`SameSite=Lax`). La app se ve deslogueada, así que `/admin` rebota a `/login?portal=admin` y el
+loop se percibe como parpadeo. Prueba con Playwright (sesión de ADMIN inyectada) leyendo
+`/api/auth/me` **dentro del iframe**:
+
+| Cómo se abre | `/api/auth/me` dentro del iframe | Al picar "Admin" |
+|---|---|---|
+| archivo `file://` | `{"user":null}` (la cookie no viaja) | `/admin` -> `/login?portal=admin` = **parpadeo** |
+| `http://localhost:3000/simu` | `{"user":{"id":"...","name":"Mike",...}}` | `/admin` y **se queda ahí** |
+
+**Arreglo:**
+- `src/app/simu/route.ts` (commit `85cf030`, de la sesión paralela / Claude Code): sirve
+  `tools/simu.html` desde el propio dev server en `/simu` (solo en dev; en produccion es 404,
+  y ademas produccion manda `X-Frame-Options: DENY`, asi que ahi el simulador no embebe nada).
+  Al ser mismo origen, el iframe comparte la cookie y la sesion funciona como en una pestana.
+- `tools/simu.html` (commit `6d0b9cd`, mio): si se abre **como archivo**, ahora aparece abajo un
+  aviso rojo que explica el por que y trae el enlace directo a `http://localhost:<puerto>/simu`
+  (usa `FILE_DEFAULT_PORT`, hoy 3000). Servido en http el aviso no se muestra (verificado:
+  `display=flex` en `file://`, `display=none` en `/simu`).
+
+**Para el usuario:** abrir el simulador en **http://localhost:3000/simu** con el dev server
+corriendo (`npm run dev`). Así: login de Cliente/Repartidor/Admin se queda, y cambiar de app en
+el simulador ya no rebota. El archivo suelto (`double clic`) no puede funcionar en eso: el
+navegador bloquea la cookie por diseño, de ahí el aviso.
+
