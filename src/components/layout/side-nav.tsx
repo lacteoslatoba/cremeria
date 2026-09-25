@@ -32,6 +32,13 @@ export function SideNav() {
     // parpadeo de la barra apareciendo/desapareciendo.)
     if (!user) return null;
 
+    // La landing publica ("/") es una pagina de marketing sin chrome de la
+    // app -- si el navegador ya tiene sesion abierta de OTRO portal (p. ej.
+    // un repartidor que tambien visita cremeriadelrancho.com), la barra no
+    // debe aparecer encima del diseño de la landing (25/09, reportado por
+    // Mike con captura: se veia el sidebar de Pedro Ramos sobre la landing).
+    if (pathname === "/") return null;
+
     // El rol se lee ANTES de logout() (que limpia `user`) para saber a qué
     // login volver: un admin cerrando sesión debe quedarse en el login
     // oscuro de Control Panel, no caer en el genérico de Cliente -- se
