@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Download, Share, X } from "lucide-react";
 
 // Para cuando se reparte el link a muchos clientes: en vez de que cada quien
@@ -46,15 +46,29 @@ type BeforeInstallPromptEvent = Event & {
 
 export function InstallPrompt() {
     const pathname = usePathname();
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [show, setShow] = useState(false);
     const [platform, setPlatform] = useState<"android" | "ios" | null>(null);
 
+    // El boton "Descarga la app" de la landing (cremeriadelrancho.com) manda
+    // aqui con ?instalar=1 (25/09, pedido directo de Mike: "cuando le doy
+    // descargar la app me tiene que mandar al instalador"). No se puede
+    // llamar deferredPrompt.prompt() automaticamente desde este efecto --
+    // el navegador lo bloquea sin un gesto real del usuario -- asi que en
+    // vez de eso se fuerza el banner a la vista, saltandose el "ya lo
+    // cerraste antes" para que quede a un solo toque real de instalar.
+    const quiereInstalarYa = searchParams.get("instalar") === "1";
+
     useEffect(() => {
         if (esRutaNoCliente(pathname)) return;
         if (isStandalone()) return; // ya la tiene instalada -- no molestar
+
         let dismissed = false;
-        try { dismissed = !!window.localStorage.getItem("installPromptDismissed"); } catch { /* modo privado, etc. */ }
+        if (!quiereInstalarYa) {
+            try { dismissed = !!window.localStorage.getItem("installPromptDismissed"); } catch { /* modo privado, etc. */ }
+        }
         if (dismissed) return;
 
         if (isIOS()) {
@@ -77,7 +91,28 @@ export function InstallPrompt() {
         };
         window.addEventListener("beforeinstallprompt", handler);
         return () => window.removeEventListener("beforeinstallprompt", handler);
+        // quiereInstalarYa se lee una sola vez al montar a proposito -- no
+        // va en las dependencias: si entrara y luego cambiara (por la
+        // limpieza de la URL de abajo) este efecto se reiniciaria a medio
+        // vuelo y podria perder el evento "beforeinstallprompt" si ya se
+        // habia disparado.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pathname]);
+
+    // Limpia el "?instalar=1" de la URL una vez que ya se uso -- no debe
+    // quedar pegado en /tienda para siempre (reabriria el banner sin avisar
+    // en cada visita si el usuario guarda o comparte ese link).
+    useEffect(() => {
+        if (!quiereInstalarYa) return;
+        const id = window.setTimeout(() => {
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete("instalar");
+            const query = params.toString();
+            router.replace(query ? `${pathname}?${query}` : pathname);
+        }, 3000);
+        return () => window.clearTimeout(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [quiereInstalarYa]);
 
     const handleInstall = async () => {
         if (!deferredPrompt) return;

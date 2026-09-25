@@ -23,7 +23,7 @@ export function LandingMobileNav() {
                 <a href="#productos" onClick={() => setOpen(false)}>Productos</a>
                 <a href="#comidas" onClick={() => setOpen(false)}>Comidas diarias</a>
                 <a href="#contacto" onClick={() => setOpen(false)}>Contacto</a>
-                <Link href="/tienda" className={`${styles.btn} ${styles.btnTerra}`} onClick={() => setOpen(false)}>
+                <Link href="/tienda?instalar=1" className={`${styles.btn} ${styles.btnTerra}`} onClick={() => setOpen(false)}>
                     Descarga la app
                 </Link>
             </nav>

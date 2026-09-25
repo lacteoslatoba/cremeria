@@ -57,7 +57,7 @@ export default function LandingPage() {
                         <a href="#contacto">Contacto</a>
                     </nav>
                     <div className={styles.headerCta}>
-                        <Link href="/tienda" className={`${styles.btn} ${styles.btnTerra}`}>Descarga la app</Link>
+                        <Link href="/tienda?instalar=1" className={`${styles.btn} ${styles.btnTerra}`}>Descarga la app</Link>
                         <LandingMobileNav />
                     </div>
                 </div>
@@ -71,7 +71,7 @@ export default function LandingPage() {
                             <h1 className={styles.heroTitle}>El sabor auténtico del rancho, en tu mesa</h1>
                             <p className={styles.heroSub}>Quesos artesanales, cremas frescas y comidas diarias hechas con recetas de la casa. Todo lo rico, todo lo fresco, como se hace en el rancho.</p>
                             <div className={styles.heroActions}>
-                                <Link href="/tienda" className={`${styles.btn} ${styles.btnTerra} ${styles.btnLg}`}>📲 Descarga la app</Link>
+                                <Link href="/tienda?instalar=1" className={`${styles.btn} ${styles.btnTerra} ${styles.btnLg}`}>📲 Descarga la app</Link>
                                 <a href="#productos" className={`${styles.btn} ${styles.btnOutlineGreen} ${styles.btnLg}`}>Ver productos</a>
                             </div>
                             <div className={styles.heroPoints}>
@@ -142,7 +142,7 @@ export default function LandingPage() {
                         <h2>Lleva Cremería del Rancho en tu celular</h2>
                         <p>Con nuestra app puedes ver los productos, conocer el menú del día y hacer tus pedidos con un solo toque. ¡Descárgala gratis!</p>
                         <div className={styles.appBandActions}>
-                            <Link href="/tienda" className={`${styles.btn} ${styles.btnTerra} ${styles.btnLg}`}>📲 Descargar la app</Link>
+                            <Link href="/tienda?instalar=1" className={`${styles.btn} ${styles.btnTerra} ${styles.btnLg}`}>📲 Descargar la app</Link>
                             <a href={WHATSAPP_NEGOCIO} className={`${styles.btn} ${styles.btnOutlineLight} ${styles.btnLg}`}>Escríbenos por WhatsApp</a>
                         </div>
                     </div>

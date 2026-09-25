@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { SideNav } from "@/components/layout/side-nav";
@@ -102,7 +103,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                         {children}
                     </div>
 
-                    <InstallPrompt />
+                    <Suspense fallback={null}>
+                        <InstallPrompt />
+                    </Suspense>
                 </AuthGuard>
             </body>
         </html>
