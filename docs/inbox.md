@@ -609,6 +609,48 @@ sí queda de esta investigación, y es lo importante:
 Ninguna de las dos está implementada: se le presentaron al usuario para que elija.
 
 
+
+---
+
+## [ ] 2026-09-25 · Smoke test de toda la app (a pedido del usuario): 26/27 PASA + 1 bug real arreglado
+
+**Quien:** Cline, contra el dev server local (misma BD que produccion). Script temporal, ya borrado.
+
+**Resultado: 26 de 27 comprobaciones PASA.** La unica que mi script marcaba como FALLA era mi expectativa
+mal, no la app: /login?portal=admin con sesion de admin manda al panel (correcto) y sin sesion muestra
+el formulario oscuro (correcto); mi test esperaba el formulario en los dos casos y encima usaba
+`networkidle` en una pagina que precarga Stripe (nunca llega). Verificado aparte con la espera correcta.
+
+- **API:** `/api/auth/me` sin sesion -> user null; con admin -> role ADMIN; `/api/products` -> 9 productos;
+  `/api/orders/mine` sin sesion -> 401; `POST /api/orders` (efectivo) -> **201** con pedido real; `GET /api/orders`
+  (admin) lo incluye; `DELETE /api/orders/[id]` -> 401 sin sesion y 403 con cliente (no se puede);
+  `/api/business` -> 200; `/terminos`, `/aviso-privacidad`, `/simu` -> 200.
+- **UI cliente:** catalogo carga y el boton "+" agrega al carrito; `/cart`, `/checkout` y `/mis-pedidos`
+  cargan (y el pedido de prueba aparece con su folio).
+- **UI admin:** las 7 pestañas renderizan (Estado, Inventario, Pedidos, Ventas, Clientes, Repartidores,
+  Perfil); el pedido de prueba aparece en la lista y **el basurero lo borra** (valida el fix del 23/09).
+- **UI repartidor:** `/driver` con sesion DELIVERY carga su panel.
+
+**Bug real encontrado y arreglado (commit `bc2e85d`):** `/api/auth/me` compartia el cubo estricto de
+`/api/auth` (10/min por IP) y el AuthGuard lo pide en CADA carga de pagina. Medido con 14 GET seguidos:
+200 hasta el 10 y **429 desde el 11**; a partir de ahi `/login` mostraba "Algo salio mal" y el panel se
+quedaba sin sesion -- exactamente lo que pasa al probar la app rapido. Ahora `/me` usa el limite normal de
+API (120/min) y login/registro/recuperar conservan el estricto (verificado: `/me` 14/14 -> 200;
+`/api/auth/logout` sigue cortando).
+
+**Hallazgo de infraestructura (del entorno, no del codigo):** el pooler de Supabase (6543) rechaza
+conexiones nuevas a ratos (`P1001 Can't reach database server at aws-1-us-east-2.pooler.supabase.com:6543`):
+lo vi ~4 veces en la sesion y, en otra medicion, 8/8 intentos OK (reloj BD == local, ~21 conexiones
+abiertas, sin saturacion clara). La app lo muestra como la pantalla "Algo salio mal" (`error.tsx`).
+Agravante medido: **3 servidores dev de Next del mismo proyecto corriendo a la vez** (mas 2 proyectos
+distintos con vite) + scripts de prueba en paralelo. Recomendacion: dejar UN solo `npm run dev` de
+Cremeria; si sigue pasando, `?connection_limit=1` en `DATABASE_URL`, o que la app reintente/avise en vez
+de tirar la pantalla de error (tarea **T-0021**, prioridad baja).
+
+**Datos:** los 4 pedidos de prueba que dejo mi propio smoke test (checkouts abandonados `PENDING/PENDING`,
+se crean al abrir `/checkout` con carrito) quedaron borrados. En la BD solo queda 1 pedido, el de Mike
+probando (`WO73P1`, CANCELLED/REJECTED) y 4 usuarios. Sin restos mios.
+
 ---
 
 ## [ ] 2026-09-23 · "Quise entrar en modo admin y parpadea el simu" — causa y arreglo (el simulador de teléfono)
@@ -641,4 +683,37 @@ loop se percibe como parpadeo. Prueba con Playwright (sesión de ADMIN inyectada
 corriendo (`npm run dev`). Así: login de Cliente/Repartidor/Admin se queda, y cambiar de app en
 el simulador ya no rebota. El archivo suelto (`double clic`) no puede funcionar en eso: el
 navegador bloquea la cookie por diseño, de ahí el aviso.
+
+---
+
+## [ ] 2026-09-24 · Decision: una sola app, una sola sesion (no separar Cliente/Repartidor/Admin)
+
+**Quien:** Claude Code, a peticion directa del usuario ("no se le puede asignar una sesion a
+cada uno" / "y si hago 3 app... como le hace didi food" / "quiero tu consejo").
+
+**Pregunta del usuario:** por que entrar a Admin en una pestana lo saca de Cliente en otra
+pestana del mismo navegador, y si convendria separar Cliente/Repartidor/Admin en 3 apps/dominios
+distintos (como DiDi Food) para que cada uno tenga su propia sesion.
+
+**Respuesta dada (no es un bug):** un solo dominio = una sola cookie de sesion por navegador,
+asi funciona cualquier sitio web -- no es falla ni descuido. DiDi Food logra sesiones
+independientes porque sus 3 partes son **apps nativas separadas** (cada una con su propio
+almacenamiento aislado por el sistema operativo, no navegador), no paginas web en el mismo
+dominio. El equivalente web real seria 3 despliegues en 3 dominios -- factible pero:
+3 proyectos Vercel, 3 subdominios, variables de entorno repetidas, componentes duplicados o un
+paquete compartido, 3 pipelines. Ningun cliente o repartidor real lo necesita (cada uno solo usa
+su propio portal, nunca 2 a la vez); el unico que quiere las 3 sesiones simultaneas es el usuario
+mismo, probando.
+
+**Decision (recomendada por Claude Code, aceptada por el usuario):** dejar la arquitectura como
+esta -- una sola app, una sola sesion compartida por navegador, 3 zonas por rol (`/`, `/driver`,
+`/admin`). Para probar los 3 roles a la vez sin tocar codigo: usar ventanas de navegador
+separadas (normal + incognito, o perfiles distintos de Chrome) -- cada una tiene su propio cajon
+de cookies, cero riesgo, cero cambios.
+
+**No implementar salvo que cambie el contexto:** cookies separadas por portal (`cremeria_session_
+cliente/driver/admin`) tocaria `src/lib/auth.ts`, login, logout, y cada ruta que llama
+`requireAuth`/`readSession` en toda la app -- riesgo real en el mecanismo de seguridad a cambio
+de una conveniencia de pruebas que las ventanas del navegador ya resuelven gratis. Separar en 3
+apps/dominios solo se justificaria si el equipo crece y cada area necesita su propio despliegue.
 
