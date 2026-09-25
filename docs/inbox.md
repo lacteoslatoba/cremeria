@@ -717,3 +717,15 @@ cliente/driver/admin`) tocaria `src/lib/auth.ts`, login, logout, y cada ruta que
 de una conveniencia de pruebas que las ventanas del navegador ya resuelven gratis. Separar en 3
 apps/dominios solo se justificaria si el equipo crece y cada area necesita su propio despliegue.
 
+---
+
+## [ ] 2026-09-24 · Twilio/Meta (T-0006, T-0016, T-0017, T-0018) quedan en pausa
+
+**Quien:** usuario, directo.
+
+Las 4 tareas de Twilio (limite de 5 SMS/dia, subir a cuenta pagada) y Meta WhatsApp
+(verificacion de negocio para numero de produccion, plantilla de autenticacion) quedan
+en pausa por decision del usuario -- no son bloqueantes, el registro ya funciona con el
+numero de prueba de Meta + destinatarios agregados a mano. No retomar sin que el usuario
+lo pida.
+
