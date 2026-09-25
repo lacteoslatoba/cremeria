@@ -306,7 +306,7 @@ export default function TrackingPage() {
         <main className="min-h-[100dvh] bg-background text-foreground relative overflow-hidden">
             {/* Header */}
             <header className="absolute top-0 left-0 right-0 z-40 bg-transparent py-4 px-4 flex justify-between items-center max-w-[480px] mx-auto">
-                <Link href="/" className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white/90 hover:bg-black/60 transition-colors">
+                <Link href="/tienda" className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white/90 hover:bg-black/60 transition-colors">
                     <ChevronLeft size={24} />
                 </Link>
             </header>

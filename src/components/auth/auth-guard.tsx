@@ -41,16 +41,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
         // Rutas que SÍ exigen sesión.
         //
-        // "/" volvió a pedir cuenta (23/09, instruccion directa de Mike: "esa
-        // pantalla [login] es la que debe estar en cremeriadelrancho.com").
-        // Esto revierte la decision del 18/09 (navegar el catalogo sin cuenta,
-        // pensada para links de WhatsApp) -- si se vuelve a compartir el
-        // catalogo sin cuenta, seria necesario replantear esto de nuevo.
-        // "/" es exacta a proposito: con startsWith("/") haria match con
-        // CUALQUIER ruta (todas empiezan con "/"), incluyendo /terminos o
-        // /aviso-privacidad que deben seguir siendo publicas.
-        const RUTAS_CON_SESION = ["/cart", "/checkout", "/mis-pedidos", "/tracking", "/direccion"];
-        const pideSesion = pathname === "/" || RUTAS_CON_SESION.some((ruta) => pathname.startsWith(ruta));
+        // (25/09, instruccion directa de Mike): cremeriadelrancho.com ("/")
+        // pasa a ser una landing publica -- la tienda se movio a "/tienda" y
+        // ahi SI se sigue pidiendo cuenta (mismo criterio que antes tenia
+        // "/": revierte la decision del 18/09 de navegar el catalogo sin
+        // cuenta). "/" ya no exige sesion a proposito, para que la landing y
+        // su preview (WhatsApp/redes) carguen sin depender de auth.
+        const RUTAS_CON_SESION = ["/tienda", "/cart", "/checkout", "/mis-pedidos", "/tracking", "/direccion"];
+        const pideSesion = RUTAS_CON_SESION.some((ruta) => pathname.startsWith(ruta));
 
         if (!user && !isLogin && !isAdmin && !isDriver && !isForgotPassword && pideSesion) {
             router.push("/login?portal=cliente");

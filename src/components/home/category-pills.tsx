@@ -18,7 +18,7 @@ export function CategoryPills({ currentCategory }: { currentCategory?: string })
                     return (
                         <Link
                             key={category.id}
-                            href={isActive ? "/" : `/?category=${category.name}`}
+                            href={isActive ? "/tienda" : `/tienda?category=${category.name}`}
                             className="flex flex-col items-center gap-2 min-w-[70px] transition-transform active:scale-95 group"
                         >
                             <div className={cn(

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function AvisoPrivacidadPage() {
     return (
         <main className="mx-auto w-full max-w-2xl px-5 py-10 text-sm leading-relaxed">
-            <Link href="/" className="text-primary font-medium text-sm hover:underline">
+            <Link href="/tienda" className="text-primary font-medium text-sm hover:underline">
                 ← Volver a la tienda
             </Link>
             <h1 className="mt-6 text-2xl font-black">Aviso de Privacidad</h1>

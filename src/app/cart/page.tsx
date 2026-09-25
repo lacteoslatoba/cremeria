@@ -91,7 +91,7 @@ export default function CartPage() {
             {/* Header */}
             <header className="absolute top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/10 max-w-[480px] mx-auto hidden-scroll">
                 <div className="flex items-center h-16 px-4">
-                    <Link href="/" className="p-2 -ml-2 hover:bg-white/5 rounded-full transition-colors">
+                    <Link href="/tienda" className="p-2 -ml-2 hover:bg-white/5 rounded-full transition-colors">
                         <ChevronLeft size={24} />
                     </Link>
                     <h1 className="flex-1 text-center font-bold text-lg mr-6">Mi Carrito</h1>

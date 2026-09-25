@@ -1,54 +1,58 @@
-﻿import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { readSession, loadAuthUser } from "@/lib/auth";
-import { SearchBar } from "@/components/home/search-bar";
-import { CategoryPills } from "@/components/home/category-pills";
-import { SpecialOffers } from "@/components/home/special-offers";
-import { PopularItems } from "@/components/home/popular-items";
-import { BottomNav } from "@/components/layout/bottom-nav";
-import { HomeHeader } from "@/components/home/home-header";
+import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
+// Landing publica de cremeriadelrancho.com (25/09, instruccion directa de
+// Mike: "www.cremeriadelrancho.com va ser una pag web y de hay vas a poder
+// bajar la app de cliente"). La tienda real vive en /tienda -- esta pagina
+// no pide sesion (ver auth-guard.tsx) para que cargue igual para un
+// visitante sin cuenta, un buscador o una preview de WhatsApp/redes.
+export const metadata: Metadata = {
+    title: "Cremería del Rancho",
+    description: "Lo nuestro es calidad. Pide tus lácteos a domicilio.",
+};
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ category?: string, query?: string }> }) {
-  // AuthGuard (cliente) tambien redirige "/" sin sesion, pero ese chequeo
-  // corre DESPUES de montar -- se alcanzaba a ver un parpadeo del catalogo
-  // (o el spinner) antes de saltar a /login?portal=cliente. Este chequeo
-  // server-side redirige de una, sin parpadeo ni round-trip de mas (mismo
-  // patron que /admin).
-  const authUser = await loadAuthUser(await readSession({ headers: await headers() } as unknown as Request));
-  if (!authUser) {
-    redirect("/login?portal=cliente");
-  }
+export default function LandingPage() {
+    return (
+        <main className="min-h-[100dvh] flex flex-col items-center justify-center px-6 py-12 text-center gap-6 bg-white">
+            <Image
+                src="/icon.png"
+                alt="Cremería del Rancho"
+                width={96}
+                height={96}
+                className="rounded-2xl shadow-lg"
+                priority
+            />
 
-  const params = await searchParams;
-  const categoryFilter = params.category || undefined;
-  const queryFilter = params.query || undefined;
+            <div>
+                <h1 className="text-3xl font-black text-gray-900">Cremería del Rancho</h1>
+                <p className="mt-2 text-gray-500">Lo nuestro es calidad. Pide tus lácteos a domicilio.</p>
+            </div>
 
-  return (
-    <main className="min-h-[100dvh] pb-safe">
-      <HomeHeader />
+            <Link
+                href="/tienda"
+                className="mt-2 px-8 py-3.5 rounded-2xl bg-primary text-white font-bold text-lg shadow-lg shadow-primary/30 active:scale-[0.98] transition-transform"
+            >
+                Entrar a la tienda
+            </Link>
 
-      <SearchBar />
+            <p className="text-xs text-gray-400 max-w-xs">
+                Abre este link desde tu celular y usa &quot;Agregar a pantalla de inicio&quot; para instalar la app.
+            </p>
 
-      {/* Category Pills will navigate to /?category=name */}
-      <CategoryPills currentCategory={categoryFilter} />
-
-      {(!categoryFilter && !queryFilter) && <SpecialOffers />}
-
-      <PopularItems categoryFilter={categoryFilter} queryFilter={queryFilter} />
-
-      <footer className="px-5 py-6 mt-6 text-center text-xs text-gray-500 border-t border-gray-200 flex flex-col gap-1">
-        <span>© {new Date().getFullYear()} Cremería del Rancho. Todos los derechos reservados.</span>
-        <span className="flex items-center justify-center gap-3">
-          <Link href="/terminos" className="hover:underline text-gray-600">Términos</Link>
-          <span>·</span>
-          <Link href="/aviso-privacidad" className="hover:underline text-gray-600">Aviso de Privacidad</Link>
-        </span>
-      </footer>
-
-      <BottomNav />
-    </main>
-  );
+            <footer className="mt-10 flex flex-col items-center gap-2 text-xs text-gray-400">
+                <div className="flex items-center gap-4">
+                    <Link href="/terminos" className="hover:underline">Términos</Link>
+                    <span>·</span>
+                    <Link href="/aviso-privacidad" className="hover:underline">Aviso de Privacidad</Link>
+                </div>
+                <div className="flex items-center gap-4">
+                    <Link href="/driver" className="hover:underline">Repartidores</Link>
+                    <span>·</span>
+                    <Link href="/login?portal=admin" className="hover:underline">Control Panel</Link>
+                </div>
+                <span className="mt-2">© {new Date().getFullYear()} Cremería del Rancho. Todos los derechos reservados.</span>
+            </footer>
+        </main>
+    );
 }

@@ -55,7 +55,7 @@ export function DriverLoginForm() {
             router.push(
                 data.role === "ADMIN" ? "/admin"
                 : data.role === "DELIVERY" ? "/driver"
-                : "/"
+                : "/tienda"
             );
         } catch {
             setError("Ocurrió un error inesperado al conectar.");

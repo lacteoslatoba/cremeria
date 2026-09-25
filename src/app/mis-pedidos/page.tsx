@@ -200,7 +200,7 @@ function MyOrdersContent() {
     return (
         <main className="min-h-[100dvh] bg-background pb-24">
             <header className="sticky top-0 z-30 bg-background/90 backdrop-blur-md border-b border-border/10 px-4 py-4 flex items-center gap-3">
-                <Link href="/" className="p-2 -ml-2 hover:bg-white/5 rounded-full transition-colors">
+                <Link href="/tienda" className="p-2 -ml-2 hover:bg-white/5 rounded-full transition-colors">
                     <ChevronLeft size={24} />
                 </Link>
                 <div className="flex-1">
@@ -240,7 +240,7 @@ function MyOrdersContent() {
                     <div className="text-center py-16 text-gray-400 flex flex-col items-center gap-3">
                         <ClipboardList size={44} />
                         <p className="font-semibold">Aún no tienes pedidos</p>
-                        <Link href="/" className="text-primary font-semibold text-sm">Ir a la tienda</Link>
+                        <Link href="/tienda" className="text-primary font-semibold text-sm">Ir a la tienda</Link>
                     </div>
                 ) : (
                     <>

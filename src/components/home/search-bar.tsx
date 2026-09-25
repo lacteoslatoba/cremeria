@@ -33,8 +33,8 @@ export function SearchBar() {
         }
 
         // Prevent unnecessary push if nothing actually changed
-        const newUrl = `/?${params.toString()}`;
-        if (newUrl !== `/?${searchParams.toString()}`) {
+        const newUrl = `/tienda?${params.toString()}`;
+        if (newUrl !== `/tienda?${searchParams.toString()}`) {
             router.replace(newUrl, { scroll: false });
         }
     }, [debouncedValue, router, searchParams]);

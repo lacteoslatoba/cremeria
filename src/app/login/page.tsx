@@ -67,7 +67,7 @@ export default function LoginPage() {
         router.push(
             user.role === "ADMIN" ? "/admin"
             : user.role === "DELIVERY" ? "/driver"
-            : "/"
+            : "/tienda"
         );
     }, [user, router, searchParams]);
 
@@ -110,7 +110,7 @@ export default function LoginPage() {
             router.push(
                 data.role === "ADMIN" ? "/admin"
                 : data.role === "DELIVERY" ? "/driver"
-                : "/"
+                : "/tienda"
             );
         } catch (err) {
             setError("Ocurrió un error inesperado al conectar.");
@@ -149,7 +149,7 @@ export default function LoginPage() {
             }
 
             setUser(data);
-            router.push("/");
+            router.push("/tienda");
         } catch (err) {
             setError("Ocurrió un error inesperado al conectar.");
         } finally {
