@@ -39,11 +39,21 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     // abierto podia quedar bloqueado para crear otro pedido.
     let limiter: typeof authRatelimit | null = null;
 
-    if (pathname.startsWith("/api/auth")) {
+    // /api/auth/me es una LECTURA de la sesion que el AuthGuard hace en CADA
+    // carga de pagina. Metido en el cubo estricto de /api/auth (10/min por IP)
+    // un usuario normal -- o cualquiera probando la app y navegando rapido --
+    // llegaba al 429 en la pagina 11 y a partir de ahi las pantallas fallaban
+    // ("Algo salio mal" en /login, nav sin sesion) sin ninguna razon real.
+    // Medido el 23/09/2026 con 14 GET seguidos: 200 hasta el 10, 429 desde el
+    // 11. El limite estricto se queda donde SI protege de fuerza bruta: login,
+    // registro y recuperacion de contrasena.
+    const esLecturaDeSesion = pathname === "/api/auth/me";
+
+    if (pathname.startsWith("/api/auth") && !esLecturaDeSesion) {
         limiter = authRatelimit;
     } else if (pathname === "/api/orders" && request.method === "POST") {
         limiter = ordersRatelimit;
-    } else if (pathname.startsWith("/api/orders")) {
+    } else if (pathname.startsWith("/api/orders") || esLecturaDeSesion) {
         limiter = apiRatelimit;
     }
 
