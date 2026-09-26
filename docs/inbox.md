@@ -777,6 +777,20 @@ produccion fallo en `next/font` porque `npm audit fix` estaba escribiendo en `no
 al mismo tiempo; repetido en limpio, compila. Si ese error aparece: revisa que no haya otro
 `npm` corriendo.
 
+**Otro tropiezo del mismo tipo (para no perder tiempo la proxima vez):** `tsc` empezo a
+fallar con `TS2344 ... Type '"/driver"' is not assignable to type 'LayoutRoutes'` en
+`.next/dev/types/validator.ts`. No era del codigo: Next deja **dos generaciones de tipos**
+(`.next/dev/types` del dev server y `.next/types` de un build anterior) y al meterlas en el
+mismo programa de tsc chocan. Se arregla borrando la generacion vieja:
+`Remove-Item -Recurse -Force .next\\types` (o reiniciando el dev server). Si vuelve a pasar
+tras un build, es lo mismo.
+
+**Tambien:** el primer build de produccion lo lanzo un `set NEXT_DIST_DIR=.next-build && ...`
+mal citado y termino escribiendo en una carpeta llamada `.next-build ` (con un espacio al
+final, que Windows no deja borrar por su nombre). Se limpio, pero si reaparece:
+`[System.IO.Directory]::Delete('\\?\C:\\ruta\\.next-build ', $true)` — con el prefijo `\\?\`
+Windows respeta el espacio final.
+
 **Nota:** `src/app/driver/page.tsx` tiene cambios sin commitear que **no** son mios (un modal
 de codigo de entrega); los deje intactos y fuera del commit.
 

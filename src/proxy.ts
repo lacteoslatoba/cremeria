@@ -187,7 +187,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return response;
 }
 
-// Solo activar este middleware en rutas de API (no en paginas ni assets).
+// Solo activar el proxy en rutas de API (no en paginas ni assets).
 export const config = {
     matcher: ["/api/:path*"],
 };
