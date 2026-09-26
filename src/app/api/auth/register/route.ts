@@ -4,6 +4,16 @@ import bcrypt from "bcryptjs";
 import { requireAuth, signSession, setSessionCookie } from "@/lib/auth";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
 import type { Prisma, User } from "@prisma/client";
+import {
+    MAX_DIRECCION,
+    MAX_EMAIL,
+    MAX_IDENTIFICADOR,
+    MAX_NOMBRE,
+    MAX_PASSWORD,
+    MAX_TELEFONO,
+    MIN_PASSWORD,
+    dentroDeLimite,
+} from "@/lib/validators";
 
 // Serializa un usuario para responder, garantizando que NUNCA se expone el
 // hash ni el id interno del cliente de Stripe.
@@ -26,12 +36,37 @@ export async function POST(request: Request) {
         // son obligatorios para el registro público del cliente.
         // OJO: `address` solo se usa en el path de ADMIN (abajo, al crear
         // el User directo) -- el registro público no la pide.
-        const username = body.username || phone;
+        // El teléfono puede llegar como número desde un formulario interno: se
+        // normaliza a texto aquí para que el resto del handler no reviente en un
+        // .trim() (era un 500 feo en vez del error de validación que corresponde).
+        const phoneTexto = typeof phone === "string" ? phone.trim() : String(phone).trim();
+        const username = String(body.username || phoneTexto).trim().toLowerCase();
         const email = body.email;
         const address = body.address;
 
-        if (!phone || !password) {
+        if (!phone || !password || typeof password !== "string") {
             return NextResponse.json({ error: "El teléfono y contraseña son requeridos" }, { status: 400 });
+        }
+
+        // Techos de longitud y piso de contraseña ANTES de bcrypt y de la base.
+        // Sin esto, una "contraseña" de 10 MB se hasheaba completa (DoS por CPU
+        // regalado) y un nombre/dirección gigante entraba a Postgres tal cual.
+        // El mínimo de 6 es el mismo que ya pedía el restablecimiento.
+        if (
+            !dentroDeLimite(phoneTexto, MAX_TELEFONO) ||
+            !dentroDeLimite(password, MAX_PASSWORD) ||
+            !dentroDeLimite(name, MAX_NOMBRE) ||
+            !dentroDeLimite(email, MAX_EMAIL) ||
+            !dentroDeLimite(address, MAX_DIRECCION) ||
+            !dentroDeLimite(username, MAX_IDENTIFICADOR)
+        ) {
+            return NextResponse.json({ error: "Alguno de los datos excede la longitud permitida" }, { status: 400 });
+        }
+        if (password.length < MIN_PASSWORD) {
+            return NextResponse.json(
+                { error: `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres` },
+                { status: 400 }
+            );
         }
 
         // Registro público (sin sesión): SIEMPRE CUSTOMER. Solo un ADMIN ya
@@ -57,7 +92,7 @@ export async function POST(request: Request) {
         ];
 
         if (cleanEmail) orConditions.push({ email: cleanEmail });
-        if (phone) orConditions.push({ phone: phone });
+        if (phoneTexto) orConditions.push({ phone: phoneTexto });
 
         const existingUser = await prisma.user.findFirst({
             where: { OR: orConditions }
@@ -76,7 +111,7 @@ export async function POST(request: Request) {
                 data: {
                     name,
                     username: cleanUser,
-                    phone: phone || null,
+                    phone: phoneTexto || null,
                     email: cleanEmail || null,
                     address: address || null,
                     password: hashedPassword,
@@ -95,7 +130,7 @@ export async function POST(request: Request) {
         // en la primera entrega, cuando el repartidor lo contacta de verdad.
         const ip = clientIp(request);
         const throttledIp = rateLimit(`register-req-ip:${ip}`, 8, 15 * 60 * 1000);
-        const throttledPhone = rateLimit(`register-req-phone:${phone}`, 3, 15 * 60 * 1000);
+        const throttledPhone = rateLimit(`register-req-phone:${phoneTexto}`, 3, 15 * 60 * 1000);
         if (!throttledIp.allowed || !throttledPhone.allowed) {
             const retry = Math.max(throttledIp.retryAfterSeconds || 0, throttledPhone.retryAfterSeconds || 0);
             return NextResponse.json({ error: `Demasiados intentos. Intenta en ${retry}s.` }, { status: 429 });
@@ -105,7 +140,7 @@ export async function POST(request: Request) {
             data: {
                 name,
                 username: cleanUser,
-                phone,
+                phone: phoneTexto,
                 email: cleanEmail,
                 password: hashedPassword,
                 role: safeRole,

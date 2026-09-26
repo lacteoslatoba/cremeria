@@ -1,13 +1,28 @@
 import { NextResponse } from "next/server";
+import { randomInt } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
+import { MAX_IDENTIFICADOR } from "@/lib/validators";
+
+/** Deja solo los últimos 2 dígitos: el teléfono no se escribe completo en logs. */
+function enmascararTelefono(telefono: string): string {
+    const digitos = telefono.replace(/\D/g, "");
+    if (digitos.length <= 2) return "*".repeat(digitos.length);
+    return `${"*".repeat(digitos.length - 2)}${digitos.slice(-2)}`;
+}
 
 export async function POST(req: Request) {
     try {
         cleanupRateLimitBuckets();
         const { identifier } = await req.json();
 
-        if (!identifier || typeof identifier !== "string") {
+        if (typeof identifier !== "string" || identifier.trim() === "") {
+            return NextResponse.json({ error: "Identificador requerido" }, { status: 400 });
+        }
+        // Techo de longitud: el identificador entra a un OR de tres columnas y
+        // forma parte de la llave del rate limit; sin tope, un texto gigante es
+        // trabajo gratis para quien ataca.
+        if (identifier.length > MAX_IDENTIFICADOR) {
             return NextResponse.json({ error: "Identificador requerido" }, { status: 400 });
         }
 
@@ -40,8 +55,13 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: true, message: "Si el usuario existe, se ha enviado un código." });
         }
 
-        // Generate 6-digit code
-        const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+        // Generate 6-digit code.
+        // randomInt (CSPRNG del sistema), NO Math.random(): Math.random usa el
+        // generador xorshift128+ de V8, cuyo estado se puede reconstruir con unas
+        // pocas salidas — o sea, quien pidiera dos códigos podía predecir el
+        // tercero y restablecer una contraseña ajena. randomInt reparte los 6
+        // dígitos sin sesgo (el `% 900000` clásico sesgaba los primeros valores).
+        const resetToken = randomInt(100000, 1000000).toString();
 
         // Token expires in 15 minutes
         const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000);
@@ -79,11 +99,16 @@ export async function POST(req: Request) {
                 });
 
                 smsSent = true;
-                console.log(`[SMS] Enviado exitosamente a ${formattedPhone}`);
+                // Teléfono enmascarado: el log no es lugar para datos personales.
+                console.log(`[SMS] Enviado exitosamente a ${enmascararTelefono(formattedPhone)}`);
             } catch (twilioErr) {
                 console.error("[SMS ERROR] Error de Twilio:", twilioErr);
             }
-        } else {
+        } else if (process.env.NODE_ENV !== "production") {
+            // Solo en desarrollo: el código en el log es la única forma de probar
+            // el flujo sin SMS real. En producción esto JAMÁS se escribe (quien
+            // lea los logs del servidor podría restablecer cualquier contraseña),
+            // y tampoco en el cuerpo de la respuesta (ver abajo).
             console.log(`[SIMULATED SMS/EMAIL] Password reset code for ${identifier}: ${resetToken}`);
         }
 

@@ -719,6 +719,69 @@ apps/dominios solo se justificaria si el equipo crece y cada area necesita su pr
 
 ---
 
+## [ ] 2026-09-26 · Herramientas de testing y endurecimiento de seguridad (pedido directo del usuario)
+
+**Quien:** Cline, a peticion directa del usuario ("busca las herramientas para testing de la
+app y ponla muy fuerte en seguridad").
+
+**Resumen:** el repo no tenia ninguna prueba automatizada y la seguridad se verificaba a
+mano. Ahora hay tests de tres niveles que corren en segundos, 15 cambios de endurecimiento
+verificados con ellos, y el informe completo en **`docs/seguridad.md`** (ahi estan los
+pendientes con dueño). Tareas nuevas en la cola: **T-0022 a T-0027**.
+
+**Herramientas elegidas (y por que):**
+
+- **`node:test` + `tsx`** para unitarias — cero dependencias nuevas (Node 22 ya lo trae). Se
+  corre con `npm run test:unit`; el runner es `scripts/test-unit.mts` porque el
+  descubrimiento de Node solo reconoce `.js/.mjs/.cjs` (con `tests/unit/*.test.ts` responde
+  "0 tests", comprobado). **Ojo: los archivos de prueba van en `.ts`, no `.mts`** — con
+  `.mts` los carga el soporte nativo de tipos de Node y la interop truena con "does not
+  provide an export named".
+- **Playwright**, que ya estaba en `devDependencies` sin usarse. Se agrego el runner
+  (`@playwright/test`, dev). Proyecto `api` = seguridad por HTTP **sin navegador** (las que
+  de verdad atrapan permisos, filtraciones y frenos); proyecto `ui` = navegador de verdad.
+- **`npm audit`** como `npm run seguridad:deps` (0 criticos ahora; quedan 11 altos, todos en
+  cadenas de herramientas de desarrollo).
+
+**Verificacion (no es "lo probe una vez en el navegador"):**
+
+| Comando | Resultado |
+|---|---|
+| `npm run test:unit` | 22/22 |
+| `npm run test:e2e` (dev server) | 10 PASA + 1 omitida (la de produccion) |
+| `npm run test:e2e` (build de produccion en :3100, `E2E_PRODUCCION=1`) | **11/11** |
+| `npm run test:e2e:ui` (contra el build de produccion) | **4/4, 0 violaciones de CSP** |
+| `npm run check -- --todo` | **PASA (3/3)**: tsc, prisma validate, eslint 0 errores |
+| `next build --webpack` (a `.next-build`) | OK, 44/44 paginas |
+
+**Hallazgos que se arreglaron** (detalle y evidencia en `docs/seguridad.md`, seccion 3):
+CSP con `unsafe-eval` en produccion, sin HSTS/COOP/`X-DNS-Prefetch-Control`, `X-Powered-By`
+anunciando el framework, rate limit que solo cubria `/api/auth` y `/api/orders`,
+**codigo de recuperacion generado con `Math.random()`** (predecible = restablecer la
+contrasena de cualquiera), el codigo escrito en logs de produccion, sin techos de longitud
+(DoS por bcrypt), webhook sin firma devolviendo 500, cero defensa CSRF explicita, y
+**`next@16.1.6` con aviso critico de request smuggling en `rewrites()`** (esta app usa
+`rewrites()` para `/main`) → subido a 16.3.6 con pin exacto. De paso se migro
+`middleware.ts` a `proxy.ts` (Next 16 lo deprecaba) y se verifico con las pruebas.
+
+**Lo que NO se hizo y por que:** nada que despliegue, toque produccion o cambie lo que ve el
+cliente sin decision suya. Queda en la cola: verificar el dominio desplegado (T-0023),
+prueba real de pago con Stripe tras el cambio de CSP (T-0022), decision del prefijo
+`__Host-` y de la revocacion de sesiones (T-0024), extender la suite a flujos con sesion
+real —IDOR de pedidos— (T-0025), `unsafe-inline` con nonces (T-0027) y `next-pwa` 10.2.6
+(T-0026).
+
+**Aviso de entorno:** reinicie el dev server del puerto 3000 porque la actualizacion de
+`next` reemplazo `node_modules` (quedo corriendo de nuevo, en 16.3.6). El primer build de
+produccion fallo en `next/font` porque `npm audit fix` estaba escribiendo en `node_modules`
+al mismo tiempo; repetido en limpio, compila. Si ese error aparece: revisa que no haya otro
+`npm` corriendo.
+
+**Nota:** `src/app/driver/page.tsx` tiene cambios sin commitear que **no** son mios (un modal
+de codigo de entrega); los deje intactos y fuera del commit.
+
+---
+
 ## [ ] 2026-09-24 · Twilio/Meta (T-0006, T-0016, T-0017, T-0018) quedan en pausa
 
 **Quien:** usuario, directo.

@@ -2,17 +2,36 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
+import { MAX_IDENTIFICADOR, MAX_PASSWORD, MIN_PASSWORD, dentroDeLimite } from "@/lib/validators";
 
 export async function POST(req: Request) {
     try {
         cleanupRateLimitBuckets();
         const { identifier, code, newPassword } = await req.json();
 
-        if (!identifier || !code || !newPassword) {
+        if (
+            typeof identifier !== "string" ||
+            typeof code !== "string" ||
+            typeof newPassword !== "string" ||
+            !identifier.trim() ||
+            !code ||
+            !newPassword
+        ) {
             return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
         }
-        if (typeof newPassword !== "string" || newPassword.length < 6) {
-            return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 });
+        // Topes de longitud: el código de 6 dígitos forma parte del WHERE y la
+        // contraseña pasa por bcrypt, así que un texto enorme es CPU gratis para
+        // quien ataca. El techo del código es holgado (12) para no rechazar a
+        // nadie real que pegue el código con espacios o guiones.
+        if (
+            !dentroDeLimite(identifier, MAX_IDENTIFICADOR) ||
+            !dentroDeLimite(code, 12) ||
+            !dentroDeLimite(newPassword, MAX_PASSWORD)
+        ) {
+            return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
+        }
+        if (newPassword.length < MIN_PASSWORD) {
+            return NextResponse.json({ error: `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres` }, { status: 400 });
         }
 
         // Misma protección que /verify -- este endpoint es el que de verdad

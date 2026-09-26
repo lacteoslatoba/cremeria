@@ -12,6 +12,11 @@
 
 # testing
 /coverage
+# Artefactos de Playwright (traces/reportes locales, no se versionan)
+/test-results
+/playwright-report
+# Estado local de la ultima corrida de las suites e2e
+tests/.last-run.json
 
 # next.js
 /.next/

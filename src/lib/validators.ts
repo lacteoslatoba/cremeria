@@ -11,6 +11,34 @@ export const PAYMENT_METHODS = ["CASH", "STRIPE"] as const;
 export const PAYMENT_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
 export const ORDER_STATUSES = ["PENDING", "PREPARING", "OUT_FOR_DELIVERY", "COMPLETED", "CANCELLED"] as const;
 
+// ── Techos de longitud para lo que entra por la puerta de autenticación ──
+//
+// Por qué existen: sin techo, un atacante manda una "contraseña" de 10 MB y el
+// servidor la pasa por bcrypt (carísimo por diseño) antes de decir "no". Es un
+// DoS por CPU regalado, y en el caso del identificador además un `IN (...)`
+// gigante contra la base. Los topes son holgados a propósito: no molestan a
+// nadie real, solo cortan lo absurdo. El mínimo de contraseña (6) es el que ya
+// aplicaba el flujo de recuperación: se alinea aquí para que registro y reset
+// pidan lo mismo.
+export const MAX_IDENTIFICADOR = 200;
+export const MAX_PASSWORD = 200;
+export const MAX_NOMBRE = 120;
+export const MAX_TELEFONO = 30;
+export const MAX_EMAIL = 254;
+export const MAX_DIRECCION = 300;
+export const MIN_PASSWORD = 6;
+
+/** true si el valor es texto y no pasa del techo indicado. */
+export function dentroDeLimite(valor: unknown, max: number): boolean {
+    return typeof valor !== "string" || valor.length <= max;
+}
+
+/** Un identificador de login cabe en el techo si es texto y no está vacío. */
+export function identificadorValido(valor: unknown): valor is string {
+    return typeof valor === "string" && valor.trim() !== "" && valor.length <= MAX_IDENTIFICADOR;
+}
+
+
 const text = (v: unknown): string | undefined =>
     typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
 

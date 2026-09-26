@@ -10,9 +10,20 @@ export async function POST(request: Request) {
         const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
         const rawBody = await request.text();
 
-        if (!signature || !webhookSecret) {
-            console.error("[STRIPE_WEBHOOK] Falta firma o STRIPE_WEBHOOK_SECRET");
+        // Falta el secreto = configuración del servidor rota: 500 para que salte
+        // en el monitoreo y alguien lo arregle.
+        if (!webhookSecret) {
+            console.error("[STRIPE_WEBHOOK] Falta STRIPE_WEBHOOK_SECRET");
             return NextResponse.json({ error: "Webhook no configurado" }, { status: 500 });
+        }
+
+        // Petición sin firma: no viene de Stripe (bot, escáner, curl). Se responde
+        // 400 y no 500 a propósito -- antes este caso devolvía "error del
+        // servidor" y llenaba el monitoreo de ruido cada vez que alguien
+        // escaneaba la ruta.
+        if (!signature) {
+            console.warn("[STRIPE_WEBHOOK] Petición sin firma ignorada");
+            return NextResponse.json({ error: "Falta la firma" }, { status: 400 });
         }
 
         let event;

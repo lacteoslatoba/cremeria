@@ -26,7 +26,10 @@ type RatelimitResult = {
     pending: Promise<unknown>;
 };
 
-type MinimalRatelimit = {
+// Tipo mínimo que expone el limitador: lo que usa el middleware. Se exporta para
+// que el middleware y los tests no tengan que conocer los tipos internos de
+// @upstash/ratelimit (y para poder sustituirlo por un doble en pruebas).
+export type MinimalRatelimit = {
     limit: (key: string) => Promise<RatelimitResult>;
 };
 
@@ -65,6 +68,19 @@ function makeRatelimit(maxRequests: number, windowSeconds: number): MinimalRatel
 
 /** Auth (login/register): 10 intentos por minuto por IP. */
 export const authRatelimit = makeRatelimit(10, 60);
+
+/**
+ * Escrituras de autenticación (login, registro, recuperar contraseña): 5 por
+ * minuto por IP.
+ *
+ * Por qué una cubeta más apretada que `authRatelimit`: estas rutas son las
+ * únicas donde un atacante gana algo probando muchas veces (adivinar la
+ * contraseña o el código de 6 dígitos). 10/min todavía deja ~14 mil intentos
+ * al día por instancia; 5/min deja la fuerza bruta en un ruido inútil. Las
+ * LECTURAS de sesión (`/api/auth/me`) NO usan esta cubeta: se piden en cada
+ * carga de página y bloquearlas rompía la app (ver middleware.ts).
+ */
+export const authStrictRatelimit = makeRatelimit(5, 60);
 
 /** Creacion de ordenes: 5 por minuto por IP (anti-spam de pedidos). */
 export const ordersRatelimit = makeRatelimit(5, 60);

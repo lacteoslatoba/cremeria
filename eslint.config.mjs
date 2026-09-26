@@ -15,6 +15,9 @@ const eslintConfig = defineConfig([
     // Carpeta de build de produccion (NEXT_DIST_DIR=.next-build, ver
     // next.config.ts): es codigo compilado, no del repo.
     ".next-build/**",
+    // Resto de un build de verificacion anterior (mismo caso; lintaba ~500 archivos
+    // compilados y volvia `npm run check -- --todo` lentisimo).
+    ".next-build-check/**",
     // Herramientas de consola (Node en la raíz / carpeta scripts): son
     // utilidades operativas, no código de la app ni del bundle.
     "fetch.js",

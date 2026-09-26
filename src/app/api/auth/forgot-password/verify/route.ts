@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
+import { MAX_IDENTIFICADOR, dentroDeLimite } from "@/lib/validators";
 
 export async function POST(req: Request) {
     try {
         cleanupRateLimitBuckets();
         const { identifier, code } = await req.json();
 
-        if (!identifier || !code) {
+        if (typeof identifier !== "string" || typeof code !== "string" || !identifier.trim() || !code) {
+            return NextResponse.json({ error: "Identificador y código son requeridos" }, { status: 400 });
+        }
+        // Topes de longitud: el código entra en el WHERE contra la base y el
+        // identificador forma la llave del rate limit; sin techo, texto enorme es
+        // trabajo gratis para quien ataca.
+        if (!dentroDeLimite(identifier, MAX_IDENTIFICADOR) || !dentroDeLimite(code, 12)) {
             return NextResponse.json({ error: "Identificador y código son requeridos" }, { status: 400 });
         }
 
