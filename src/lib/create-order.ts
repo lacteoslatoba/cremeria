@@ -24,7 +24,7 @@ export function generateDeliveryCode(): string {
 // UTC-7 todo el año desde que Mexico quito el horario de verano en 2022 --
 // NO es la hora del servidor, que en Vercel corre en UTC).
 const ZONA_HORARIA_NEGOCIO = "America/Mazatlan";
-const HORA_APERTURA = 9;
+const HORA_APERTURA = 8;
 const HORA_CIERRE = 16;
 
 function horaActualDelNegocio(): number {
