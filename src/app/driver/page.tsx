@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuthStore } from "@/lib/auth-store";
 import { DriverLoginForm } from "@/components/auth/driver-login-form";
-import { Bike, MapPin, Package, LogOut, Loader2, Navigation, CheckCircle2, Radio } from "lucide-react";
+import { Bike, MapPin, Package, LogOut, Loader2, Navigation, CheckCircle2, Radio, X } from "lucide-react";
 
 type OrderItem = { id: string; quantity: number; product: { name: string } };
 type DriverOrder = {
@@ -54,6 +54,9 @@ export default function DriverPage() {
     const [gpsActive, setGpsActive] = useState(false);
     const watchIdRef = useRef<number | null>(null);
     const [mounted, setMounted] = useState(false);
+    const [codeModalOrderId, setCodeModalOrderId] = useState<string | null>(null);
+    const [codeInput, setCodeInput] = useState("");
+    const [codeError, setCodeError] = useState("");
 
     useEffect(() => setMounted(true), []);
 
@@ -132,7 +135,7 @@ export default function DriverPage() {
         }
     };
 
-    const updateStatus = async (orderId: string, status: string, deliveryCode?: string) => {
+    const updateStatus = async (orderId: string, status: string, deliveryCode?: string): Promise<string | null> => {
         setBusyId(orderId);
         try {
             const res = await fetch(`/api/orders/${orderId}`, {
@@ -142,22 +145,39 @@ export default function DriverPage() {
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
-                alert(data.error || "No se pudo actualizar el pedido");
+                return data.error || "No se pudo actualizar el pedido";
             }
             fetchOrders();
+            return null;
         } finally {
             setBusyId(null);
         }
     };
 
     // Al marcar como entregado, el repartidor debe capturar el código que el
-    // cliente le da. El servidor valida que coincida antes de confirmar la entrega.
+    // cliente le da. El servidor valida que coincida antes de confirmar la
+    // entrega. Antes esto era un window.prompt() (25/09, Mike: "esta muy
+    // feo y no ocupa poner el nombre de cremeriadelrancho.com") -- ahora es
+    // un modal propio, con el estilo oscuro/rojo del resto de la app.
     const handleComplete = (orderId: string) => {
-        const code = window.prompt(
-            "Pídele el código de entrega al cliente y escríbelo aquí:"
-        );
-        if (code === null) return; // el repartidor canceló
-        updateStatus(orderId, "COMPLETED", code.trim());
+        setCodeInput("");
+        setCodeError("");
+        setCodeModalOrderId(orderId);
+    };
+
+    const confirmarEntrega = async () => {
+        if (!codeModalOrderId) return;
+        const code = codeInput.trim();
+        if (!code) {
+            setCodeError("Escribe el código que te dio el cliente");
+            return;
+        }
+        const error = await updateStatus(codeModalOrderId, "COMPLETED", code);
+        if (error) {
+            setCodeError(error);
+            return;
+        }
+        setCodeModalOrderId(null);
     };
 
     if (!mounted) return null;
@@ -233,7 +253,10 @@ export default function DriverPage() {
                                                 order.status === "PREPARING" ? (
                                                     <button
                                                         disabled={busyId === order.id}
-                                                        onClick={() => updateStatus(order.id, "OUT_FOR_DELIVERY")}
+                                                        onClick={async () => {
+                                                            const error = await updateStatus(order.id, "OUT_FOR_DELIVERY");
+                                                            if (error) alert(error);
+                                                        }}
                                                         className="w-full flex items-center justify-center gap-2 bg-primary text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/30 disabled:opacity-60"
                                                     >
                                                         {busyId === order.id ? <Loader2 size={18} className="animate-spin" /> : <Navigation size={18} />}
@@ -287,6 +310,52 @@ export default function DriverPage() {
                     </>
                 )}
             </div>
+
+            {codeModalOrderId && (
+                <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+                    <div className="w-full max-w-sm bg-[#1a1a1a] border border-white/10 rounded-2xl p-5 shadow-2xl">
+                        <div className="flex items-center justify-between mb-1">
+                            <h2 className="text-white font-bold text-lg">Ingresar código</h2>
+                            <button
+                                onClick={() => setCodeModalOrderId(null)}
+                                aria-label="Cerrar"
+                                className="p-1.5 -mr-1.5 text-gray-400 hover:text-white"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-400 mb-4">Pídele al cliente el código de entrega y escríbelo aquí.</p>
+
+                        <input
+                            autoFocus
+                            inputMode="numeric"
+                            value={codeInput}
+                            onChange={(e) => { setCodeInput(e.target.value); setCodeError(""); }}
+                            onKeyDown={(e) => { if (e.key === "Enter") confirmarEntrega(); }}
+                            placeholder="Código de entrega"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-center text-lg font-bold tracking-widest placeholder:font-normal placeholder:tracking-normal placeholder:text-gray-500 outline-none focus:border-primary"
+                        />
+                        {codeError && <p className="text-red-400 text-xs font-semibold mt-2">{codeError}</p>}
+
+                        <div className="flex gap-3 mt-5">
+                            <button
+                                onClick={() => setCodeModalOrderId(null)}
+                                className="flex-1 py-3 rounded-xl font-bold text-gray-300 bg-white/5 hover:bg-white/10 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmarEntrega}
+                                disabled={busyId === codeModalOrderId}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary-hover transition-colors disabled:opacity-60"
+                            >
+                                {busyId === codeModalOrderId ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                                Confirmar entrega
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
