@@ -18,6 +18,29 @@ export function generateDeliveryCode(): string {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+// Horario de pedidos (25/09, instruccion directa de Mike): de 9am a 4pm --
+// fuera de ese rango no se acepta un pedido nuevo porque no se alcanza a
+// entregar el mismo dia. Hora de Baja California Sur (America/Mazatlan,
+// UTC-7 todo el año desde que Mexico quito el horario de verano en 2022 --
+// NO es la hora del servidor, que en Vercel corre en UTC).
+const ZONA_HORARIA_NEGOCIO = "America/Mazatlan";
+const HORA_APERTURA = 9;
+const HORA_CIERRE = 16;
+
+function horaActualDelNegocio(): number {
+    const formateador = new Intl.DateTimeFormat("en-US", {
+        timeZone: ZONA_HORARIA_NEGOCIO,
+        hour: "numeric",
+        hour12: false,
+    });
+    return Number(formateador.format(new Date()));
+}
+
+export function dentroDeHorario(): boolean {
+    const hora = horaActualDelNegocio();
+    return hora >= HORA_APERTURA && hora < HORA_CIERRE;
+}
+
 export async function createOrderWithStockCheck(params: {
     customerName?: string;
     // Ya no es obligatorio: la orden puede crearse sin ubicacion y
@@ -37,6 +60,13 @@ export async function createOrderWithStockCheck(params: {
     paymentStatus: string; // PENDING | APPROVED | REJECTED
 }) {
     const { items } = params;
+
+    if (!dentroDeHorario()) {
+        throw new OrderCreationError(
+            `Solo recibimos pedidos de ${HORA_APERTURA}:00 am a ${HORA_CIERRE - 12}:00 pm -- fuera de ese horario no alcanzamos a entregar el mismo día. Intenta de nuevo mañana.`,
+            400
+        );
+    }
 
     // Un carrito vacío llegaba hasta aquí y creaba una orden REAL con total 0
     // y sin renglones: Stripe después la rechazaba (el monto no llega al
