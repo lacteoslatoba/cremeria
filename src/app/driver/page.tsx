@@ -312,7 +312,7 @@ export default function DriverPage() {
             </div>
 
             {codeModalOrderId && (
-                <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="w-full max-w-sm bg-[#1a1a1a] border border-white/10 rounded-2xl p-5 shadow-2xl">
                         <div className="flex items-center justify-between mb-1">
                             <h2 className="text-white font-bold text-lg">Ingresar código</h2>
