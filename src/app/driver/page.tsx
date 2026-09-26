@@ -347,10 +347,10 @@ export default function DriverPage() {
                             <button
                                 onClick={confirmarEntrega}
                                 disabled={busyId === codeModalOrderId}
-                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary-hover transition-colors disabled:opacity-60"
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white text-center bg-primary hover:bg-primary-hover transition-colors disabled:opacity-60"
                             >
-                                {busyId === codeModalOrderId ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                                Confirmar entrega
+                                {busyId === codeModalOrderId ? <Loader2 size={18} className="shrink-0 animate-spin" /> : <CheckCircle2 size={18} className="shrink-0" />}
+                                <span>Confirmar entrega</span>
                             </button>
                         </div>
                     </div>
