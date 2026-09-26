@@ -90,6 +90,17 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <link rel="preconnect" href="https://api.stripe.com" />
                 <link rel="preconnect" href="https://m.stripe.network" />
                 <link rel="dns-prefetch" href="https://js.stripe.com" />
+                {/* 26/09: "ocupo que la app se instale en iPhone, no solo en
+                    Android". El metadata.appleWebApp de Next solo genera hoy
+                    el meta "mobile-web-app-capable" (el nombre nuevo, sin
+                    "apple-") -- Safari en iOS todavia se guia por el nombre
+                    viejo con el prefijo para abrir en modo standalone (sin
+                    la barra de direcciones) al agregar a la pantalla de
+                    inicio; sin este meta, el acceso directo abre como una
+                    pestaña normal de Safari, no como app. Se agrega a mano
+                    porque Next no expone control sobre el nombre exacto del
+                    meta que genera. */}
+                <meta name="apple-mobile-web-app-capable" content="yes" />
             </head>
             <body>
                 <AuthGuard>

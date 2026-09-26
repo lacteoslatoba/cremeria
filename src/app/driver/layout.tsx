@@ -7,6 +7,15 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Cremería Repartidor",
     manifest: "/driver-manifest.json",
+    // Sin esto, agregar /driver a la pantalla de inicio en iPhone mostraba
+    // "Cremeria del Rancho" (el titulo generico heredado de layout.tsx raiz)
+    // en vez de "Cremería Repartidor" -- Safari no usa <title> para el
+    // nombre del acceso directo, usa este meta aparte.
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: "default",
+        title: "Cremería Repartidor",
+    },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

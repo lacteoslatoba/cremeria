@@ -11,6 +11,13 @@ import { AdminLayout } from "@/components/layout/admin-layout";
 export const metadata: Metadata = {
     title: "Cremería Admin",
     manifest: "/admin-manifest.json",
+    // Mismo caso que /driver: sin esto, el acceso directo en iPhone se
+    // llamaba "Cremeria del Rancho" en vez de "Cremería Admin".
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: "default",
+        title: "Cremería Admin",
+    },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
