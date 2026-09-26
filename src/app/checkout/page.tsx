@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
-import { ChevronLeft, Loader2, CreditCard, CheckCircle2, AlertCircle, Banknote } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { consumePrefetchedStripeIntent } from "@/lib/stripe-prefetch";
 
@@ -36,12 +36,12 @@ declare global {
     interface Window { Stripe?: (publicKey: string) => StripeApi; }
 }
 
-// Métodos de pago: TARJETA (via Stripe Payment Element -- los datos de la
-// tarjeta nunca tocan nuestra página) y EFECTIVO contra entrega. Stripe es la
-// única pasarela de tarjeta; Conekta y Mercado Pago fueron eliminados del todo
-// (código y backend). Efectivo es el respaldo: no depende de ningún script de
-// terceros, así que si el celular de un cliente bloquea la pasarela de tarjeta
-// por lo que sea, siempre puede pagar en efectivo.
+// Solo pago con TARJETA (via Stripe Payment Element -- los datos de la
+// tarjeta nunca tocan nuestra página). Stripe es la única pasarela; Conekta y
+// Mercado Pago fueron eliminados del todo (código y backend). Efectivo se
+// quitó del checkout (25/09, instruccion directa de Mike: "en esta app todos
+// los pedidos son pago con tarjeta") -- ya no hay respaldo si Stripe no
+// carga, solo el botón "Reintentar".
 export default function CheckoutPage() {
     const router = useRouter();
     const { items, clearCart } = useCartStore();
@@ -57,9 +57,6 @@ export default function CheckoutPage() {
 
     const [mounted, setMounted] = useState(false);
     const [error, setError] = useState("");
-    const [method, setMethod] = useState<"CARD" | "CASH">("CARD");
-    const [cashSubmitting, setCashSubmitting] = useState(false);
-
     // Stripe (Payment Element)
     const [stripeSdkLoaded, setStripeSdkLoaded] = useState(false);
     const [stripeReady, setStripeReady] = useState(false);
@@ -483,58 +480,17 @@ export default function CheckoutPage() {
     // Monta el formulario de tarjeta de Stripe en cuanto Stripe.js termina de
     // cargar, solo si el cliente sigue en la pestaña de tarjeta.
     useEffect(() => {
-        if (method === "CARD" && stripeSdkLoaded && !stripeElementsRef.current) {
+        if (stripeSdkLoaded && !stripeElementsRef.current) {
             setupStripeCheckout();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [stripeSdkLoaded, method]);
+    }, [stripeSdkLoaded]);
 
-    // Efectivo: no depende de Stripe ni de ningún script externo -- crea el
-    // pedido directo y ya, el repartidor cobra en persona al entregar.
-    const handleCashPay = async () => {
-        // Mismo caso que el pago con tarjeta: sin productos no hay pedido que
-        // crear (antes se mandaba el POST con items: [] y nacía una orden de
-        // $0 en la base de datos, sin nada que cobrar).
-        if (items.length === 0) {
-            setError("Tu carrito está vacío. Agrega productos antes de continuar.");
-            return;
-        }
-
-        setCashSubmitting(true);
-        setError("");
-        try {
-            const res = await fetch("/api/orders", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    userId: user?.id,
-                    customerName: user?.name || user?.email || "Cliente",
-                    total,
-                    paymentMethod: "CASH",
-                    items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                setError(data.error || "No se pudo crear el pedido.");
-                setCashSubmitting(false);
-                return;
-            }
-            clearCart();
-            router.push(`/direccion/${data.id}`);
-        } catch {
-            setError("Error al crear el pedido. Verifica tu conexión e intenta de nuevo.");
-            setCashSubmitting(false);
-        }
-    };
-
-    // Carga el SDK de Stripe (única pasarela de tarjeta) cuando el cliente
-    // elige pagar con tarjeta.
+    // Carga el SDK de Stripe (única pasarela de tarjeta) al entrar al checkout.
     useEffect(() => {
-        if (method !== "CARD") return;
         loadStripeSDK();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [method]);
+    }, []);
 
     if (!mounted) return null;
 
@@ -563,37 +519,7 @@ export default function CheckoutPage() {
                 {/* spacer when error is shown */}
                 {error && <div className="h-14" />}
 
-                {/* Efectivo ya no se ofrece de entrada -- queda como respaldo
-                    silencioso de emergencia: solo aparece si Stripe no carga
-                    (ver los enlaces "¿Sigue sin cargar? -> Efectivo" más abajo,
-                    que llaman setMethod("CASH")). Por eso este selector solo
-                    se muestra una vez que method ya es "CASH" (para poder
-                    regresar a Tarjeta), nunca antes. */}
-                {method === "CASH" && (
-                    <div className="flex gap-2 p-1 rounded-2xl bg-white/5 border border-white/10">
-                        {/* Dentro de este bloque method siempre es "CASH" (es la
-                            condición que lo muestra) -- Efectivo queda resaltado
-                            como estado activo y "Añadir Tarjeta" es el botón para volver. */}
-                        <button
-                            onClick={() => { setMethod("CARD"); setError(""); }}
-                            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all text-gray-400"
-                        >
-                            <CreditCard size={16} /> Añadir Tarjeta
-                        </button>
-                        <button
-                            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all bg-green-600 text-white shadow-lg shadow-green-600/30"
-                        >
-                            <Banknote size={16} /> Efectivo
-                        </button>
-                    </div>
-                )}
-
-                {/* Los dos bloques quedan SIEMPRE montados (solo se ocultan con
-                    CSS) -- si el de tarjeta se desmontara al cambiar de pestaña,
-                    el mount() de Stripe truena porque busca un DOM que ya no
-                    existe (le puede tocar mientras el cliente ya cambió a
-                    Efectivo, ya que la carga del SDK sigue en segundo plano). */}
-                <div className={method === "CARD" ? "flex flex-col gap-5" : "hidden"}>
+                <div className="flex flex-col gap-5">
                     <div className="rounded-2xl bg-foreground/5 border border-foreground/10 p-5 flex flex-col gap-5">
                         <div className="flex justify-between items-center pb-4 border-b border-foreground/10">
                             <span className="font-semibold text-sm text-foreground/60 uppercase tracking-wide">Total a pagar</span>
@@ -645,38 +571,12 @@ export default function CheckoutPage() {
                             </p>
                         )}
 
-                        {method === "CARD" && !stripeReady && error && (
-                            <p className="text-center text-xs text-gray-500">
-                                ¿Sigue sin cargar? Cambia a <button onClick={() => { setMethod("CASH"); setError(""); }} className="text-green-400 font-bold underline">Efectivo</button> para completar tu pedido de todos modos.
-                            </p>
-                        )}
-
                         <p className="text-center text-xs text-gray-500 pb-2">
                             🔒 Tus datos se procesan de forma segura por Stripe. Nunca los guardamos.
                         </p>
                     </div>
                 </div>
 
-                <div className={method === "CASH" ? "flex flex-col gap-5" : "hidden"}>
-                    <div className="rounded-2xl bg-foreground/5 border border-foreground/10 p-5 flex flex-col gap-5">
-                        <div className="flex justify-between items-center pb-4 border-b border-foreground/10">
-                            <span className="font-semibold text-sm text-foreground/60 uppercase tracking-wide">Total a pagar</span>
-                            <span className="font-black text-2xl text-primary">${total.toFixed(2)}</span>
-                        </div>
-
-                        <div className="flex items-start gap-3 p-4 rounded-xl bg-green-600/10 border border-green-600/20">
-                            <Banknote size={20} className="text-green-400 shrink-0 mt-0.5" />
-                            <p className="text-sm text-gray-300">
-                                Pagas en efectivo directo al repartidor cuando te entregue tu pedido. Ten el monto exacto listo si puedes.
-                            </p>
-                        </div>
-
-                        <button onClick={handleCashPay} disabled={cashSubmitting}
-                            className="w-full py-4 rounded-2xl bg-green-600 text-white font-bold text-lg shadow-lg shadow-green-600/30 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
-                            {cashSubmitting ? <Loader2 className="animate-spin" size={22} /> : <><CheckCircle2 size={20} /> Confirmar pedido</>}
-                        </button>
-                    </div>
-                </div>
             </div>
             <BottomNav />
         </main>
