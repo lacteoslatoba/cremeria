@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, KeyRound, ShieldCheck, User, Trash2, Loader2, Download, Send } from "lucide-react";
+import { Search, Plus, KeyRound, ShieldCheck, User, Trash2, Loader2, Download } from "lucide-react";
 import { OrderDeleteButton } from "@/components/admin/order-delete-button";
 import { AssignDriver } from "@/components/admin/assign-driver";
 import { ProductActions } from "@/components/admin/product-actions";
@@ -178,60 +178,24 @@ const getPaymentStatusLabel = (paymentStatus: string) => {
     }
 };
 
-// Columna "Acción" simplificada -- sin menú de opciones. Solo dos colores:
+// Columna "Acción" simplificada -- sin menú de opciones. Solo tres colores:
 // naranja "Pendiente" (incluye Preparando/En camino, ya no se distingue
-// aquí) y verde "Entregado". La única acción manual que le toca al admin
-// es "Enviar a reparto" (Pendiente -> Preparando, lo que hace que el
-// pedido aparezca disponible para que un repartidor lo tome en /driver);
-// de ahí en adelante el repartidor mueve el pedido con su propia app hasta
-// Entregado (confirmando el código con el cliente) -- eso ya no requiere
-// nada del admin, el badge solo refleja lo que ya pasó.
-function DeliveryAction({ orderId, status }: { orderId: string; status: string }) {
-    const router = useRouter();
-    const [isSending, setIsSending] = useState(false);
-
-    const handleSendToDelivery = async () => {
-        setIsSending(true);
-        try {
-            const res = await fetch(`/api/orders/${orderId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: "PREPARING" }),
-            });
-            if (!res.ok) {
-                alert("No se pudo enviar a reparto");
-                return;
-            }
-            router.refresh();
-        } catch {
-            alert("Error de red al enviar a reparto");
-        } finally {
-            setIsSending(false);
-        }
-    };
-
+// aquí), verde "Entregado" y rojo "Cancelado". Ya no hay boton de "Enviar a
+// reparto" (25/09, instruccion directa de Mike: no le ve caso a ese paso
+// manual) -- un pedido con direccion confirmada queda disponible para
+// cualquier repartidor libre en /driver desde que se hace la compra, sin
+// que el admin tenga que soltarlo primero (ver /api/driver/orders y
+// /api/driver/orders/[orderId]/accept). De ahi en adelante el repartidor
+// mueve el pedido con su propia app hasta Entregado -- el admin ya no
+// participa, el badge solo refleja lo que ya paso.
+function DeliveryAction({ status }: { status: string }) {
     if (status === "COMPLETED") {
         return <span className="inline-block px-3 py-1.5 text-xs font-bold rounded-lg bg-green-100 text-green-700">Entregado</span>;
     }
     if (status === "CANCELLED") {
         return <span className="inline-block px-3 py-1.5 text-xs font-bold rounded-lg bg-red-100 text-red-700">Cancelado</span>;
     }
-    return (
-        <div className="flex items-center gap-2">
-            <span className="inline-block px-3 py-1.5 text-xs font-bold rounded-lg bg-orange-100 text-orange-700 whitespace-nowrap">Pendiente</span>
-            {status === "PENDING" && (
-                <button
-                    onClick={handleSendToDelivery}
-                    disabled={isSending}
-                    title="Marca el pedido como listo para que un repartidor lo pueda tomar"
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50 whitespace-nowrap"
-                >
-                    {isSending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                    Enviar a reparto
-                </button>
-            )}
-        </div>
-    );
+    return <span className="inline-block px-3 py-1.5 text-xs font-bold rounded-lg bg-orange-100 text-orange-700 whitespace-nowrap">Pendiente</span>;
 }
 
 // Tabla reutilizable de pedidos (se usa tanto para el pedido actual como el historial).
@@ -341,7 +305,7 @@ function OrderTable({
                             </td>
                             <td className="px-4 md:px-6 py-4">
                                 <div className="flex items-center justify-center gap-3">
-                                    <DeliveryAction orderId={order.id} status={order.status} />
+                                    <DeliveryAction status={order.status} />
                                     <OrderDeleteButton orderId={order.id} />
                                 </div>
                             </td>

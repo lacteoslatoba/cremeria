@@ -3,7 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
 // Returns two lists for the DELIVERY app:
-//  - available: PREPARING orders nobody has claimed yet
+//  - available: unclaimed orders with a confirmed address (PENDING o
+//    PREPARING -- 25/09, instruccion directa de Mike: ya no hace falta que
+//    el admin "suelte" el pedido a mano, queda disponible para cualquier
+//    repartidor libre desde que se hace la compra)
 //  - mine: orders claimed by this driver that are not finished
 // Solo un usuario con rol DELIVERY autenticado puede consultar pedidos de repartidor.
 export async function GET(request: Request) {
@@ -24,7 +27,7 @@ export async function GET(request: Request) {
 
         const [available, mine] = await Promise.all([
             prisma.order.findMany({
-                where: { status: "PREPARING", deliveryId: null, addressConfirmedAt: { not: null } },
+                where: { status: { in: ["PENDING", "PREPARING"] }, deliveryId: null, addressConfirmedAt: { not: null } },
                 include,
                 orderBy: { createdAt: "asc" },
             }),

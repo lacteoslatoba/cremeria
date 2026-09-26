@@ -5,6 +5,13 @@ import { requireAuth } from "@/lib/auth";
 // A driver self-claims an unassigned order. Uses updateMany with the
 // deliveryId:null guard so two drivers tapping "Aceptar" at the same time
 // can't both win the same order.
+//
+// Tambien deja el pedido en PREPARING al aceptarlo (25/09, instruccion de
+// Mike: ya no hay boton de "Enviar a reparto" en Admin) -- si seguia en
+// PENDING, este es el momento real en que alguien empieza a atenderlo, asi
+// que coincide con lo que ya le muestra al cliente ("Preparando" en
+// mis-pedidos/tracking) y con el filtro "mine" de arriba (PREPARING/
+// OUT_FOR_DELIVERY).
 export async function POST(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
     const auth = await requireAuth(request, ["DELIVERY"]);
     if (!auth.user) return auth.response;
@@ -19,8 +26,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ ord
         }
 
         const result = await prisma.order.updateMany({
-            where: { id: orderId, deliveryId: null, addressConfirmedAt: { not: null } },
-            data: { deliveryId: auth.user.id },
+            where: {
+                id: orderId,
+                deliveryId: null,
+                addressConfirmedAt: { not: null },
+                status: { in: ["PENDING", "PREPARING"] },
+            },
+            data: { deliveryId: auth.user.id, status: "PREPARING" },
         });
 
         if (result.count === 0) {
