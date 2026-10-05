@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { randomInt } from "crypto";
+import { enviarSms, textoCodigoWhatsApp } from "@/lib/notify";
 import { requireAuth, signSession, setSessionCookie } from "@/lib/auth";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
 import type { Prisma, User } from "@prisma/client";
@@ -121,19 +123,61 @@ export async function POST(request: Request) {
             return NextResponse.json(toSafeUser(newUser), { status: 201 });
         }
 
-        // Registro público: se crea la cuenta directo, sin verificación de
-        // telefono por codigo/WhatsApp -- se quito (ver PendingRegistration
-        // en el schema, que se quedo sin usar) porque en la practica
-        // dependia de cuentas trial de Twilio/Meta con restricciones que
-        // bloqueaban a clientes reales nuevos. El telefono se sigue usando
-        // como identificador de login; la confirmacion de que es real pasa
-        // en la primera entrega, cuando el repartidor lo contacta de verdad.
+        // Registro público: por defecto se crea la cuenta directo, sin
+        // verificación de telefono -- se quito el 22/09 porque dependia de
+        // cuentas trial de Twilio/Meta con restricciones que bloqueaban a
+        // clientes reales nuevos. El telefono se sigue usando como
+        // identificador de login; sin verificacion, la confirmacion de que
+        // es real pasa en la primera entrega. La verificacion por SMS vuelve
+        // con una variable de entorno (ver mas abajo).
         const ip = clientIp(request);
         const throttledIp = rateLimit(`register-req-ip:${ip}`, 8, 15 * 60 * 1000);
         const throttledPhone = rateLimit(`register-req-phone:${phoneTexto}`, 3, 15 * 60 * 1000);
         if (!throttledIp.allowed || !throttledPhone.allowed) {
             const retry = Math.max(throttledIp.retryAfterSeconds || 0, throttledPhone.retryAfterSeconds || 0);
             return NextResponse.json({ error: `Demasiados intentos. Intenta en ${retry}s.` }, { status: 429 });
+        }
+
+        // Activacion de cuenta por SMS (05/10, Mike: "el mensaje de activacion
+        // de usuario"). APAGADA por defecto: se prende con
+        // REGISTRO_VERIFICAR_TELEFONO=sms cuando la cuenta de Twilio ya sea
+        // pagada -- en Trial el SMS solo llega a numeros verificados a mano.
+        // Con la variable prendida no se crea el User todavia: se guarda un
+        // PendingRegistration y la cuenta nace en /api/auth/register/verify.
+        if (process.env.REGISTRO_VERIFICAR_TELEFONO === "sms") {
+            const code = randomInt(100000, 1000000).toString();
+            const sms = await enviarSms(phoneTexto, textoCodigoWhatsApp(code));
+
+            if (sms.numeroInvalido) {
+                return NextResponse.json(
+                    { error: "Ese teléfono no puede recibir mensajes. Revisa el número." },
+                    { status: 400 }
+                );
+            }
+
+            if (sms.entregado) {
+                const pendiente = {
+                    name,
+                    username: cleanUser,
+                    email: cleanEmail,
+                    password: hashedPassword,
+                    code,
+                    codeExpiry: new Date(Date.now() + 10 * 60 * 1000),
+                    attempts: 0,
+                };
+                await prisma.pendingRegistration.upsert({
+                    where: { phone: phoneTexto },
+                    create: { phone: phoneTexto, ...pendiente },
+                    update: pendiente,
+                });
+                return NextResponse.json({ verificar: true, phone: phoneTexto });
+            }
+
+            // Fallo de la CUENTA o del servicio (cupo, saldo, Twilio caido), no
+            // del numero: se sigue al alta directa de abajo. Ya paso dos veces
+            // que un proveedor caido dejo a todos los clientes sin poder
+            // registrarse; perder la verificacion un rato cuesta menos que eso.
+            console.warn("[REGISTRO] SMS de activacion no enviado, alta sin verificar:", sms.detalle);
         }
 
         const newUser = await prisma.user.create({

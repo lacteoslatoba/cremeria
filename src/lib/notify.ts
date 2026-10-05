@@ -26,8 +26,21 @@ export function formatMxPhoneWhatsApp(raw: string): string {
     return `+${cleaned}`;
 }
 
-export async function sendSms(phone: string, body: string): Promise<boolean> {
-    if (!phone) return false;
+// Codigos con los que Twilio dice que el problema es EL NUMERO (no existe, no
+// es celular, no recibe SMS) y no la cuenta ni el servicio. Quien llama los
+// distingue porque ahi si conviene pedirle al cliente que corrija el telefono.
+const CODIGOS_TWILIO_NUMERO_INVALIDO = new Set([21211, 21214, 21217, 21407, 21421, 21614]);
+
+export type ResultadoSms = {
+    entregado: boolean;
+    /** true cuando Twilio rechazo el numero en si (ver CODIGOS_TWILIO_NUMERO_INVALIDO). */
+    numeroInvalido: boolean;
+    detalle: string;
+};
+
+/** Igual que sendSms, pero dice POR QUE fallo (lo usa la activacion de cuenta). */
+export async function enviarSms(phone: string, body: string): Promise<ResultadoSms> {
+    if (!phone) return { entregado: false, numeroInvalido: false, detalle: "sin telefono" };
 
     if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER) {
         try {
@@ -39,15 +52,24 @@ export async function sendSms(phone: string, body: string): Promise<boolean> {
                 from: process.env.TWILIO_PHONE_NUMBER,
                 to: formatMxPhone(phone),
             });
-            return true;
+            return { entregado: true, numeroInvalido: false, detalle: "aceptado por Twilio" };
         } catch (err) {
             console.error("[SMS ERROR]", err);
-            return false;
+            const codigo = typeof err === "object" && err !== null && "code" in err ? Number((err as { code: unknown }).code) : NaN;
+            return {
+                entregado: false,
+                numeroInvalido: CODIGOS_TWILIO_NUMERO_INVALIDO.has(codigo),
+                detalle: err instanceof Error ? err.message : "error de Twilio",
+            };
         }
     }
 
     console.log(`[SIMULATED SMS] to ${phone}: ${body}`);
-    return false;
+    return { entregado: false, numeroInvalido: false, detalle: "sin proveedor configurado (modo simulado)" };
+}
+
+export async function sendSms(phone: string, body: string): Promise<boolean> {
+    return (await enviarSms(phone, body)).entregado;
 }
 
 // Proveedor de WhatsApp para los codigos de verificacion. Se elige con

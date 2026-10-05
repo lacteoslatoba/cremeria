@@ -45,6 +45,11 @@ export default function LoginPage() {
     const [regConfirmPassword, setRegConfirmPassword] = useState("");
     const [showRegPassword, setShowRegPassword] = useState(false);
     const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
+    // Paso "code": solo se llega si el servidor contesta `verificar: true`
+    // (activacion por SMS prendida con REGISTRO_VERIFICAR_TELEFONO). Con la
+    // variable apagada el registro sigue entrando directo, como siempre.
+    const [regStep, setRegStep] = useState<"form" | "code">("form");
+    const [regCode, setRegCode] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -145,6 +150,41 @@ export default function LoginPage() {
 
             if (!res.ok) {
                 setError(data.error || "Error al registrarse");
+                return;
+            }
+
+            // La cuenta todavía no existe: falta capturar el código del SMS.
+            if (data.verificar) {
+                setRegCode("");
+                setRegStep("code");
+                return;
+            }
+
+            setUser(data);
+            router.push("/tienda");
+        } catch (err) {
+            setError("Ocurrió un error inesperado al conectar.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyCode = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError("");
+
+        try {
+            const res = await fetch("/api/auth/register/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone: regPhone, code: regCode }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || "Error al verificar el código");
                 return;
             }
 
@@ -298,6 +338,47 @@ export default function LoginPage() {
                                         </button>
                                     </div>
                                 )}
+                            </form>
+                        ) : regStep === "code" ? (
+                            <form onSubmit={handleVerifyCode} className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
+                                <h2 className="text-xl font-bold text-[#2d2a28] mb-2 text-center">Verifica tu teléfono</h2>
+                                <p className="text-sm text-gray-500 text-center -mt-2">
+                                    Te enviamos un código por SMS al {regPhone}
+                                </p>
+
+                                <div className="space-y-1 text-left">
+                                    <label className="text-xs font-bold text-[#2d2a28] pl-1 uppercase tracking-wider">Código de 6 dígitos</label>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        required
+                                        autoFocus
+                                        maxLength={6}
+                                        placeholder="123456"
+                                        value={regCode}
+                                        onChange={(e) => setRegCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-[#2d2a28] placeholder:text-gray-400 font-medium text-center text-2xl tracking-[0.5em]"
+                                    />
+                                </div>
+
+                                {error && (
+                                    <div className="bg-red-50 text-red-600 font-medium text-sm p-3 rounded-lg text-center border border-red-200 backdrop-blur-md">
+                                        {error}
+                                    </div>
+                                )}
+
+                                <button type="submit" disabled={loading} className="relative group w-full cursor-pointer items-center justify-center rounded-xl h-14 px-8 flex bg-primary text-white text-base font-bold leading-normal tracking-wide shadow-xl shadow-primary/30 transition-all active:scale-[0.98] mt-2">
+                                    {loading ? <Loader2 size={24} className="animate-spin" /> : "VERIFICAR"}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setRegStep("form"); setRegCode(""); setError(""); }}
+                                    className="text-sm text-primary hover:text-primary-hover font-bold transition-colors underline decoration-2 underline-offset-4 text-center"
+                                >
+                                    Volver
+                                </button>
                             </form>
                         ) : (
                             <form onSubmit={handleRegister} className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
