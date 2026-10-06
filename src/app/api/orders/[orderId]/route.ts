@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { notifyOrderStatus } from "@/lib/notify";
 import { requireAuth, readSession } from "@/lib/auth";
 import { ORDER_STATUSES } from "@/lib/validators";
+import { getStripe, reconcileStripeOrder } from "@/lib/stripe";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
     const auth = await requireAuth(request, ["ADMIN", "DELIVERY"]);
@@ -151,6 +152,35 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ o
 
     try {
         const { orderId } = await params;
+
+        // Un pedido PENDING con PaymentIntent puede estar ABIERTO en el checkout
+        // de un cliente en este momento. El 05/10 se borro uno asi desde el
+        // panel y 26 s despues el cliente pago: Stripe cobro $12 de un pedido
+        // que ya no existia. Antes de borrar se cancela el intento en Stripe
+        // (el checkout abierto ya no puede cobrar); si el pago ya entro o esta
+        // en proceso, el pedido NO se borra.
+        const existente = await prisma.order.findUnique({
+            where: { id: orderId },
+            select: { paymentStatus: true, stripePaymentIntentId: true },
+        });
+        if (existente?.paymentStatus === "PENDING" && existente.stripePaymentIntentId) {
+            const stripe = getStripe();
+            let intent = await stripe.paymentIntents.retrieve(existente.stripePaymentIntentId);
+            if (intent.status !== "succeeded" && intent.status !== "processing" && intent.status !== "canceled") {
+                // Si el cliente paga justo ahora, cancelar falla: se relee el estado real.
+                intent = await stripe.paymentIntents
+                    .cancel(intent.id)
+                    .catch(() => stripe.paymentIntents.retrieve(intent.id));
+            }
+            if (intent.status !== "canceled") {
+                await reconcileStripeOrder(orderId);
+                revalidatePath("/admin/orders");
+                return NextResponse.json(
+                    { error: "Este pedido se está pagando o ya se pagó: no se puede borrar. Actualiza la lista." },
+                    { status: 409 }
+                );
+            }
+        }
 
         const deletedOrder = await prisma.$transaction(async (tx) => {
             const items = await tx.orderItem.findMany({ where: { orderId } });

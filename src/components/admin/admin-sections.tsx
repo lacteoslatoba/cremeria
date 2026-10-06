@@ -426,6 +426,8 @@ export function AdminOrders({ orders }: { orders: OrderRow[] }) {
                 setBulkError(
                     status === 401
                         ? "Tu sesión ya no es válida. Vuelve a entrar al Control Panel."
+                        : status === 409
+                        ? `${failed.length} de ${ids.length} pedidos no se eliminaron porque se están pagando o ya se pagaron.`
                         : `No se pudieron eliminar ${failed.length} de ${ids.length} pedidos. Intenta de nuevo.`
                 );
             }

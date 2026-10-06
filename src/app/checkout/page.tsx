@@ -444,6 +444,17 @@ export default function CheckoutPage() {
             });
             const order = await res.json();
 
+            // Si el servidor no pudo verificar (pedido borrado, error), antes
+            // caia en "sigue en proceso" y el cliente se quedaba esperando
+            // algo que no iba a pasar -- aunque el cargo ya se hubiera hecho.
+            if (!res.ok) {
+                setError(
+                    "No pudimos confirmar tu pedido. No vuelvas a pagar: si se hizo un cargo a tu tarjeta, comunícate con nosotros para revisarlo."
+                );
+                setStripeSubmitting(false);
+                return;
+            }
+
             if (order.paymentStatus === "APPROVED") {
                 clearCart();
                 router.push(`/direccion/${order.id}`);
