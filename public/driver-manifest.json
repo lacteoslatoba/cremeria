@@ -9,14 +9,14 @@
     "theme_color": "#f20d18",
     "icons": [
         {
-            "src": "/icon-driver.jpg",
+            "src": "/icon-driver-192.png",
             "sizes": "192x192",
-            "type": "image/jpeg"
+            "type": "image/png"
         },
         {
-            "src": "/icon-driver.jpg",
+            "src": "/icon-driver-512.png",
             "sizes": "512x512",
-            "type": "image/jpeg"
+            "type": "image/png"
         }
     ]
 }
