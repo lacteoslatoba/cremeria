@@ -676,6 +676,36 @@ export function AdminDrivers({ drivers }: { drivers: (DbUser & { _count?: { deli
             <div className="flex justify-end mb-6">
                 <AddDriverButton />
             </div>
+
+            {/* QR para instalar la app de Repartidor (05/10, pedido de Mike): va
+                aqui porque es donde se da de alta al repartidor -- se crea la
+                cuenta y ahi mismo escanea el codigo desde su celular. La imagen
+                es fija (public/qr-repartidor.png) porque el enlace no cambia. */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-6 flex flex-col sm:flex-row items-center gap-5">
+                <img
+                    src="/qr-repartidor.png"
+                    alt="Código QR para instalar la app de Repartidor"
+                    width={160}
+                    height={160}
+                    className="w-40 h-40 shrink-0 rounded-xl border border-gray-100"
+                />
+                <div className="text-center sm:text-left">
+                    <h3 className="font-bold text-gray-900">Instalar la app de Repartidor</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                        El repartidor escanea este código con la cámara de su celular, toca “Instalar” y entra con el usuario y
+                        la contraseña que le diste de alta aquí.
+                    </p>
+                    <p className="text-xs text-gray-400 mt-2 break-all">cremeriadelrancho.com/driver</p>
+                    <a
+                        href="/qr-repartidor.png"
+                        download="qr-app-repartidor.png"
+                        className="inline-block mt-3 text-sm font-bold text-primary underline decoration-2 underline-offset-4"
+                    >
+                        Descargar el código para imprimir
+                    </a>
+                </div>
+            </div>
+
             <AdminDriversTable
                 drivers={drivers.map((d) => ({
                     id: d.id,
