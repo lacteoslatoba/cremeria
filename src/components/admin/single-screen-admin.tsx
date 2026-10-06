@@ -23,7 +23,7 @@ const TABS: { key: AdminTab; label: string; icon: LucideIcon; title: string; sub
     { key: "sales", label: "Ventas", icon: History, title: "Historial de Ventas", subtitle: "Registro de ventas finalizadas y pedidos cancelados." },
     { key: "customers", label: "Clientes", icon: Users, title: "Directorio de Clientes", subtitle: "Visualiza los clientes que se han registrado en tu tienda." },
     { key: "drivers", label: "Repartidores", icon: Bike, title: "Repartidores", subtitle: "Da de alta a tus repartidores y revisa quién está en línea." },
-    { key: "profile", label: "Perfil", icon: Store, title: "Perfil del negocio", subtitle: "Nombre, teléfono, dirección y ubicación del negocio." },
+    { key: "profile", label: "Perfil", icon: Store, title: "Perfil del negocio", subtitle: "Horario de pedidos, nombre, teléfono, dirección y ubicación del negocio." },
 ];
 
 type SingleScreenAdminProps = {

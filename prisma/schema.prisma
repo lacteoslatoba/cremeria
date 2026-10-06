@@ -146,6 +146,10 @@ model Business {
   address    String?
   addressLat Float?
   addressLng Float?
+  // Horario de pedidos, en minutos desde medianoche (hora del negocio,
+  // America/Mazatlan). El admin lo mueve desde Perfil; ver src/lib/horario.ts.
+  aperturaMin Int     @default(480) // 8:00 am
+  cierreMin   Int     @default(960) // 4:00 pm
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }

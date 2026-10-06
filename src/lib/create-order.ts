@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { APERTURA_POR_DEFECTO, CIERRE_POR_DEFECTO, dentroDeHorario, horaLegible, type Horario } from "@/lib/horario";
 
 export class OrderCreationError extends Error {
     status: number;
@@ -18,27 +19,17 @@ export function generateDeliveryCode(): string {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-// Horario de pedidos (25/09, instruccion directa de Mike): de 9am a 4pm --
-// fuera de ese rango no se acepta un pedido nuevo porque no se alcanza a
-// entregar el mismo dia. Hora de Baja California Sur (America/Mazatlan,
-// UTC-7 todo el año desde que Mexico quito el horario de verano en 2022 --
-// NO es la hora del servidor, que en Vercel corre en UTC).
-const ZONA_HORARIA_NEGOCIO = "America/Mazatlan";
-const HORA_APERTURA = 8;
-const HORA_CIERRE = 16;
-
-function horaActualDelNegocio(): number {
-    const formateador = new Intl.DateTimeFormat("en-US", {
-        timeZone: ZONA_HORARIA_NEGOCIO,
-        hour: "numeric",
-        hour12: false,
+// Horario de pedidos (25/09, instruccion directa de Mike): fuera de ese rango
+// no se acepta un pedido nuevo porque no se alcanza a entregar el mismo dia.
+// Desde el 05/10 ya no es fijo: el admin lo mueve desde Perfil (p. ej. cerrar
+// mas tarde un dia de mucha venta) y se guarda en la fila unica de Business.
+// Sin fila todavia, aplica el de siempre (8 am a 4 pm).
+async function horarioDePedidos(): Promise<Horario> {
+    const negocio = await prisma.business.findUnique({
+        where: { id: "default" },
+        select: { aperturaMin: true, cierreMin: true },
     });
-    return Number(formateador.format(new Date()));
-}
-
-export function dentroDeHorario(): boolean {
-    const hora = horaActualDelNegocio();
-    return hora >= HORA_APERTURA && hora < HORA_CIERRE;
+    return negocio ?? { aperturaMin: APERTURA_POR_DEFECTO, cierreMin: CIERRE_POR_DEFECTO };
 }
 
 export async function createOrderWithStockCheck(params: {
@@ -61,9 +52,10 @@ export async function createOrderWithStockCheck(params: {
 }) {
     const { items } = params;
 
-    if (!dentroDeHorario()) {
+    const horario = await horarioDePedidos();
+    if (!dentroDeHorario(horario)) {
         throw new OrderCreationError(
-            `Solo recibimos pedidos de ${HORA_APERTURA}:00 am a ${HORA_CIERRE - 12}:00 pm -- fuera de ese horario no alcanzamos a entregar el mismo día. Intenta de nuevo mañana.`,
+            `Solo recibimos pedidos de ${horaLegible(horario.aperturaMin)} a ${horaLegible(horario.cierreMin)} -- fuera de ese horario no alcanzamos a entregar el mismo día. Intenta de nuevo mañana.`,
             400
         );
     }

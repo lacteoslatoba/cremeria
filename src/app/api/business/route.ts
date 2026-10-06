@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { parseJsonBody, handleRoute, HttpError } from "@/lib/http";
+import { horarioValido } from "@/lib/horario";
 
 // Fila única del negocio: id fijo "default" para que solo exista un registro
 // (datos de la tienda: nombre, teléfono, dirección y ubicación precisa). Se
@@ -69,4 +70,26 @@ export async function PUT(request: Request) {
 
         return business;
     }, "business/put");
+}
+
+// PATCH solo ADMIN: mueve UNICAMENTE el horario de pedidos. Va aparte del PUT
+// porque ese reescribe todo el perfil (telefono/direccion quedan en null si no
+// vienen), y cambiar la hora de cierre un dia de mucha venta no debe tocar nada mas.
+export async function PATCH(request: Request) {
+    return handleRoute(async () => {
+        const auth = await requireAuth(request, ["ADMIN"]);
+        if (!auth.user) return auth.response;
+
+        const { aperturaMin, cierreMin } = await parseJsonBody<{ aperturaMin?: unknown; cierreMin?: unknown }>(request);
+        if (!horarioValido(aperturaMin, cierreMin)) {
+            throw new HttpError("Horario inválido: la hora de cierre debe ser después de la de apertura.", 400);
+        }
+        const horario = { aperturaMin: aperturaMin as number, cierreMin: cierreMin as number };
+
+        return prisma.business.upsert({
+            where: { id: BUSINESS_ID },
+            update: horario,
+            create: { id: BUSINESS_ID, ...horario },
+        });
+    }, "business/patch");
 }

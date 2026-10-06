@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Save, Store, Phone, MapPin, CheckCircle2 } from "lucide-react";
 import { LocationPicker } from "@/components/checkout/location-picker";
+import { HorarioForm } from "@/components/admin/horario-form";
 import type { Business } from "@prisma/client";
 
 // Formulario de "Perfil" del negocio: nombre, teléfono, dirección y la
@@ -90,6 +91,9 @@ export function ProfileForm({ business }: { business: Business | null }) {
 
     return (
         <div className="flex flex-col gap-6 w-full">
+            {/* Horario de pedidos: va primero porque es lo que se mueve seguido */}
+            <HorarioForm business={business} />
+
             {/* Datos del negocio */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6">
                 <h3 className="font-bold text-gray-900 mb-5">Datos del negocio</h3>
