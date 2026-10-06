@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { signSession, setSessionCookie } from "@/lib/auth";
 import { rateLimit, cleanupRateLimitBuckets, clientIp } from "@/lib/rate-limit";
 import { variantesIdentificador } from "@/lib/telefono";
-import { MAX_IDENTIFICADOR, MAX_PASSWORD } from "@/lib/validators";
+import { MAX_IDENTIFICADOR, MAX_PASSWORD, repartidorDesactivado } from "@/lib/validators";
 
 // Serializa un usuario para responder, garantizando que NUNCA se expone el hash
 // ni los ids internos de la pasarela de pagos (no son secretos, pero tampoco
@@ -89,6 +89,16 @@ export async function POST(request: Request) {
         // filtra al exterior cuáles cuentas existen (antes ya era así).
         if (!user) {
             return NextResponse.json({ error: "Usuario o contraseña incorrectos" }, { status: 401 });
+        }
+
+        // Repartidor desactivado por el admin (Repartidores > Estado). Se avisa
+        // solo DESPUES de comprobar la contraseña, asi no se le revela a un
+        // extraño que la cuenta existe.
+        if (repartidorDesactivado(user)) {
+            return NextResponse.json(
+                { error: "Tu cuenta de repartidor está desactivada. Habla con el administrador." },
+                { status: 403 }
+            );
         }
 
         // Firmar sesión y emitir una cookie HttpOnly.

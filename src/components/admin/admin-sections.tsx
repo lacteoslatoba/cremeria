@@ -714,6 +714,7 @@ export function AdminDrivers({ drivers }: { drivers: (DbUser & { _count?: { deli
                     phone: d.phone,
                     locationUpdatedAt: d.locationUpdatedAt ? d.locationUpdatedAt.toISOString() : null,
                     deliveryCount: d._count?.deliveryOrders ?? 0,
+                    activo: d.activo,
                 }))}
             />
         </div>

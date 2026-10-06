@@ -2,6 +2,7 @@
 
 import { Bike } from "lucide-react";
 import { DriverActions } from "@/components/admin/driver-actions";
+import { DriverEstadoToggle } from "@/components/admin/driver-estado-toggle";
 
 function isRecentlyOnline(updatedAt: string | null) {
     if (!updatedAt) return false;
@@ -15,6 +16,7 @@ export type DriverRow = {
     phone: string | null;
     locationUpdatedAt: string | null;
     deliveryCount: number;
+    activo: boolean;
 };
 
 export function AdminDriversTable({ drivers }: { drivers: DriverRow[] }) {
@@ -64,11 +66,12 @@ export function AdminDriversTable({ drivers }: { drivers: DriverRow[] }) {
                                         {d.locationUpdatedAt
                                             ? new Date(d.locationUpdatedAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
                                             : "—"}
+                                        {/* "En linea" ya no es el Estado (ese lo decide el admin):
+                                            queda aqui como dato, junto a la ultima ubicacion. */}
+                                        {online && <div className="text-[11px] font-bold text-green-600 mt-0.5">en línea</div>}
                                     </td>
                                     <td className="px-4 md:px-6 py-4 text-center">
-                                        <span className={`inline-block px-3 py-1.5 text-xs font-bold rounded-lg ${online ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                                            {online ? "EN LÍNEA" : "DESCONECTADO"}
-                                        </span>
+                                        <DriverEstadoToggle driverId={d.id} nombre={d.name} activo={d.activo} />
                                     </td>
                                     <td className="px-4 md:px-6 py-4">
                                         <DriverActions driver={{ id: d.id, name: d.name, username: d.username, phone: d.phone }} />

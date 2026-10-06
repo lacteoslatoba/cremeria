@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { repartidorDesactivado } from "@/lib/validators";
 
 const COOKIE_NAME = "cremeria_session";
 const INSECURE_FALLBACK = "dev-insecure-secret-change-me";
@@ -89,9 +90,12 @@ export async function loadAuthUser(session: SessionUser | null) {
     try {
         const user = await prisma.user.findUnique({
             where: { id: session.id },
-            select: { id: true, role: true },
+            select: { id: true, role: true, activo: true },
         });
         if (!user) return null;
+        // Repartidor desactivado por el admin: su sesion deja de valer al
+        // instante (no hay que esperar a que venza la cookie de 7 dias).
+        if (repartidorDesactivado(user)) return null;
         // Confiamos en el rol de la BD, no en el token, para no permitir escalaciones.
         return { id: user.id, role: user.role };
     } catch {

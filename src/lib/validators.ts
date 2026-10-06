@@ -91,3 +91,12 @@ export function parseProduct(body: Record<string, unknown>): ProductInput {
         status: (oneOf(PRODUCT_STATUSES, body.status, "status") ?? "ACTIVE") as ProductInput["status"],
     };
 }
+
+/**
+ * Repartidor que el admin dejo en "Desactivado" (Repartidores > Estado): no
+ * puede iniciar sesion ni usar el portal. Solo aplica al rol DELIVERY -- un
+ * cliente o un admin nunca quedan bloqueados por este campo.
+ */
+export function repartidorDesactivado(user: { role: string; activo: boolean }): boolean {
+    return user.role === "DELIVERY" && !user.activo;
+}

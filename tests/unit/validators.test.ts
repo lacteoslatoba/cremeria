@@ -14,6 +14,7 @@ import {
     dentroDeLimite,
     identificadorValido,
     parseProduct,
+    repartidorDesactivado,
 } from "../../src/lib/validators";
 
 test("dentroDeLimite acepta lo normal y corta lo absurdo", () => {
@@ -56,4 +57,12 @@ test("parseProduct rechaza precio negativo, con demasiados decimales o stock no 
 test("parseProduct exige nombre y categoria", () => {
     assert.throws(() => parseProduct({ category: "X", price: 1, stock: 1 }), /nombre del producto/);
     assert.throws(() => parseProduct({ name: "X", price: 1, stock: 1 }), /categoría/);
+});
+
+test("repartidorDesactivado solo bloquea a repartidores que el admin desactivo", () => {
+    assert.equal(repartidorDesactivado({ role: "DELIVERY", activo: false }), true);
+    assert.equal(repartidorDesactivado({ role: "DELIVERY", activo: true }), false);
+    // El campo no debe poder dejar fuera a un cliente ni, sobre todo, al admin.
+    assert.equal(repartidorDesactivado({ role: "CUSTOMER", activo: false }), false);
+    assert.equal(repartidorDesactivado({ role: "ADMIN", activo: false }), false);
 });

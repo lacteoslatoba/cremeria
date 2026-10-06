@@ -77,6 +77,36 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 }
 
+// PATCH solo ADMIN: activa o desactiva a un repartidor. Va aparte del PUT
+// porque ese reescribe nombre/correo/telefono, y aqui solo se mueve el estado.
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const auth = await requireAuth(request, ["ADMIN"]);
+    if (!auth.user) return auth.response;
+
+    try {
+        const { id } = await params;
+        const body = await request.json();
+        if (typeof body.activo !== "boolean") {
+            return NextResponse.json({ error: "Falta indicar si el repartidor queda activo o desactivado" }, { status: 400 });
+        }
+
+        // Solo repartidores: updateMany con el rol en el where evita que este
+        // endpoint sirva para desactivar a un cliente o a otro admin.
+        const { count } = await prisma.user.updateMany({
+            where: { id, role: "DELIVERY" },
+            // Al desactivarlo deja de contar como "en linea".
+            data: { activo: body.activo, ...(body.activo ? {} : { isOnline: false }) },
+        });
+        if (count === 0) return NextResponse.json({ error: "Repartidor no encontrado" }, { status: 404 });
+
+        revalidatePath("/admin");
+        return NextResponse.json({ ok: true, id, activo: body.activo });
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json({ error: "No se pudo cambiar el estado del repartidor" }, { status: 500 });
+    }
+}
+
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
     const auth = await requireAuth(request, ["ADMIN"]);
     if (!auth.user) return auth.response;

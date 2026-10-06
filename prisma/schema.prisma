@@ -31,6 +31,10 @@ model User {
   currentLng  Float?
   locationUpdatedAt DateTime?
   isOnline    Boolean  @default(false)
+  // Lo decide el ADMIN desde Repartidores (Activo / Desactivado). Un
+  // repartidor desactivado no puede iniciar sesion ni usar el portal; su
+  // cuenta y su historial de entregas se conservan. Solo aplica a DELIVERY.
+  activo      Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
