@@ -38,3 +38,15 @@ Pasos cuando la cuenta ya sea pagada:
 
 NO se probo el camino prendido de punta a punta: gasta un SMS y el dev apunta a la base de
 produccion.
+
+### 2026-10-05 (tarde) — nota de Claude Code: Twilio ya es pagado, probado en local, falta Vercel
+
+- Twilio por la API: `type: Full`, saldo 20.00 USD (el usuario pago hoy). Criterio de esta tarea cumplido.
+- Prueba real en local con la variable prendida en el proceso del dev server: registro con el
+  numero terminado en 4210 -> `POST /api/auth/register 200`, `POST /api/auth/register/verify 201`,
+  SMS `delivered` en Twilio. SMS de codigo de entrega (notifyDeliveryCode) al mismo numero: `sent`.
+- Con el visto bueno del usuario se hizo `git push origin main` (341d679..2bcbdb2).
+- PENDIENTE DEL USUARIO: agregar `REGISTRO_VERIFICAR_TELEFONO=sms` en Vercel (Production) y
+  redesplegar. El agente no pudo: el clasificador de permisos nego `vercel env add` y tambien
+  consultar el estado del deploy, asi que el deploy del push NO esta verificado.
+- Despues: probar un registro en cremeriadelrancho.com con un numero nuevo.
