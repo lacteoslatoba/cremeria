@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DriverInstall } from "@/components/driver-install";
 
 // Igual que /admin (ver admin/layout.tsx): app instalable aparte, con su
 // propio scope "/driver" -- 3 apps independientes (Cliente/Repartidor/
@@ -19,5 +20,10 @@ export const metadata: Metadata = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-    return <>{children}</>;
+    return (
+        <>
+            {children}
+            <DriverInstall />
+        </>
+    );
 }
