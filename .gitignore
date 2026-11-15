@@ -76,6 +76,15 @@ cel_capture.png
 _*.mjs
 _*.err
 _*.out
+# ...y sus hermanos: scripts de un solo uso con tsx (_tmp-*.mts), dumps de UI
+# (_*.xml) y salidas de shell (_*.ps1/_*.sh/_*.txt). Sin estos patrones,
+# `git status` se llena de basura y `npm run check` lintea 140 restos en vez
+# del cambio real (los archivos no se borran, solo dejan de aparecer).
+_*.mts
+_*.xml
+_*.ps1
+_*.sh
+_*.txt
 
 # estado local del vigilante de agentes (cada maquina lleva el suyo)
 docs/verifications/.ultimo-verificado
