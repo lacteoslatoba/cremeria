@@ -7,9 +7,11 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  // NOTA DEBUG LOCAL: cambiado temporalmente de "postgresql" a "sqlite"
+  // para poder levantar el proyecto sin credenciales de Supabase. Revertir
+  // a "postgresql" antes de hacer deploy/commit.
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model User {

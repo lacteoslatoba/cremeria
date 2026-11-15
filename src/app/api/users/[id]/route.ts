@@ -24,7 +24,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         // Normalizado igual que en registro/login (trim + minúsculas) --
         // si no, "Juan@x.com" y "juan@x.com" se tratan como distintos y se
         // cuela un duplicado que el registro sí habría rechazado.
-        const cleanEmail = body.email ? String(body.email).trim().toLowerCase() : null;
+        // `undefined` cuando el campo ni siquiera vino en el body (Prisma no
+        // lo toca, se conserva el valor actual) -- antes se mandaba `null`
+        // en ese caso igual que si se hubiera limpiado a propósito, así que
+        // cualquier PUT parcial (sin email/phone en el body) borraba esos
+        // datos en silencio.
+        const cleanEmail = body.email !== undefined
+            ? (body.email ? String(body.email).trim().toLowerCase() : null)
+            : undefined;
 
         // Check if another user already has this email
         if (cleanEmail) {
@@ -43,7 +50,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             data: {
                 name: body.name,
                 email: cleanEmail,
-                phone: body.phone ?? null,
+                phone: body.phone !== undefined ? (body.phone || null) : undefined,
                 ...(safeRole ? { role: safeRole } : {}),
             },
             select: SAFE_FIELDS,
