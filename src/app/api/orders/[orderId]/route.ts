@@ -128,11 +128,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
         // muestra si aún no está COMPLETED/CANCELLED.
         const session = await readSession(request);
         const isOwner = order.userId && session?.id === order.userId;
-        // Para invitados (sin sesión) mostramos el código mientras el pedido esté
-        // en curso, para que el cliente pueda dárselo al repartidor.
+        // Solo es "pedido de invitado" cuando NO tiene dueño -- antes esta
+        // rama se activaba con solo omitir la cookie de sesión en la
+        // request (trivial para cualquiera), exponiendo el código de
+        // entrega de pedidos de usuarios registrados a quien fuera sin
+        // autenticarse. Para invitados (sin sesión) mostramos el código
+        // mientras el pedido esté en curso, para que el cliente pueda
+        // dárselo al repartidor.
+        const isGuestOrder = !order.userId;
         const orderActive = !["COMPLETED", "CANCELLED"].includes(order.status);
         const shouldHideCode =
             (session && !isOwner) // sesión de otro usuario (admin/repartidor/cliente ajeno)
+            || (!isOwner && !isGuestOrder) // sin sesión pidiendo un pedido que sí tiene dueño
             || (order.paymentStatus !== "APPROVED") // aún no pagado
             || !orderActive; // ya entregado o cancelado
 
